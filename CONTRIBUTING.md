@@ -6,6 +6,12 @@ This repository contains M0/Foundation documentation. There is no application to
 
 Later implementation is separately scoped. Do not add runtime scaffolding, dependencies, scanner code, or release automation as an incidental documentation change.
 
+## Project naming: design decision
+
+Use **Workspace Surveyor for Codex** on first mention and **Workspace Surveyor** within an established context. "For Codex" describes compatibility, not an official OpenAI component. Use the independent-community disclaimer from the [README](README.md) in future package, GUI, and plugin descriptions.
+
+The repository/future npm name is `codex-workspace-surveyor`; the future executable is `codex-surveyor`. Existing clones may intentionally retain the local folder name `codex-workspace-doctor`. Work in the existing clone; do not rename a folder or reassign a Codex Local Project or Thread merely to match the remote name. Historical research and founding ADRs retain earlier names. See [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md) for the naming table, future M1 invocation, and migration boundaries. No npm command exists yet.
+
 ## Safe contributions
 
 Use invented examples rather than redacted exports of real state. Redaction can miss identifying strings in nested fields, error messages, screenshots, and binary files. Do not upload databases, sessions, prompts, conversation titles, real identifiers, personal paths, screenshots, or private audit reports.

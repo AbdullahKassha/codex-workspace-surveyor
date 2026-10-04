@@ -20,9 +20,9 @@ Ignore patterns provide defense in depth. They do not block force-added files, e
 
 The intended process is **observe → reconcile evidence → explain → guide a supported action → re-observe**.
 
-Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. This prohibition is unconditional; any reversal requires an explicit superseding decision/ADR. Do not repair, checkpoint, vacuum, rewrite, or delete source state. See [ADR 0001](decisions/0001-observation-and-action-boundary.md).
+Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. This prohibition is unconditional; any reversal requires an explicit superseding decision/ADR. Do not repair, checkpoint, vacuum, rewrite, or delete source state. See [ADR 0001](decisions/0001-observation-and-action-boundary.md).
 
-Supported actions are preferred for user workflows, but a method name or documented API does not prove an operation has no side effects. Changes made by Codex through its supported mechanisms are distinct from direct mutation by Workspace Doctor. Supported workflows do not waive the prohibition. See [DOC-001](research/evidence-catalog.md#doc-001-app-server-listing-side-effects).
+Supported actions are preferred for user workflows, but a method name or documented API does not prove an operation has no side effects. Changes made by Codex through its supported mechanisms are distinct from direct mutation by Workspace Surveyor. Supported workflows do not waive the prohibition. See [DOC-001](research/evidence-catalog.md#doc-001-app-server-listing-side-effects).
 
 The first CLI has no cleanup/migration executor. Manual guides do not launch commands, open/delete worktrees, alter assignment, or send turns automatically. Future action capabilities require separate scope, authorization, preconditions, failure handling, and verification.
 
@@ -36,7 +36,7 @@ No atomic cross-source snapshot is promised. Distinguish a quiescent acquisition
 
 Driver behavior, permissions, WAL handling, recovery boundaries, resource limits, and no-source-write guarantees require testing before implementation is accepted. Analyze isolated copies; do not load arbitrary SQLite extensions or source-supplied executable logic. Never repair the source to make it readable.
 
-Scratch cleanup must be confined to verified Doctor-owned storage. Interrupted runs may leave private copies; report this without silently removing unrelated directories. Do not promise secure erasure. M0 neither creates copies nor tests acquisition against private data.
+Scratch cleanup must be confined to verified Workspace Surveyor-owned storage. Interrupted runs may leave private copies; report this without silently removing unrelated directories. Do not promise secure erasure. M0 neither creates copies nor tests acquisition against private data.
 
 Optional Git discovery must use bounded read operations, fixed arguments, and timeouts. No prune, repair, remove, checkout, filesystem deletion, or repository-script execution is part of diagnosis. Worktree ownership must be established separately from path location.
 

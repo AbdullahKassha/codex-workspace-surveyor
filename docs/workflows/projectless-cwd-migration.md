@@ -18,14 +18,14 @@ The directory move itself needs its own reviewed procedure. This guide does not 
 
 ## Manual sequence: design guidance derived from experiments
 
-1. **Capture the before state.** Record assignment, copied working directory, filesystem location, and any separately authorized stored-CWD evidence. Record unknowns and coverage. Until an audit exists, use explicitly authorized manual observations; do not invent a Doctor CLI command.
+1. **Capture the before state.** Record assignment, copied working directory, filesystem location, and any separately authorized stored-CWD evidence. Record unknowns and coverage. Until an audit exists, use explicitly authorized manual observations; do not invent a Workspace Surveyor CLI command.
 2. **Establish the destination.** Perform only the separately approved filesystem operation, or verify the already moved folder. Ensure the destination is the intended source content. If the old CWD is missing, the recorded fallback risk applies before another turn is sent.
 3. **Open the destination as a Local Project.** Use the supported folder-opening/trust UI available on the target build. Stop if its root differs from the intended destination.
 4. **Assign the existing thread.** Use its supported Project action. In WIN-016 it was found in the Recents/list view's thread context menu and was not visible in the in-thread menu used; this route is build/UI-specific. Keep assignment evidence separate from CWD evidence; copied CWD may still show the previous/fallback path at this stage. An immediate copied-CWD check does not establish SQLite's value at that moment.
 5. **Run a separately approved verification turn.** Limit it to checking runtime location first and, only if correct, reading an agreed harmless marker at the destination. It changes Codex state and may execute tools. If runtime location is wrong, stop; do not search broadly or keep retrying turns.
 6. **Verify persistence.** Compare runtime CWD, Copy working directory, project root, assignment, and separately authorized stored-CWD evidence. Agreement must be observed, not inferred from successful assignment or marker content alone.
 7. **Optionally remove the temporary project.** Only after successful verification and explicit intent, use supported UI removal. In the probe the thread remained projectless with destination CWD; confirm this rather than assuming it on the target build.
-8. **Re-audit.** Check the thread, relevant consumers, directory state, and remaining references. Record failures, partial coverage, or unexpected replacements. Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR.
+8. **Re-audit.** Check the thread, relevant consumers, directory state, and remaining references. Record failures, partial coverage, or unexpected replacements. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR.
 
 ## Stopping conditions
 

@@ -1,5 +1,22 @@
 # Product definition
 
+## Identity and capability names: design decision
+
+**Workspace Surveyor for Codex** is the product name; **Workspace Surveyor** is the contextual short name. "For Codex" describes compatibility. The independent-community disclaimer and technical surface names are recorded in [ADR 0006](decisions/0006-project-naming-and-cli-surface.md).
+
+| Capability | Display name |
+| --- | --- |
+| Relationship mapping | Workspace Topology |
+| Boundary explanation | Project Boundary Diagnostics |
+| Instruction discovery explanation | Instruction Discovery Scope |
+| Evidence tracking | Evidence & Compatibility |
+| Organization advice | Organization Guidance |
+| Migration advice | Migration Guidance |
+| Before/after inspection | Before/After Audits |
+| Visual browsing | Workspace Explorer |
+
+These are descriptive names, not runtime modules, schemas, APIs, subcommands, or implementation authorization. Boundary diagnostics remains beyond M1; real Git/worktree and instruction discovery remain subject to later research and implementation gates.
+
 ## Problem: founder-observed evidence
 
 Local Codex organization is difficult because project identity, chat identity, directory location, and historical metadata can change independently. [WIN-001 through WIN-017](research/windows-2026-10-04.md) document Windows examples: projectless chats with real CWDs, shared directories, different project ID namespaces, lingering internal records, and external renames that left stored CWDs unchanged.
@@ -32,7 +49,7 @@ Exclude automatic fixes, file moves, database editing, deletion, transcript anal
 
 ## Project Boundary Diagnostics: future design scope
 
-This first-class capability is deferred beyond M1 and requires separate later research and implementation authorization. It must not block the initial synthetic CLI foundation. [WIN-018–WIN-020](research/project-boundary-observations.md) form a separate founder-observed Windows research group, with historically uncertain versions and no independent Workspace Doctor reproduction. Independently reviewed official sources are [DOC-005 and DOC-006](research/evidence-catalog.md#doc-005-configurable-project-root-markers).
+This first-class capability is deferred beyond M1 and requires separate later research and implementation authorization. It must not block the initial synthetic CLI foundation. [WIN-018–WIN-020](research/project-boundary-observations.md) form a separate founder-observed Windows research group, with historically uncertain versions and no independent Workspace Surveyor reproduction. Independently reviewed official sources are [DOC-005 and DOC-006](research/evidence-catalog.md#doc-005-configurable-project-root-markers).
 
 The capability should answer:
 

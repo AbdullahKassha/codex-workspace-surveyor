@@ -6,6 +6,8 @@ M0/Foundation documentation and repository hygiene are authorized. Work within t
 
 Permitted M0 changes: README, this file, contribution/security guidance, documentation, research records, founding ADRs, roadmap, and appropriate text/hygiene configuration.
 
+The accepted product name is **Workspace Surveyor for Codex**, with **Workspace Surveyor** as the contextual short name. Follow [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md) for technical names and the future synthetic CLI surface. Naming decisions do not authorize M1, publication, local-path changes, Local Project reassignment, or Thread/CWD migration. Preserve legacy names in historical observations and founding ADR wording.
+
 Do not create scanner/CLI code, acquisition code, reconciliation or rules engines, Git discovery, visual UI, public APIs, package manifests, lockfiles, executable scripts, test frameworks, empty source scaffolding, generated schemas, plugin systems, or release workflows. Do not initialize packages or install dependencies.
 
 ## Private data and actions
@@ -15,7 +17,7 @@ Do not create scanner/CLI code, acquisition code, reconciliation or rules engine
 - Use the founder's supplied observations, official documentation, and invented examples only. Replace personal identifying details in supplied material.
 - Never create repository copies of real paths, OS usernames, thread/project IDs, conversation titles, prompt text, screenshots, databases, sessions, or audit reports.
 - Generic filenames, field names, environment-variable names, and placeholder paths are technical vocabulary, not private data. Label examples as synthetic.
-- Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR; see [ADR 0001](docs/decisions/0001-observation-and-action-boundary.md).
+- Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR; see [ADR 0001](docs/decisions/0001-observation-and-action-boundary.md).
 - Do not clean directories, move worktrees, delete records, or send verification turns during M0.
 - Do not commit, publish, push, change repository visibility, or perform cleanup without separate authorization.
 - Do not use a supported API merely because its name sounds read-only; investigate documented and observed side effects first.

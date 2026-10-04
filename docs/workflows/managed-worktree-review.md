@@ -6,7 +6,7 @@
 
 **Official documentation:** [DOC-002](../research/evidence-catalog.md#doc-002-worktree-roots-and-lifecycle) supplies separate root/lifecycle context, not reproduction of the founder's experiment.
 
-**Design decision:** prefer the owning application's supported lifecycle. This page is manual guidance, not an authorized cleanup action or functioning Doctor command. M0 does not inspect worktrees, execute Git discovery, or remove anything.
+**Design decision:** prefer the owning application's supported lifecycle. This page is manual guidance, not an authorized cleanup action or functioning Workspace Surveyor command. M0 does not inspect worktrees, execute Git discovery, or remove anything.
 
 ## Review before action: design requirements
 

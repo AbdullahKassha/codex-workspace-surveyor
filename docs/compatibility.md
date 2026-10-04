@@ -6,6 +6,8 @@ M0 is documentation-only. No Codex build, source schema, runtime, or operating s
 
 Schema compatibility, behavioral applicability, and platform/runtime support are separate. A familiar filename or parseable schema does not establish lifecycle behavior.
 
+**Naming applicability, 2026-10-04 (design decision):** [ADR 0006](decisions/0006-project-naming-and-cli-surface.md) changes the current product name to Workspace Surveyor for Codex. Legacy names remain in historical observations and founding ADRs. This is not a new behavioral experiment, support claim, or rule retirement: B0/B1 applicability, version gaps, and all safety/migration requirements remain unchanged. Local folder, Local Project, and Thread/CWD migration are deferred.
+
 <a id="baseline-context-b0"></a>
 ## Baseline context B0
 
@@ -57,7 +59,7 @@ The row-specific source context refines B0. All rows retain B0's date, platform,
 <a id="boundary-context-b1"></a>
 ## Separate boundary-research context B1
 
-**Category:** founder-observed Windows evidence from the [article-derived boundary record](research/project-boundary-observations.md), not independently reproduced by Workspace Doctor. The original 2026-10-04 baseline remains 17 observations; these three records form a separate research group.
+**Category:** founder-observed Windows evidence from the [article-derived boundary record](research/project-boundary-observations.md), not independently reproduced by Workspace Surveyor. The original 2026-10-04 baseline remains 17 observations; these three records form a separate research group.
 
 | Field | B1 value |
 | --- | --- |
@@ -131,6 +133,6 @@ Use the [documentation-only revalidation template](research/compatibility-revali
 
 Before changing a rule, distinguish schema drift from behavioral change. Additive fields may be ignorable after review; missing required fields, incompatible types, or unknown source values disable dependent interpretations. A known schema on an untested release is not behavioral certification.
 
-Retirement means stopping an obsolete rule/guidance for a documented applicability range, recording the reason and replacement, and retaining its history. A Codex fix may retire the fallback warning while path accessibility checks remain useful. Safety/privacy design decisions are not automatically retired by a product fix. Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR.
+Retirement means stopping an obsolete rule/guidance for a documented applicability range, recording the reason and replacement, and retaining its history. A Codex fix may retire the fallback warning while path accessibility checks remain useful. Safety/privacy design decisions are not automatically retired by a product fix. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR.
 
 See [evidence catalog](research/evidence-catalog.md) and [research gates](research/open-questions.md).

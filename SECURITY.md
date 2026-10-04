@@ -16,6 +16,6 @@ For accidental disclosure, report the affected location without repeating the da
 
 ## Design boundary
 
-The future tool is local-first, with no user-data telemetry or uploads by default. Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. Supported operations require side-effect assessment and re-observation.
+The future tool is local-first, with no user-data telemetry or uploads by default. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. Supported operations require side-effect assessment and re-observation.
 
 See [safety and privacy](docs/safety-and-privacy.md) for the intended boundary and [roadmap](docs/roadmap.md) for implementation gates.

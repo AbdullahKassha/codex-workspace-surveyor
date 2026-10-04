@@ -1,8 +1,12 @@
-# Codex Workspace Doctor
+# Workspace Surveyor for Codex
 
 Understand the relationships between local Codex projects, chats, working directories, repositories, worktrees, and historical state before changing anything.
 
-**Status: M0/Foundation documentation only.** There is no functioning scanner, CLI, visual report, installable package, or supported audit capability yet. The repository is in private bootstrap; a license has not been selected and no open-source release is being claimed. This is an independent community project.
+**Status: M0/Foundation documentation only.** There is no functioning scanner, CLI, visual report, installable package, or supported audit capability yet. The repository is in private bootstrap; a license has not been selected and no open-source release is being claimed.
+
+Workspace Surveyor for Codex is an independent community project for understanding and organizing Codex workspace relationships. It is not an official OpenAI product and is not affiliated with, endorsed by, or sponsored by OpenAI.
+
+**Naming decision:** Workspace Surveyor is the primary identity; "for Codex" describes compatibility. The chosen repository/future npm name is `codex-workspace-surveyor`, and the future executable is `codex-surveyor`. These names do not imply an available package or command. Existing local folders may retain `codex-workspace-doctor`; no folder or Codex Local Project migration is required. See [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md).
 
 ## Why this project exists
 
@@ -32,7 +36,7 @@ See the [product definition](docs/product.md), [conceptual architecture](docs/ar
 
 M0 uses supplied observations, official documentation, and synthetic examples. It does not read private Codex state. Any future research involving real state requires specific authorization.
 
-The planned product observes Codex-owned state and guides supported actions. Workspace Doctor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. No automatic cleanup or migration is planned for the first CLI release.
+The planned product observes Codex-owned state and guides supported actions. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. No automatic cleanup or migration is planned for the first CLI release.
 
 Repository examples must be synthetic. Do not contribute real paths, identifiers, conversation titles, screenshots, databases, sessions, or private reports. See [safety and privacy](docs/safety-and-privacy.md), [contributing](CONTRIBUTING.md), and [security reporting](SECURITY.md).
 

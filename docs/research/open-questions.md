@@ -39,7 +39,7 @@ Can isolated acquisition preserve committed WAL state and reject instability wit
 <a id="q-07"></a>
 ## Q-07: Private scratch storage
 
-Can owner-restricted storage and verified Doctor-only cleanup be established on supported Windows environments? Test only disposable Doctor-owned synthetic storage when authorized. Expected outcome: permission verification, failure behavior, interruption/residual reporting, and cleanup containment. Do not promise secure erasure.
+Can owner-restricted storage and verified Workspace Surveyor-only cleanup be established on supported Windows environments? Test only disposable Workspace Surveyor-owned synthetic storage when authorized. Expected outcome: permission verification, failure behavior, interruption/residual reporting, and cleanup containment. Do not promise secure erasure.
 
 <a id="q-08"></a>
 ## Q-08: Effective state and worktree locations

@@ -28,6 +28,8 @@ Project Boundary Diagnostics does not expand M1's implementation scope. M1 also 
 
 Acceptance: a synthetic example explains shared CWDs, differing ID namespaces, unknown membership, and missing-path uncertainty. Counterexamples prevent false corruption labels. No excluded discovery, adapter, startup, personal-state read, or private acquisition is performed.
 
+The accepted future development surface is `npm run cli -- demo`, with `overview` (the default), `disagreement`, and `coverage` scenarios. [ADR 0006](decisions/0006-project-naming-and-cli-surface.md#m1-development-surface-design-decision) defines synthetic labeling, help/error behavior, and verification criteria. This is a documentation decision only: no manifest, script, installed binary, or implementation exists yet, and M1 still requires separate approval.
+
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
 

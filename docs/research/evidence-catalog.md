@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Founder-observed experiment | A result reported by the founder from an actual experiment | Observation ID, date/environment, missing context, result, limits |
 | Official documentation | A claim established by a reviewed official source | Source ID, URL, access date, surface, claim, limitations |
-| Design decision | An intentional Workspace Doctor policy | Decision/ADR reference and reason; not a Codex guarantee |
+| Design decision | An intentional Workspace Surveyor policy | Decision/ADR reference and reason; not a Codex guarantee |
 | Assumption | Provisional premise needed to progress | Assumption ID and consequence if false |
 | Unknown | Unestablished fact or unresolved choice | Research question, permission requirements, and expected outcome |
 
@@ -46,7 +46,7 @@ The [compatibility matrix](../compatibility.md) links each observation to a prop
 
 ## Separate founder boundary-research group B1: WIN-018–WIN-020
 
-Source: [founder's article](https://kassha.xyz/blog/git-metadata-vs-codex-project-boundary/), published 2026-08-22; reviewed 2026-10-04. This group is founder-observed Windows evidence, historically version-uncertain and not independently reproduced by Workspace Doctor. It does not change the original 17-observation baseline or inherit B0's database/schema context. Detailed dates, methods, limits, and synthetic reconstruction are in the [boundary record](project-boundary-observations.md) and [B1 matrix](../compatibility.md#boundary-context-b1).
+Source: [founder's article](https://kassha.xyz/blog/git-metadata-vs-codex-project-boundary/), published 2026-08-22; reviewed 2026-10-04. This group is founder-observed Windows evidence, historically version-uncertain and not independently reproduced by Workspace Surveyor. It does not change the original 17-observation baseline or inherit B0's database/schema context. Detailed dates, methods, limits, and synthetic reconstruction are in the [boundary record](project-boundary-observations.md) and [B1 matrix](../compatibility.md#boundary-context-b1).
 
 | ID | Founder-reported subject | Detailed record |
 | --- | --- | --- |
@@ -108,6 +108,14 @@ These are separate from B0 and B1. Each page was reviewed on **2026-10-04**. Pub
 - Documented caveats: an instruction file may be empty; empty files are skipped. Instruction selection/inclusion is subject to the documented combined size limit, configured through `project_doc_max_bytes`.
 - Official-documentation-derived limitation: ancestry and file presence alone do not prove selection, loading, or following. Documentation does not establish a particular file's eligibility or compliance in a local run; trust/context and historical-build applicability require validation. These limits are official-source evidence, not founder observations.
 - Design implication: preserve these evidence distinctions and exclusion reasons; do not emulate the instruction loader or read instruction contents in M1.
+
+### DOC-007: GitHub repository renaming
+
+- Source: [Official GitHub repository rename guidance](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository), reviewed 2026-10-04.
+- Surface: GitHub repository settings and Git remote configuration; not Codex state.
+- Documented claim: repository renames redirect existing repository traffic and Git operations, with documented exceptions such as project-site URLs and hosted actions. GitHub recommends updating existing clone remotes. Reusing the original repository name breaks redirects.
+- Limit: this does not establish local-directory renaming, Codex Local Project reassignment, or Thread/CWD migration behavior.
+- Design implication: rename the existing repository in place, update the remote, retain the local workspace, and verify identity/history under [ADR 0006](../decisions/0006-project-naming-and-cli-surface.md).
 
 ## Recording future evidence: design decision
 
