@@ -4,6 +4,8 @@
 
 M0 was documentation-only. M1 implements bundled synthetic CLI explanations, with no real audit capability. No Codex build, source schema, runtime, or operating system is certified for auditing. Windows-native is the first intended real-data target. macOS, WSL, remote hosts, and live-state acquisition remain unvalidated.
 
+M2a.1 adds a test-only synthetic acquisition kernel under [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md). Native acquisition refuses; successful fixture tests explicitly simulate protection. No real source or Codex behavior has been validated by this addition.
+
 Schema compatibility, behavioral applicability, and platform/runtime support are separate. A familiar filename or parseable schema does not establish lifecycle behavior.
 
 ## M1 synthetic implementation validation
@@ -21,6 +23,19 @@ The three bundled scenarios cover shared reported CWD strings, separate/ambiguou
 All B0/B1 applicability and retirement decisions below remain unchanged. Real schema coverage, path aliases/physical identity, classification, current Codex behavior, acquisition safety, and user comprehension remain unknown. Boundary diagnostics remain beyond M1.
 
 **Naming applicability, 2026-10-04 (design decision):** [ADR 0006](decisions/0006-project-naming-and-cli-surface.md) changes the current product name to Workspace Surveyor for Codex. Legacy names remain in historical observations and founding ADRs. This is not a new behavioral experiment, support claim, or rule retirement: B0/B1 applicability, version gaps, and all safety/migration requirements remain unchanged. Local folder, Local Project, and Thread/CWD migration are deferred.
+
+<a id="m2a1-synthetic-kernel-validation"></a>
+## M2a.1 synthetic kernel validation
+
+**Design decision / synthetic implementation validation — 2026-10-04:** Node 24.18.1, npm 11.16.0, embedded SQLite 3.53.1, TypeScript 7.0.2 and Node typings 24.19.1 were used on Windows. Embedded SQLite was measured using an in-memory database. Windows build/filesystem type, Codex app/agent versions and real schemas remain unknown; these measurements do not backfill B0/B1.
+
+**Completed M2a.1 validation — 2026-10-04:** typecheck, build and **41/41 tests passed**, including the original 22 M1 tests and 19 synthetic kernel tests. The existing three CLI text goldens remain unchanged. Documentation review checked 249 relative links/anchors across 29 documents and all 20 WIN anchors, with no failures. Changed-file privacy/scope review and whitespace checks passed. Package, lockfile, CLI runtime sources, historical ADR 0001/0007 and both founder investigation records were unchanged. No dependencies were installed and no private-state reads, helpers, disposable Codex experiments, commits or publication occurred. Stop at M2a.1; later gates remain unauthorized.
+
+**M2a.1 review corrections — 2026-10-04:** the four founder-supplied independent-review findings were addressed within the synthetic kernel: sanitized initialization/residual handling, authenticated cleanup retry after deletion-phase failures, an analysis-only WAL-dependence counterexample and canary checks on exceptions/captured diagnostics. Typecheck, build and **46/46 tests passed** (22 original M1 tests and 24 kernel tests), including five new regressions. Documentation/privacy/scope checks and `git diff --check` passed; the initial 41-test checkpoint remains historical. No fixture design, real-state access, dependency/helper, later-M2 capability, staging, commit or push was introduced by these corrections.
+
+The [synthetic validation record](research/synthetic-acquisition-validation.md) details actual invented-file copying under simulated protection, native refusal, exact-run cleanup, companion/stability checks, privacy canaries and source-write regressions. Hashes and operation-boundary checks do not prove absence of transient writes, verified ACL isolation, writer exclusion or atomic cross-source acquisition. No founder experiment is reproduced or retired.
+
+Later validation, helpers, disposable Codex experiments, real adapters and personal canaries remain separately gated. Approval of the broader roadmap grants no source access.
 
 <a id="baseline-context-b0"></a>
 ## Baseline context B0

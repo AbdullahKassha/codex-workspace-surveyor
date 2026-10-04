@@ -6,6 +6,8 @@
 
 Private reads require specific authorization for target, purpose, data scope, and handling. State-changing experiments need separate authorization for their actions. Historical app/agent versions remain unknown unless contemporaneous evidence establishes them.
 
+**M2a.1 narrowing — 2026-10-04 (design decision):** [ADR 0008](../decisions/0008-synthetic-acquisition-kernel.md) authorizes invented-fixture acquisition tests only. [Synthetic validation](synthetic-acquisition-validation.md) exercises bounded mechanics; native scratch protection refuses. Q-06/Q-07 are not resolved for real state: restrictive Windows ACLs, sharing exclusion and stronger zero-write evidence need separate scoped approval. Q-01–Q-05 and Q-08–Q-22 retain their research boundaries. Node SQLite fixture/analysis use does not select a real adapter or authorize dependencies/helpers.
+
 <a id="q-01"></a>
 ## Q-01: Actual source shapes
 

@@ -2,9 +2,11 @@
 
 ## Current stage
 
-This repository contains M0/Foundation documentation and the M1 synthetic CLI. Contributions within M1 may improve bundled invented scenarios, conservative explanations, tests, evidence traceability, and documentation. Real acquisition and diagnostics remain excluded.
+This repository contains M0/Foundation documentation, the M1 synthetic CLI and the separately authorized M2a.1 synthetic acquisition-safety kernel. Contributions within the current slice may improve invented fixtures, bounded copying/refusal/cleanup tests, conservative explanations, evidence traceability and documentation. Private acquisition and real diagnostics remain excluded.
 
 Later implementation is separately scoped. Do not add acquisition, scanner code, dependencies beyond the approved tooling, or release automation as an incidental change.
+
+The M2a.1 kernel belongs only under `test/support`; the CLI import boundary remains unchanged. `npm test` generates invented fixtures in exact owned temporary runs and cleans them without sweeping other storage. SQLite opens builder and analysis paths only. Native scratch protection refuses, while simulated protection tests carry an explicit synthetic label. Do not replace this refusal with a helper, subprocess or an unverified ACL claim. See [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md).
 
 ## Project naming: design decision
 

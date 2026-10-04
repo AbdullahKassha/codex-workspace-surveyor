@@ -1,6 +1,6 @@
 # Documentation index
 
-**Stage: M1 synthetic CLI foundation.** The CLI explains bundled invented scenarios. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, acquisition implementation, or visual UI exists.
+**Stage: M2a.1 synthetic acquisition-safety kernel; CLI remains the M1 demonstration.** The CLI explains bundled invented scenarios. The test-only kernel handles generated invented fixtures with simulated protection; native acquisition refuses. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
 
 ## Product and design
 
@@ -20,6 +20,7 @@
 - [CWD migration experiment](research/cwd-migration.md): synthetic reconstruction of the causal sequence.
 - [Open questions](research/open-questions.md): investigations, prerequisites, and expected outcomes.
 - [Compatibility revalidation template](research/compatibility-revalidation-template.md): lightweight future comparison and retirement record.
+- [Synthetic acquisition validation](research/synthetic-acquisition-validation.md): M2a.1 mechanics, fault injection and unresolved Windows protection.
 
 ## Decisions
 
@@ -32,6 +33,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0005: CLI first and early visuals](decisions/0005-cli-first-and-early-visual-experience.md).
 - [ADR 0006: project naming and CLI surface](decisions/0006-project-naming-and-cli-surface.md).
 - [ADR 0007: synthetic CLI foundation](decisions/0007-synthetic-cli-foundation.md).
+- [ADR 0008: synthetic acquisition kernel](decisions/0008-synthetic-acquisition-kernel.md).
 
 ## Qualified manual workflows
 

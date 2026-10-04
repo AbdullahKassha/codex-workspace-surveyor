@@ -6,6 +6,8 @@
 
 Generic paths such as `CODEX_HOME` refer to source locations, not personal repository examples. Explicit discovery and acquisition policy will be defined at M2.
 
+**M2a.1 addition — design decision:** the [synthetic kernel](synthetic-acquisition-validation.md) selects only generated invented fixtures under [ADR 0008](../decisions/0008-synthetic-acquisition-kernel.md). It does not discover or acquire any candidate real source below. Native protection remains unverified and refuses copying. Personal source discovery, schemas and field semantics remain unknown and separately authorized.
+
 ## Source assessment
 
 | Candidate | Evidence category and basis | Intended first real-data scope | Unknown / reason for restraint |

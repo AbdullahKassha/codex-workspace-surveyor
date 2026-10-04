@@ -1,12 +1,20 @@
 # Safety and privacy
 
-## Current M1 boundary: design decisions
+## Current M2a.1 boundary: design decisions
 
-The founder authorized the synthetic CLI foundation only. Inputs are bundled invented scenarios and output is text; there is no user-data input path, real Codex read, App Server inspection, filesystem/Git/boundary discovery, AGENTS diagnostics, private acquisition, corrective action, verification turn, or visual UI. Represented paths are strings, never read targets. No local folder, Local Project, Thread assignment, or CWD migration is part of M1. See [ADR 0007](decisions/0007-synthetic-cli-foundation.md).
+The founder separately authorized the narrowed synthetic acquisition kernel, tests, supporting docs and exact current-run synthetic artifact cleanup on 2026-10-04. [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md) records this scope. The kernel exists only under `test/support`; CLI imports and bundled-demo behavior remain unchanged. Real sources and disposable Codex experiments are excluded.
+
+Native scratch protection is unverified and refuses before source copying. Tests explicitly simulate that prerequisite using invented bytes only. Ownership tokens, unique paths, mode flags, before/after hashes and static write-boundary checks do not prove restrictive Windows ACLs, lock exclusion or process-attributed zero writes. No helper/subprocess is authorized. See [validation and limits](research/synthetic-acquisition-validation.md).
+
+Cleanup verifies only this run's fixed synthetic layout and removes files individually; unknown entries, redirection or cleanup failure yield residual status. Do not extend this into a cleanup sweep or private-data recovery tool. No secure erasure or forced-crash recovery is promised. All later research, helpers, real adapters and personal canaries require separate scoped approval.
+
+## Retained M1 CLI boundary: design decisions
+
+M1 authorization covered the synthetic CLI foundation only. Its inputs are bundled invented scenarios and output is text; there is no user-data input path, real Codex read, App Server inspection, filesystem/Git/boundary discovery, AGENTS diagnostics, private acquisition, corrective action, verification turn, or visual UI. Represented paths are strings, never read targets. No local folder, Local Project, Thread assignment, or CWD migration is part of M1. See [ADR 0007](decisions/0007-synthetic-cli-foundation.md).
 
 The runtime imports bundled modules and uses terminal I/O only. Control characters are escaped; usage and internal errors do not echo arbitrary arguments, stacks, or local paths. Developer builds/tests may access their repository and dependencies and launch the synthetic CLI. Import guards are regression checks, not proof of sandbox isolation. Review every changed file; fixture prefixes alone do not establish privacy.
 
-M1 approval covers the private package, development dependencies, synthetic code/tests, and supporting docs. Stop before M2. Private research, commits, pushes, publication, cleanup, and any migration need separate authorization.
+M1 approval covered the private package, development dependencies, synthetic code/tests and supporting docs; it did not authorize M2. The later M2a.1 approval permits only the current synthetic harness and exact-run cleanup described above. Private research, commits, pushes, publication, other cleanup and any migration still need separate authorization.
 
 ## Historical M0 boundary: design decisions
 

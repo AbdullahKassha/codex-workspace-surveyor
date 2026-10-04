@@ -117,6 +117,14 @@ These are separate from B0 and B1. Each page was reviewed on **2026-10-04**. Pub
 - Limit: this does not establish local-directory renaming, Codex Local Project reassignment, or Thread/CWD migration behavior.
 - Design implication: rename the existing repository in place, update the remote, retain the local workspace, and verify identity/history under [ADR 0006](../decisions/0006-project-naming-and-cli-surface.md).
 
+### DOC-008: Node Windows filesystem limitations
+
+- Source: [Node 24.18.1 filesystem documentation](https://nodejs.org/download/release/v24.18.1/docs/api/fs.html), reviewed 2026-10-04.
+- Surface: Windows Node filesystem mode/access checks and documented open flags.
+- Documented claim: Windows mode changes do not implement owner/group/other distinctions; `fs.access()` does not check ACLs. The documented Windows open flags provide no caller-selected deny-write/delete sharing parameter.
+- Limit: this review does not establish local DACLs, effective Codex locations, hostile-race resistance or a zero-write guarantee. It does not prove that no other mechanism could provide stronger protection.
+- Design implication: M2a.1 default acquisition refuses with unverified protection; successful invented-fixture tests explicitly simulate that prerequisite. Helpers require later scoped approval.
+
 ## Recording future evidence: design decision
 
 For a distinct experiment, add an observation with its own ID, date, versions, permissions, sanitized procedure, result, limits, and affected rules. Record whether it reproduces, contradicts, or supersedes earlier evidence. Link it into the compatibility matrix. Retain earlier records unchanged except for clearly identified corrections or navigation fixes.

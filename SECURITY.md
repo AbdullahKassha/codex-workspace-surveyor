@@ -2,7 +2,7 @@
 
 ## Current status
 
-The repository contains an executable M1 synthetic demonstration, with no supported real audit or published release. It accepts only bundled invented scenarios and produces text. Safety and privacy design problems are still relevant, particularly accidental acquisition, disclosure, or advice that exceeds the evidence. No real Codex data is needed to reproduce an M1 issue.
+The repository contains an executable M1 synthetic demonstration and an M2a.1 test-only synthetic acquisition kernel, with no supported real audit or published release. The CLI accepts only bundled invented scenarios and produces text. The kernel accepts only its generated invented fixtures; native scratch protection refuses before copying, and passing tests explicitly simulate that prerequisite. Safety and privacy design problems are still relevant, particularly accidental acquisition, disclosure, or advice that exceeds the evidence. No real Codex data is needed to reproduce an issue.
 
 ## Reporting safely
 

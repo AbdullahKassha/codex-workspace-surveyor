@@ -2,7 +2,7 @@
 
 ## Authorization: design decision
 
-The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0 is complete; the founder separately authorized the M1 synthetic CLI slice on 2026-10-04. Stop at M1 completion. Every later milestone requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
+The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0 and M1 are complete; the founder separately authorized the narrowed M2a.1 synthetic kernel on 2026-10-04. Stop at M2a.1 completion. Every later gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
 Commits, publication, visibility changes, and cleanup require separate authorization. Approval of product direction is not approval for those actions.
 
@@ -35,7 +35,21 @@ Completion requires a fresh dependency install, typecheck, build, semantic/count
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
 
-Separately authorize bounded source research and implementation. Validate schema shapes, source discovery, classification, quiescent acquisition, scratch permissions/WAL handling, and no-source-write behavior before enabling real adapters. Add conservative findings, private snapshots, sanitized reports, diffs, and optional bounded Git/worktree mapping.
+The broader direction is approved in principle. Only M2a.1 implementation is currently authorized. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
+
+| Gate | Scope and exit condition |
+| --- | --- |
+| M2a.1 — synthetic kernel | Invented SQLite/JSON fixtures, explicit selection, bounded raw acquisition, ownership/containment/stability, existing WAL/SHM, analysis separation, conservative refusal, exact synthetic cleanup, privacy/source-write regression tests; stop with limitations recorded |
+| Subsequent M2a validation | Separately approve stronger Windows validation and any required helper/subprocess; no preemptive helper architecture |
+| Disposable Codex validation | Separately approve isolated invented projects/chats and named sources/actions; establish current source locations, schema context and closed-app acquisition evidence |
+| M2b — first real adapter | Separately implement minimum metadata reading using validated evidence; unsupported shapes withhold dependent conclusions |
+| Personal canary | Separate single-run consent naming source files, full-copy exposure, selected fields, scratch, retention and cleanup; review before further access |
+| M2c — conservative audit | Separate real CLI integration with provenance, qualified source coverage and text explanations |
+| Git/worktree mapping | Deferred; a later bounded proposal must assess side effects and ownership limits |
+
+M2a.1 uses only existing dependencies and a test-only harness. Native protection refuses; copying tests explicitly simulate the permission prerequisite. It excludes full-disk exhaustion, forced crashes, real concurrent Codex writers, process tracing, aggressive live replacement races, disposable Codex experiments and personal reads. See [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md) and [validation](research/synthetic-acquisition-validation.md).
+
+Private snapshots, sanitized export formats and diffs remain future work requiring another scoped proposal. They are not acceptance prerequisites for the minimal M2 alpha. No real-state reads, real adapter or audit integration follow automatically from M2a.1 success.
 
 M2 or later may validate real boundary evidence only with separate, specific research and implementation authorization. This optional scope includes bounded marker/policy, qualified Git-root, and instruction-metadata evidence; it does not authorize full private configuration, instruction contents, or arbitrary ancestry scans. No instruction interpreter, Git repair, marker management, or configuration repair is planned.
 

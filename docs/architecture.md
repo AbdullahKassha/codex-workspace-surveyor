@@ -32,6 +32,12 @@ CLI, snapshots, sanitized reports, and early visual explanations
 
 This is a conceptual processing sequence, not a committed interface contract.
 
+## M2a.1 implementation: design decisions
+
+An internal test-only harness under `test/support` constructs invented SQLite/JSON files, selects fixed fixture names, bounds raw source reads/copies, retains before/after measurements, and separates untouched acquisition bytes from SQLite analysis copies. Its wrapper removes exact current-run synthetic artifacts on success and handled refusal, reporting residuals separately. The CLI does not import this harness or accept external inputs.
+
+Default acquisition refuses because native scratch protection is unverified. Explicit simulated protection exercises invented copying mechanics; it is not a permission certification. Node's built-in SQLite is evaluated only for fixture construction and analysis, not adopted as a real adapter. No driver dependency, helper, production architecture or public audit contract is added. See [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md) and [validation](research/synthetic-acquisition-validation.md).
+
 ## Responsibilities: design decisions
 
 Source handling will discover bounded, explicitly selected sources, identify supported shapes, and emit observations and coverage failures. Reconciliation will compare paths and identifiers while preserving unresolved or conflicting claims. Advice will require explicit evidence prerequisites. Presentation will explain evidence and privacy choices without changing the underlying conclusions.

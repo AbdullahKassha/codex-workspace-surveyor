@@ -2,7 +2,7 @@
 
 Understand the relationships between local Codex projects, chats, working directories, repositories, worktrees, and historical state before changing anything.
 
-**Status: M1 synthetic CLI foundation.** A working local CLI explains bundled invented scenarios. It does not inspect Codex, accept external data, or provide a supported real audit. No visual UI or published package exists. The repository remains private bootstrap; a license has not been selected and no open-source release is being claimed.
+**Status: M2a.1 synthetic acquisition-safety kernel; CLI remains the M1 demonstration.** A working local CLI explains bundled invented scenarios. The test-only kernel copies harness-created invented SQLite/JSON fixtures; native scratch protection refuses, and successful copying tests explicitly simulate that prerequisite. It does not inspect Codex, accept external data, or provide a supported real audit. No visual UI or published package exists. The repository remains private bootstrap; a license has not been selected and no open-source release is being claimed.
 
 Workspace Surveyor for Codex is an independent community project for understanding and organizing Codex workspace relationships. It is not an official OpenAI product and is not affiliated with, endorsed by, or sponsored by OpenAI.
 
@@ -29,9 +29,15 @@ Choose `npm run cli -- demo disagreement` or `npm run cli -- demo coverage`; `de
 
 Every report is labeled synthetic. All identities, paths, statuses, and timestamps are invented; represented paths are never inspected. Matching path strings do not establish physical identity. `info`/`warning` describes the explanation; `limited` means a conclusion is bounded by the stipulations, while `unresolved` means the evidence cannot settle the relationship. Neither is numeric confidence. Historical WIN references explain design motivation, not verified behavior on a current Codex build.
 
-Output is text only. There is no file/stdin input, JSON contract, configuration, discovery, acquisition, App Server inspection, Git/boundary or AGENTS diagnostics, actions, or migration. Exit codes are `0` for a successful demonstration (including warnings), `2` for invalid usage, and `1` for an internal failure; they are not workspace health scores. There is no public `bin` declaration or library API.
+Output is text only. The CLI has no file/stdin input, JSON contract, configuration, discovery, acquisition, App Server inspection, Git/boundary or AGENTS diagnostics, actions, or migration. Exit codes are `0` for a successful demonstration (including warnings), `2` for invalid usage, and `1` for an internal failure; they are not workspace health scores. There is no public `bin` declaration or library API.
 
 See [ADR 0007](docs/decisions/0007-synthetic-cli-foundation.md) for the deliberately small implementation and its limits.
+
+## Synthetic acquisition tests
+
+M2a.1 adds a kernel and fixture builder under `test/support`, exercised by `npm test` using existing dependencies. Selection is limited to three generated invented fixtures; there is no external-data input or audit command. Source reads/copies are bounded, WAL/SHM stay together, analysis uses separate copies, and cleanup removes exact current-run synthetic artifacts.
+
+Windows ACL protection and deny-write/delete sharing are not established by Node alone. Default acquisition refuses before copying; successful tests explicitly inject simulated protection. Source-write regression checks and privacy canaries demonstrate bounded synthetic behavior, not readiness to read real Codex state. See [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md) and [validation and limitations](docs/research/synthetic-acquisition-validation.md).
 
 ## Why this project exists
 
@@ -73,4 +79,4 @@ Repository examples must be synthetic. Do not contribute real paths, identifiers
 - [Evidence catalog](docs/research/evidence-catalog.md): founder evidence and official sources.
 - [Experimental CWD migration guide](docs/workflows/projectless-cwd-migration.md): qualified manual procedure, not an automated repair.
 
-M1 implementation was explicitly authorized as a synthetic-only slice. Completion stops before M2; private-state research, later implementation, commits, and publication require separate authorization. The existing local folder, Codex Local Project, Thread assignments, and CWDs are intentionally retained.
+M1 is complete; the founder separately authorized M2a.1 implementation and exact current-run synthetic artifact cleanup. Stop at that gate. Helpers, later Windows validation, disposable Codex experiments, real adapters, personal canaries, commits and publication require separate authorization. The existing local folder, Codex Local Project, Thread assignments, and CWDs are intentionally retained.
