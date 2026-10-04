@@ -1,6 +1,14 @@
 # Safety and privacy
 
-## Current M0 boundary: design decisions
+## Current M1 boundary: design decisions
+
+The founder authorized the synthetic CLI foundation only. Inputs are bundled invented scenarios and output is text; there is no user-data input path, real Codex read, App Server inspection, filesystem/Git/boundary discovery, AGENTS diagnostics, private acquisition, corrective action, verification turn, or visual UI. Represented paths are strings, never read targets. No local folder, Local Project, Thread assignment, or CWD migration is part of M1. See [ADR 0007](decisions/0007-synthetic-cli-foundation.md).
+
+The runtime imports bundled modules and uses terminal I/O only. Control characters are escaped; usage and internal errors do not echo arbitrary arguments, stacks, or local paths. Developer builds/tests may access their repository and dependencies and launch the synthetic CLI. Import guards are regression checks, not proof of sandbox isolation. Review every changed file; fixture prefixes alone do not establish privacy.
+
+M1 approval covers the private package, development dependencies, synthetic code/tests, and supporting docs. Stop before M2. Private research, commits, pushes, publication, cleanup, and any migration need separate authorization.
+
+## Historical M0 boundary: design decisions
 
 M0 is authorized for documentation and repository hygiene only. Its inputs are the supplied founder observations, official documentation, and synthetic examples. It does not authorize reads of actual Codex state, private configuration, databases, sessions, titles, identifiers, logs, or transcripts.
 

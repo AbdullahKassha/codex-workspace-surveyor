@@ -1,0 +1,77 @@
+SYNTHETIC DEMONSTRATION — no Codex state inspected.
+Workspace Surveyor for Codex
+
+Scenario: overview
+Shared reported paths, separate project namespaces, and unknown membership.
+Context: Windows illustration; all timestamps are invented and illustrative.
+Codex app: unknown; agent: unknown; Windows build: unknown; real schemas: unknown.
+Runtime CWD: unobserved.
+
+Source coverage (complete means complete within the stated fixture scope only):
+- synthetic-app-source: complete-within-fixture; Listed app claims only. Invented project and assignment reports.
+- synthetic-metadata-source: partial; Listed roots and stored CWDs; membership incomplete. Invented metadata reports; not a SQLite schema.
+- synthetic-directory-source: complete-within-fixture; One reported path. Stipulated directory status; no filesystem check.
+
+Reported relationships (synthetic stipulations):
+- [synthetic-o01] synthetic-app/synthetic-alpha reports root C:\Synthetic\atlas
+  Source: synthetic-app-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o02] synthetic-metadata/synthetic-beta reports root C:\Synthetic\atlas
+  Source: synthetic-metadata-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o03] synthetic-thread-alpha reports assignment to synthetic-app/synthetic-alpha
+  Source: synthetic-app-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o04] synthetic-thread-beta membership unknown: An invented null-like membership field is inconclusive.
+  Source: synthetic-metadata-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o05] synthetic-thread-alpha reports stored CWD C:\Synthetic\atlas
+  Source: synthetic-metadata-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o06] synthetic-thread-beta reports stored CWD C:\Synthetic\atlas
+  Source: synthetic-metadata-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-o07] C:\Synthetic\atlas: simulated present
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+
+Explanations (design interpretations):
+- [INFO] shared-cwd; uncertainty: limited
+  Subjects: synthetic-thread-alpha, synthetic-thread-beta
+  Observations: synthetic-o05, synthetic-o06
+  Threads report the same stored-CWD string: C:\Synthetic\atlas. Sharing is not inherently a problem.
+  Limits: Matching reported paths do not establish physical identity, duplicate threads, dependency, ownership, or intent. No move or cleanup follows.
+  Basis: WIN-003, WIN-009 — founder-observed evidence; historical versions unknown.
+- [INFO] project-ambiguity; uncertainty: unresolved
+  Subjects: synthetic-app/synthetic-alpha, synthetic-metadata/synthetic-beta
+  Observations: synthetic-o01, synthetic-o02
+  Separate project identities report the same root string: C:\Synthetic\atlas. Candidate correspondence remains ambiguous; no identities are merged.
+  Limits: Namespace plus identifier defines the fixture identity. Equal identifier strings across namespaces and equal roots do not establish a unique mapping or file ownership.
+  Basis: WIN-001, WIN-004 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: limited
+  Subjects: synthetic-thread-alpha
+  Observations: synthetic-o03
+  An explicit assignment is reported to synthetic-app/synthetic-alpha. Unknown reports do not cancel it; no universal source hierarchy is inferred.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-beta
+  Observations: synthetic-o04
+  Membership is unknown: inconclusive reports do not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: limited
+  Subjects: synthetic-thread-alpha, synthetic-thread-beta
+  Observations: synthetic-o05, synthetic-o06, synthetic-o07
+  The fixture stipulates that C:\Synthetic\atlas was present at the reported time. No missing-CWD warning is warranted.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+
+Evidence references (repository documents; historical motivation only):
+- WIN-001: docs/research/windows-2026-10-04.md#win-001
+- WIN-003: docs/research/windows-2026-10-04.md#win-003
+- WIN-004: docs/research/windows-2026-10-04.md#win-004
+- WIN-005: docs/research/windows-2026-10-04.md#win-005
+- WIN-006: docs/research/windows-2026-10-04.md#win-006
+- WIN-009: docs/research/windows-2026-10-04.md#win-009
+- WIN-015: docs/research/windows-2026-10-04.md#win-015
+- WIN-016: docs/research/windows-2026-10-04.md#win-016
+
+Limitations:
+- Synthetic examples are not empirical evidence or reproductions of Codex behavior.
+- Path comparisons use exact strings only; physical identity and aliases are unresolved.
+- Partial/unavailable coverage and omitted observations prove neither deletion nor corruption.
+- No supported real audit, cleanup advice, migration, or Project Boundary Diagnostics is provided.

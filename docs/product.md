@@ -41,6 +41,8 @@ Principles:
 
 ## Initial CLI scope: design decisions
 
+M1 now demonstrates bundled synthetic observations → retained relationships → conservative interpretation → text explanation. It implements only the `overview`, `disagreement`, and `coverage` scenarios through `npm run cli -- demo`; see [README](../README.md#run-the-synthetic-demonstration). This is a working product skeleton, not a real inventory, public API, boundary diagnostic, or validation of metadata sufficiency. All broader capabilities below remain prospective.
+
 The later MVP should inventory projects, thread metadata, assignments, and referenced directories; explain conflicts; identify missing CWD risks; offer conservative organization advice; produce snapshots/reports; and compare before/after evidence. Optional Git inspection adds bounded worktree relationships at known roots.
 
 Organization opportunities include shared CWDs, projectless threads at an existing project root, dated workspace naming, nested projects, and projects with no observed chats. A naming suggestion is optional advice, not a defect. A stable CWD requires repeated comparable observations. Lack of observed chats must be qualified by coverage.

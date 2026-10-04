@@ -1,6 +1,6 @@
 # Documentation index
 
-**Stage: M0/Foundation.** These documents record intent and evidence; no scanner, CLI, acquisition implementation, or visual UI exists.
+**Stage: M1 synthetic CLI foundation.** The CLI explains bundled invented scenarios. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, acquisition implementation, or visual UI exists.
 
 ## Product and design
 
@@ -31,6 +31,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0004: privacy and synthetic artifacts](decisions/0004-privacy-and-synthetic-artifacts.md).
 - [ADR 0005: CLI first and early visuals](decisions/0005-cli-first-and-early-visual-experience.md).
 - [ADR 0006: project naming and CLI surface](decisions/0006-project-naming-and-cli-surface.md).
+- [ADR 0007: synthetic CLI foundation](decisions/0007-synthetic-cli-foundation.md).
 
 ## Qualified manual workflows
 

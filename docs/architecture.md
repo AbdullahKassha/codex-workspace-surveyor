@@ -2,7 +2,17 @@
 
 ## Direction: design decisions
 
-Prefer TypeScript/Node.js and one package when implementation begins. M0 creates no runtime package, public API, registry, schema, dependency-injection system, or framework. Introduce concrete module boundaries only when working code needs them.
+M0 selected TypeScript/Node.js and one package as the implementation direction, without creating a runtime package or contracts. M1 follows that direction. Introduce concrete module boundaries only when working code needs them; no public API, registry, dependency-injection system, or framework is established.
+
+## M1 implementation: design decisions
+
+The authorized synthetic slice now uses one private TypeScript/Node package: bundled observations → retained relationships → fixed pure explanation functions → text rendering. The CLI selects a named bundled scenario and writes terminal output only. No source discovery or reconciliation adapter exists. See [ADR 0007](decisions/0007-synthetic-cli-foundation.md).
+
+Internal readonly types represent namespace-qualified projects, threads, sources/coverage, root and assignment claims, stored/UI CWD reports, simulated directory statuses, and explanations. Relationships retain the observations rather than forcing canonical identities. Exact path-string equality only supports matching reported paths; directory physical identity remains unresolved. Missing or conflicting observations are never filled from the local environment.
+
+Flat modules separate the command/entrypoint, model, scenario data, interpretation, and text renderer. TypeScript targets ES2023 with NodeNext ESM and strict checks. Node 24/npm 11, exact development dependencies, and Node's built-in test runner are the implementation baseline. Tests and golden text remain separate from runtime imports. There are no runtime dependencies, public exports, bin declaration, schemas, adapter/rule registries, or stable serialized contracts.
+
+The remaining conceptual sequence describes later authorized capabilities, not implemented M1 behavior:
 
 ```text
 Explicit scope and source observations
@@ -42,7 +52,7 @@ Diffs must distinguish newly observed entities, entities no longer observed, rel
 
 ## Deferred implementation choices: unknowns
 
-Runtime versions, SQLite driver, scratch acquisition mechanics, path identity primitives, CLI options/exit codes, serialization, and test runner remain undecided until their milestone. A familiar database filename is insufficient for schema compatibility. A supported API must be assessed for side effects before use.
+M1 runtime, test tools, and synthetic command/exit-code conventions are recorded in ADR 0007 and the README. SQLite driver, scratch acquisition mechanics, path identity primitives, real audit commands, serialization, and distribution remain undecided until their milestone. A familiar database filename is insufficient for schema compatibility. A supported API must be assessed for side effects before use.
 
 The [research gates](research/open-questions.md) and [safety requirements](safety-and-privacy.md) determine what must be validated first.
 

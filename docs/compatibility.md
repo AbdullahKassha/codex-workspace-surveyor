@@ -2,9 +2,23 @@
 
 ## Current support: design decision
 
-M0 is documentation-only. No Codex build, source schema, runtime, or operating system is certified for auditing. Windows-native is the first intended implementation target. macOS, WSL, remote hosts, and live-state acquisition remain unvalidated.
+M0 was documentation-only. M1 implements bundled synthetic CLI explanations, with no real audit capability. No Codex build, source schema, runtime, or operating system is certified for auditing. Windows-native is the first intended real-data target. macOS, WSL, remote hosts, and live-state acquisition remain unvalidated.
 
 Schema compatibility, behavioral applicability, and platform/runtime support are separate. A familiar filename or parseable schema does not establish lifecycle behavior.
+
+## M1 synthetic implementation validation
+
+**Design decision:** record implementation checks separately from Codex behavioral evidence. On 2026-10-04, the synthetic CLI was built and tested on Windows with Node 24.18.1, npm 11.16.0, TypeScript 7.0.2, and Node typings 24.19.1. Exact dependency resolution is in the lockfile. This runtime context does not fill any B0/B1 version or schema gap.
+
+**Initial implementation checkpoint — 2026-10-04:** implementation checks passed: fresh lockfile installation with lifecycle scripts disabled, typecheck, build, all 21 tests, and Windows invocation through `npm run cli -- demo`, listing, and help. The three text goldens were reviewed; relative documentation links/anchors, changed-file privacy, and runtime capability scope were also checked. No private-state reads or lifecycle experiments were performed.
+
+**Final accepted M1 validation — 2026-10-04:** after the review refinements, the final first-commit gate passed with **22/22 tests passed**, typecheck, build, and `git diff --check`. All three bundled scenarios remained available and deterministic; documentation/link checks covered 225 relative links/anchors across 27 documents, and privacy, package/lockfile consistency, and M1 scope checks passed. This is the final accepted synthetic implementation state; the earlier 21-test checkpoint is retained as validation history. No real Codex behavior was reproduced, and M2 remains separately authorized.
+
+The three bundled scenarios cover shared reported CWD strings, separate/ambiguous project identities, unknown/explicit/conflicting membership, stored/UI CWD timing, and simulated directory availability. Semantic counterexamples, fixture checks, reviewed text goldens, and compiled CLI tests validate the M1 design only. They do not reproduce WIN observations, validate actual source coverage, or retire historical rules.
+
+`limited` uncertainty means an explanation is bounded by supplied stipulations; `unresolved` means no relationship resolution is justified. Neither is numeric confidence or severity. Missing directory warnings require explicitly stipulated accessible absence, with conflicting/missing evidence withholding the warning. Matching paths use exact string equality only. There is no real path check or identity normalization.
+
+All B0/B1 applicability and retirement decisions below remain unchanged. Real schema coverage, path aliases/physical identity, classification, current Codex behavior, acquisition safety, and user comprehension remain unknown. Boundary diagnostics remain beyond M1.
 
 **Naming applicability, 2026-10-04 (design decision):** [ADR 0006](decisions/0006-project-naming-and-cli-surface.md) changes the current product name to Workspace Surveyor for Codex. Legacy names remain in historical observations and founding ADRs. This is not a new behavioral experiment, support claim, or rule retirement: B0/B1 applicability, version gaps, and all safety/migration requirements remain unchanged. Local folder, Local Project, and Thread/CWD migration are deferred.
 

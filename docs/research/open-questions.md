@@ -66,6 +66,8 @@ Can supported APIs expose required membership and CWD information without starti
 
 Which Node version, SQLite driver, test tools, CLI conventions, and serialization are actually needed? Resolve only when M1/M2 needs them; prefer one small package. No version/driver/public API is established in M0. Driver selection must satisfy acquisition and resource constraints.
 
+**M1 design resolution — 2026-10-04:** [ADR 0007](../decisions/0007-synthetic-cli-foundation.md) selects Node 24/npm 11, strict TypeScript, Node's built-in test runner, bundled scenarios, and text-only CLI conventions. This resolves the synthetic slice's tooling choices only. SQLite drivers, real acquisition, public APIs, and serialization remain deferred; no Codex schema or behavioral question is resolved by synthetic tests.
+
 <a id="q-13"></a>
 ## Q-13: Visual comprehension
 

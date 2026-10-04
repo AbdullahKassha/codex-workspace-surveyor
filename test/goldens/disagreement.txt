@@ -1,0 +1,69 @@
+SYNTHETIC DEMONSTRATION — no Codex state inspected.
+Workspace Surveyor for Codex
+
+Scenario: disagreement
+Conflicting reports remain unresolved; observation order does not establish cause.
+Context: Windows illustration; all timestamps are invented and illustrative.
+Codex app: unknown; agent: unknown; Windows build: unknown; real schemas: unknown.
+Runtime CWD: unobserved.
+
+Source coverage (complete means complete within the stated fixture scope only):
+- synthetic-report-a: complete-within-fixture; Listed roots, assignment and stored CWD. Invented first report.
+- synthetic-report-b: partial; Listed roots, assignment and UI-reported CWD. Invented later report.
+- synthetic-directory-source: unavailable; Reported CWD paths. No directory evidence supplied.
+
+Reported relationships (synthetic stipulations):
+- [synthetic-d01] synthetic-app/synthetic-alpha reports root C:\Synthetic\atlas
+  Source: synthetic-report-a; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-d02] synthetic-metadata/synthetic-alpha reports root C:\Synthetic\atlas
+  Source: synthetic-report-b; illustrative time: 2000-01-01T00:01:00Z
+- [synthetic-d03] synthetic-metadata/synthetic-beta reports root C:\Synthetic\atlas
+  Source: synthetic-report-b; illustrative time: 2000-01-01T00:01:00Z
+- [synthetic-d04] synthetic-thread-alpha reports assignment to synthetic-app/synthetic-alpha
+  Source: synthetic-report-a; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-d05] synthetic-thread-alpha reports assignment to synthetic-metadata/synthetic-alpha
+  Source: synthetic-report-b; illustrative time: 2000-01-01T00:01:00Z
+- [synthetic-d06] synthetic-thread-alpha reports stored CWD C:\Synthetic\atlas
+  Source: synthetic-report-a; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-d07] synthetic-thread-alpha reports UI-reported CWD C:\Synthetic\atlas-reported-later
+  Source: synthetic-report-b; illustrative time: 2000-01-01T00:01:00Z
+
+Explanations (design interpretations):
+- [INFO] project-ambiguity; uncertainty: unresolved
+  Subjects: synthetic-app/synthetic-alpha, synthetic-metadata/synthetic-alpha, synthetic-metadata/synthetic-beta
+  Observations: synthetic-d01, synthetic-d02, synthetic-d03
+  Separate project identities report the same root string: C:\Synthetic\atlas. Candidate correspondence remains ambiguous; no identities are merged.
+  Limits: Namespace plus identifier defines the fixture identity. Equal identifier strings across namespaces and equal roots do not establish a unique mapping or file ownership.
+  Basis: WIN-001, WIN-004 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-alpha
+  Observations: synthetic-d04, synthetic-d05
+  Assignment reports disagree. All claims are retained; membership remains unresolved without choosing an authoritative source. Differing observation times do not establish a simultaneous contradiction or its cause.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-disagreement; uncertainty: unresolved
+  Subjects: synthetic-thread-alpha
+  Observations: synthetic-d06, synthetic-d07
+  CWD reports contain different path strings. Preserve their stored/UI channels, sources, and observation times without selecting a current location.
+  Limits: Different times or path aliases may explain differences. This does not prove a simultaneous contradiction, a migration, its trigger, or runtime CWD.
+  Basis: WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: unresolved
+  Subjects: synthetic-thread-alpha
+  Observations: synthetic-d06
+  Missing-CWD warning withheld for C:\Synthetic\atlas: no directory observation. Absence is not established by this evidence.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+
+Evidence references (repository documents; historical motivation only):
+- WIN-001: docs/research/windows-2026-10-04.md#win-001
+- WIN-004: docs/research/windows-2026-10-04.md#win-004
+- WIN-005: docs/research/windows-2026-10-04.md#win-005
+- WIN-006: docs/research/windows-2026-10-04.md#win-006
+- WIN-015: docs/research/windows-2026-10-04.md#win-015
+- WIN-016: docs/research/windows-2026-10-04.md#win-016
+
+Limitations:
+- Synthetic examples are not empirical evidence or reproductions of Codex behavior.
+- Path comparisons use exact strings only; physical identity and aliases are unresolved.
+- Partial/unavailable coverage and omitted observations prove neither deletion nor corruption.
+- No supported real audit, cleanup advice, migration, or Project Boundary Diagnostics is provided.

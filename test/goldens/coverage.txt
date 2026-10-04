@@ -1,0 +1,129 @@
+SYNTHETIC DEMONSTRATION — no Codex state inspected.
+Workspace Surveyor for Codex
+
+Scenario: coverage
+Accessible absence differs from uncertainty; incomplete membership proves nothing.
+Context: Windows illustration; all timestamps are invented and illustrative.
+Codex app: unknown; agent: unknown; Windows build: unknown; real schemas: unknown.
+Runtime CWD: unobserved.
+
+Source coverage (complete means complete within the stated fixture scope only):
+- synthetic-thread-source: partial; Six listed stored CWDs; only two membership reports. Invented thread metadata.
+- synthetic-directory-source: partial; Six listed paths only. Simulated statuses, not filesystem results.
+- synthetic-ui-source: unavailable; UI membership and CWD. No UI reports supplied.
+
+Reported relationships (synthetic stipulations):
+- [synthetic-c01] synthetic-thread-present explicitly reports projectless
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c02] synthetic-thread-accessible-absence membership unknown: An invented null-like field does not establish projectlessness.
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c10] synthetic-thread-present reports stored CWD C:\Synthetic\coverage\present
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c20] C:\Synthetic\coverage\present: simulated present
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c11] synthetic-thread-accessible-absence reports stored CWD C:\Synthetic\coverage\accessible-absence
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c21] C:\Synthetic\coverage\accessible-absence: simulated accessible-absence
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c12] synthetic-thread-inaccessible reports stored CWD C:\Synthetic\coverage\inaccessible
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c22] C:\Synthetic\coverage\inaccessible: simulated inaccessible
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c13] synthetic-thread-offline reports stored CWD C:\Synthetic\coverage\offline
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c23] C:\Synthetic\coverage\offline: simulated offline
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c14] synthetic-thread-unsupported reports stored CWD C:\Synthetic\coverage\unsupported
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c24] C:\Synthetic\coverage\unsupported: simulated unsupported
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c15] synthetic-thread-uninspected reports stored CWD C:\Synthetic\coverage\uninspected
+  Source: synthetic-thread-source; illustrative time: 2000-01-01T00:00:00Z
+- [synthetic-c25] C:\Synthetic\coverage\uninspected: simulated uninspected
+  Source: synthetic-directory-source; illustrative time: 2000-01-01T00:00:00Z
+
+Explanations (design interpretations):
+- [INFO] membership; uncertainty: limited
+  Subjects: synthetic-thread-present
+  Observations: synthetic-c01
+  Projectlessness is explicitly reported within the fixture. It is not inherently a defect and does not imply a missing CWD.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-accessible-absence
+  Observations: synthetic-c02
+  Membership is unknown: inconclusive reports do not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-inaccessible
+  Observations: none supplied for this relationship; see source coverage
+  Membership is unknown: no assignment observation was supplied. Omission does not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-offline
+  Observations: none supplied for this relationship; see source coverage
+  Membership is unknown: no assignment observation was supplied. Omission does not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-unsupported
+  Observations: none supplied for this relationship; see source coverage
+  Membership is unknown: no assignment observation was supplied. Omission does not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] membership; uncertainty: unresolved
+  Subjects: synthetic-thread-uninspected
+  Observations: none supplied for this relationship; see source coverage
+  Membership is unknown: no assignment observation was supplied. Omission does not establish projectlessness.
+  Limits: Assignment and CWD are separate claims. Coverage and observation times limit conclusions; absence is not deletion, and differing reports do not establish corruption or its cause.
+  Basis: WIN-005, WIN-006, WIN-016 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: limited
+  Subjects: synthetic-thread-present
+  Observations: synthetic-c10, synthetic-c20
+  The fixture stipulates that C:\Synthetic\coverage\present was present at the reported time. No missing-CWD warning is warranted.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+- [WARNING] cwd-status; uncertainty: limited
+  Subjects: synthetic-thread-accessible-absence
+  Observations: synthetic-c11, synthetic-c21
+  The fixture stipulates accessible local-path absence for C:\Synthetic\coverage\accessible-absence. This illustrates a missing stored-CWD risk. WIN-015 reported replacement-workspace behavior in one founder experiment; recurrence is not guaranteed.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: unresolved
+  Subjects: synthetic-thread-inaccessible
+  Observations: synthetic-c12, synthetic-c22
+  Missing-CWD warning withheld for C:\Synthetic\coverage\inaccessible: inaccessible. Absence is not established by this evidence.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: unresolved
+  Subjects: synthetic-thread-offline
+  Observations: synthetic-c13, synthetic-c23
+  Missing-CWD warning withheld for C:\Synthetic\coverage\offline: offline. Absence is not established by this evidence.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: unresolved
+  Subjects: synthetic-thread-unsupported
+  Observations: synthetic-c14, synthetic-c24
+  Missing-CWD warning withheld for C:\Synthetic\coverage\unsupported: unsupported. Absence is not established by this evidence.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+- [INFO] cwd-status; uncertainty: unresolved
+  Subjects: synthetic-thread-uninspected
+  Observations: synthetic-c15, synthetic-c25
+  Missing-CWD warning withheld for C:\Synthetic\coverage\uninspected: uninspected. Absence is not established by this evidence.
+  Limits: Statuses are synthetic stipulations, not live checks. Times do not establish current availability, cause, abandonment, or deletion safety. Runtime CWD is unobserved; no verification turn is requested.
+  Basis: WIN-015 — founder-observed evidence; historical versions unknown.
+
+Evidence references (repository documents; historical motivation only):
+- WIN-005: docs/research/windows-2026-10-04.md#win-005
+- WIN-006: docs/research/windows-2026-10-04.md#win-006
+- WIN-015: docs/research/windows-2026-10-04.md#win-015
+- WIN-016: docs/research/windows-2026-10-04.md#win-016
+
+Limitations:
+- Synthetic examples are not empirical evidence or reproductions of Codex behavior.
+- Path comparisons use exact strings only; physical identity and aliases are unresolved.
+- Partial/unavailable coverage and omitted observations prove neither deletion nor corruption.
+- No supported real audit, cleanup advice, migration, or Project Boundary Diagnostics is provided.

@@ -2,7 +2,7 @@
 
 ## Current status
 
-The repository is documentation-only. No executable product or supported release exists. Safety and privacy design problems are still relevant, particularly instructions that could cause data loss or disclose local metadata.
+The repository contains an executable M1 synthetic demonstration, with no supported real audit or published release. It accepts only bundled invented scenarios and produces text. Safety and privacy design problems are still relevant, particularly accidental acquisition, disclosure, or advice that exceeds the evidence. No real Codex data is needed to reproduce an M1 issue.
 
 ## Reporting safely
 

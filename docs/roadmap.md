@@ -2,7 +2,7 @@
 
 ## Authorization: design decision
 
-The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0 documentation/hygiene implementation is authorized; completion must stop before M1. Every later milestone requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
+The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0 is complete; the founder separately authorized the M1 synthetic CLI slice on 2026-10-04. Stop at M1 completion. Every later milestone requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
 Commits, publication, visibility changes, and cleanup require separate authorization. Approval of product direction is not approval for those actions.
 
@@ -20,7 +20,7 @@ Report created files, checks, and unresolved research questions. Stop.
 <a id="m1"></a>
 ## M1: Synthetic CLI foundation
 
-Separately authorize a small vertical slice using generated synthetic inputs. Define the minimum runtime/module/test choices needed for useful relationship explanations. Establish evidence-bearing relationships and basic conservative output. Do not add public APIs, registries, or frameworks without a concrete need.
+The separately authorized slice implements a single private TypeScript/Node package with bundled invented inputs, evidence-bearing relationships, and conservative text output. [ADR 0007](decisions/0007-synthetic-cli-foundation.md) records the minimal model, fixed explanation functions, and tooling. No public APIs, registries, or frameworks are introduced.
 
 M1 is synthetic-only. It categorically excludes discovery of real local Codex state, real Codex adapters, App Server startup for inspection, reads of personal Codex state, and any private-state acquisition. Approval of M1 does not authorize these activities. Any proposed departure requires separate explicit authorization specifying the activity and revising the scope before work begins.
 
@@ -28,7 +28,9 @@ Project Boundary Diagnostics does not expand M1's implementation scope. M1 also 
 
 Acceptance: a synthetic example explains shared CWDs, differing ID namespaces, unknown membership, and missing-path uncertainty. Counterexamples prevent false corruption labels. No excluded discovery, adapter, startup, personal-state read, or private acquisition is performed.
 
-The accepted future development surface is `npm run cli -- demo`, with `overview` (the default), `disagreement`, and `coverage` scenarios. [ADR 0006](decisions/0006-project-naming-and-cli-surface.md#m1-development-surface-design-decision) defines synthetic labeling, help/error behavior, and verification criteria. This is a documentation decision only: no manifest, script, installed binary, or implementation exists yet, and M1 still requires separate approval.
+The implemented development surface is `npm run cli -- demo`, with `overview` (the default), `disagreement`, and `coverage` scenarios. [ADR 0006](decisions/0006-project-naming-and-cli-surface.md#m1-development-surface-design-decision) defines the accepted naming. Use the [README commands](../README.md#run-the-synthetic-demonstration) to install the exact development dependencies, build, and run tests. There is no external input, JSON output, public bin declaration, or globally installed command. The existing local folder, Local Project, Thread assignments, and CWDs remain unchanged; rename and migration work are excluded.
+
+Completion requires a fresh dependency install, typecheck, build, semantic/counterexample tests, fixture checks, three reviewed text goldens, CLI tests, and documentation/privacy review. Synthetic validation does not reproduce WIN experiments or certify any Codex build. Record results separately in [compatibility](compatibility.md#m1-synthetic-implementation-validation). Report delivered files, checks, and unknowns, then stop before M2 without committing or publishing.
 
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
@@ -53,7 +55,7 @@ Acceptance: a user can explain assignment versus stored/runtime CWD, shared work
 <a id="m4"></a>
 ## M4: Public release readiness
 
-Select a license explicitly. Review complete Git history, repository content, attachments, examples, and distribution artifacts for private data. Confirm synthetic fixtures, supported-build statement, limitations, security reporting, and contribution guidance. An npm CLI is the preferred first distribution candidate, not an initialized package today.
+Select a license explicitly. Review complete Git history, repository content, attachments, examples, and distribution artifacts for private data. Confirm synthetic fixtures, supported-build statement, limitations, security reporting, and contribution guidance. A private npm package exists as part of M1. An npm CLI remains the preferred first distribution candidate; publication and distribution are deferred to separately authorized release work.
 
 Inspect package contents with an allowlist and ensure no raw state/reports are shipped. Repository visibility and package publication remain distinct, separately authorized actions. Do not claim a released open-source product before this gate.
 

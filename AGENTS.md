@@ -2,23 +2,23 @@
 
 ## Current authorization
 
-M0/Foundation documentation and repository hygiene are authorized. Work within that slice and stop when it is complete. Later milestone implementation requires separate explicit authorization. A roadmap describes future work; it does not grant authority to execute it.
+M0/Foundation is complete. The founder explicitly authorized the M1 Synthetic CLI Foundation implementation on 2026-10-04. Work within the approved synthetic-only slice and stop at M1 completion. Later milestone implementation requires separate explicit authorization. A roadmap describes future work; it does not grant authority to execute it.
 
-Permitted M0 changes: README, this file, contribution/security guidance, documentation, research records, founding ADRs, roadmap, and appropriate text/hygiene configuration.
+Permitted M1 changes: the single private TypeScript/Node package, exact development dependencies and lockfile, bundled invented scenarios, internal observation/interpretation types, conservative text explanations, CLI, tests, and supporting documentation/hygiene. See [ADR 0007](docs/decisions/0007-synthetic-cli-foundation.md). Inputs are bundled scenarios only; output is text only.
 
 The accepted product name is **Workspace Surveyor for Codex**, with **Workspace Surveyor** as the contextual short name. Follow [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md) for technical names and the future synthetic CLI surface. Naming decisions do not authorize M1, publication, local-path changes, Local Project reassignment, or Thread/CWD migration. Preserve legacy names in historical observations and founding ADR wording.
 
-Do not create scanner/CLI code, acquisition code, reconciliation or rules engines, Git discovery, visual UI, public APIs, package manifests, lockfiles, executable scripts, test frameworks, empty source scaffolding, generated schemas, plugin systems, or release workflows. Do not initialize packages or install dependencies.
+Do not create real scanners/acquisition, Git or boundary discovery, a generalized rules engine, visual UI, public APIs/JSON contracts, generated schemas, plugins, release workflows, or empty scaffolding. Only the approved development dependencies may be installed. No public bin declaration or global executable installation. Use the cli script, never a doctor script. Preserve the existing local folder, Local Project, Thread assignments, and CWDs; no rename or migration work.
 
 ## Private data and actions
 
-- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during M0.
+- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during M1. No App Server inspection, real filesystem ancestry scans, AGENTS diagnostics, or verification turns.
 - A specific read-only research authorization must identify the target and purpose. Authorization for documentation is not authorization for such research.
 - Use the founder's supplied observations, official documentation, and invented examples only. Replace personal identifying details in supplied material.
 - Never create repository copies of real paths, OS usernames, thread/project IDs, conversation titles, prompt text, screenshots, databases, sessions, or audit reports.
 - Generic filenames, field names, environment-variable names, and placeholder paths are technical vocabulary, not private data. Label examples as synthetic.
 - Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR; see [ADR 0001](docs/decisions/0001-observation-and-action-boundary.md).
-- Do not clean directories, move worktrees, delete records, or send verification turns during M0.
+- Do not clean directories, move worktrees, delete records, or send verification turns during M1.
 - Do not commit, publish, push, change repository visibility, or perform cleanup without separate authorization.
 - Do not use a supported API merely because its name sounds read-only; investigate documented and observed side effects first.
 
@@ -36,12 +36,12 @@ Append later evidence and superseding results. Do not erase the historical reaso
 
 Dated, attributed supporting supplements may refine the same experiment under its existing WIN ID without changing the original recorded result. Label their evidence and limits, preserve measurement timing, and correct summaries that overstate them. Distinct experiments receive separate records; a supporting supplement does not require a new WIN ID.
 
-Keep the bootstrap architecture conceptual and simple. Defer runtime versions, driver choice, interfaces, frameworks, and packaging decisions until the relevant milestone.
+Keep the architecture simple. M1 uses Node 24, npm 11, TypeScript, and Node's built-in test runner in one private package. Defer drivers, acquisition interfaces, frameworks, and distribution until the relevant milestone.
 
 ## Validation and completion
 
-Use existing shell tools for documentation review; no dependency installation is needed. Check relative links/anchors, observation coverage, source attribution, synthetic examples, prohibited artifacts, and consistency with the documentation-only status.
+Run typecheck, build, semantic/counterexample tests, text goldens, and CLI tests. Use existing shell tools for documentation review. Check relative links/anchors, observation coverage, source attribution, synthetic examples, prohibited capabilities, and consistency with synthetic-only status. No synthetic test certifies real Codex behavior.
 
 Ignore patterns are defense in depth, not proof of privacy. Review every proposed repository file. Do not stage content merely to inspect it.
 
-At M0 completion, report the documents and hygiene files created, checks performed, and remaining unknowns. Stop before M1. Do not interpret M0 completion as permission to continue.
+At M1 completion, report delivered files, checks performed, and remaining unknowns. Stop before M2. Do not commit, push, publish, or start private research without separate authorization.

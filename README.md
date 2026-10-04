@@ -2,11 +2,36 @@
 
 Understand the relationships between local Codex projects, chats, working directories, repositories, worktrees, and historical state before changing anything.
 
-**Status: M0/Foundation documentation only.** There is no functioning scanner, CLI, visual report, installable package, or supported audit capability yet. The repository is in private bootstrap; a license has not been selected and no open-source release is being claimed.
+**Status: M1 synthetic CLI foundation.** A working local CLI explains bundled invented scenarios. It does not inspect Codex, accept external data, or provide a supported real audit. No visual UI or published package exists. The repository remains private bootstrap; a license has not been selected and no open-source release is being claimed.
 
 Workspace Surveyor for Codex is an independent community project for understanding and organizing Codex workspace relationships. It is not an official OpenAI product and is not affiliated with, endorsed by, or sponsored by OpenAI.
 
-**Naming decision:** Workspace Surveyor is the primary identity; "for Codex" describes compatibility. The chosen repository/future npm name is `codex-workspace-surveyor`, and the future executable is `codex-surveyor`. These names do not imply an available package or command. Existing local folders may retain `codex-workspace-doctor`; no folder or Codex Local Project migration is required. See [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md).
+**Naming decision:** Workspace Surveyor is the primary identity; "for Codex" describes compatibility. The private package/repository name is `codex-workspace-surveyor`, and the future executable is `codex-surveyor`. These names do not imply a published package or global command. Existing local folders may retain `codex-workspace-doctor`; no folder or Codex Local Project migration is required. See [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md).
+
+## Run the synthetic demonstration
+
+Use Node 24.x and npm 11.x in the existing checkout. No globally installed executable is needed.
+
+```text
+npm ci --ignore-scripts --no-audit --no-fund
+npm run typecheck
+npm run build
+npm run cli -- demo
+```
+
+Choose `npm run cli -- demo disagreement` or `npm run cli -- demo coverage`; `demo` and `demo overview` are equivalent. `npm run cli -- demo --list` lists scenarios, and `npm run cli -- --help` displays usage. Rebuild after editing source; `npm test` builds and runs the semantic, fixture, text-golden, and CLI tests.
+
+| Scenario | What it explains |
+| --- | --- |
+| `overview` | Shared stored-CWD strings, separate project ID namespaces, explicit assignment and unknown membership |
+| `disagreement` | Ambiguous root correspondence and conflicting assignment/CWD reports, with source and time preserved |
+| `coverage` | Present versus accessible absence, inaccessible/offline/unsupported/uninspected paths, and incomplete membership evidence |
+
+Every report is labeled synthetic. All identities, paths, statuses, and timestamps are invented; represented paths are never inspected. Matching path strings do not establish physical identity. `info`/`warning` describes the explanation; `limited` means a conclusion is bounded by the stipulations, while `unresolved` means the evidence cannot settle the relationship. Neither is numeric confidence. Historical WIN references explain design motivation, not verified behavior on a current Codex build.
+
+Output is text only. There is no file/stdin input, JSON contract, configuration, discovery, acquisition, App Server inspection, Git/boundary or AGENTS diagnostics, actions, or migration. Exit codes are `0` for a successful demonstration (including warnings), `2` for invalid usage, and `1` for an internal failure; they are not workspace health scores. There is no public `bin` declaration or library API.
+
+See [ADR 0007](docs/decisions/0007-synthetic-cli-foundation.md) for the deliberately small implementation and its limits.
 
 ## Why this project exists
 
@@ -24,7 +49,7 @@ The product should explain why something looks risky or worth organizing. An unu
 
 The first engineering surface is a Windows-first, read-only CLI. A local visual relationship report is an explicit early milestone. The long-term experience should make projects, chats, directories, worktrees, evidence, and conflicts visually obvious.
 
-Planned capabilities include conservative relationship reconciliation, evidence-linked advice, private audit snapshots, sanitized reports, and before/after comparisons. TypeScript/Node.js is the preferred stack; implementation details remain deferred.
+Planned real-data capabilities include conservative relationship reconciliation, evidence-linked advice, private audit snapshots, sanitized reports, and before/after comparisons. M1 uses TypeScript/Node.js for synthetic explanations only; acquisition and distribution decisions remain deferred.
 
 Project Boundary Diagnostics is intended product scope beyond M1, with separate research and implementation authorization. It should explain why a child directory appears to be a separate project, why Git and Codex roots differ, whether a parent instruction file lies outside discovery scope, whether a nearby marker supports another boundary, or why evidence is insufficient. App project roots, thread CWDs, discovery boundaries, markers, Git roots, and instruction scope remain distinct.
 
@@ -34,7 +59,7 @@ See the [product definition](docs/product.md), [conceptual architecture](docs/ar
 
 ## Safety and privacy
 
-M0 uses supplied observations, official documentation, and synthetic examples. It does not read private Codex state. Any future research involving real state requires specific authorization.
+M0 used supplied observations, official documentation, and synthetic examples. M1 uses bundled invented scenarios and does not read private Codex state. Any future research involving real state requires specific authorization.
 
 The planned product observes Codex-owned state and guides supported actions. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. No automatic cleanup or migration is planned for the first CLI release.
 
@@ -48,4 +73,4 @@ Repository examples must be synthetic. Do not contribute real paths, identifiers
 - [Evidence catalog](docs/research/evidence-catalog.md): founder evidence and official sources.
 - [Experimental CWD migration guide](docs/workflows/projectless-cwd-migration.md): qualified manual procedure, not an automated repair.
 
-M0 implementation is authorized. Later milestones require separate scoped approval; completion of these documents does not authorize application development, private-state research, commits, or publication.
+M1 implementation was explicitly authorized as a synthetic-only slice. Completion stops before M2; private-state research, later implementation, commits, and publication require separate authorization. The existing local folder, Codex Local Project, Thread assignments, and CWDs are intentionally retained.
