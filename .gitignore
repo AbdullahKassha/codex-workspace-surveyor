@@ -1,0 +1,77 @@
+# Defense in depth only. Review content before staging or publication.
+# Never store real Codex state in this repository, even in ignored locations.
+.codex/
+sessions/
+archived_sessions/
+session_index.jsonl
+.codex-global-state.json
+
+# Exact Codex state basenames and backup variants, not arbitrary project JSON.
+codex-global-state.json
+.codex-global-state.json.*
+codex-global-state.json.*
+.codex-global-state.backup*.json
+codex-global-state.backup*.json
+.codex-global-state.bak*.json
+codex-global-state.bak*.json
+.codex-global-state.[0-9]*.json
+codex-global-state.[0-9]*.json
+.codex-global-state-[0-9]*.json
+codex-global-state-[0-9]*.json
+
+# Standalone Codex credentials and suffix backups, wherever accidentally copied.
+auth.json
+auth.json.*
+
+# Database images, companions, and dumps. Future fixtures should be generated.
+*.sqlite
+*.sqlite[0-9]*
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.wal
+*.shm
+*.dump
+*.sql
+
+# Private local material, scratch copies, exports, and media artifacts.
+private/
+local-research/
+audit-output/
+private-audits/
+scratch/
+.scratch/
+tmp/
+.tmp/
+*.private.*
+*.jsonl
+*.log
+*.bak
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.mp4
+*.pdf
+
+# Credentials and editor/OS local state.
+.env
+.env.*
+*.pem
+*.key
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Future build/cache output; these entries do not initialize a package.
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
