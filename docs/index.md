@@ -1,6 +1,6 @@
 # Documentation index
 
-**Stage: M2a.2 Windows acquisition controls validation; CLI remains the M1 demonstration.** The CLI explains bundled invented scenarios. The M2a.1 test-only kernel handles generated invented fixtures with simulated protection; native acquisition refuses. M2a.2 probes supported Node controls using disposable invented files and documents capability gaps. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
+**Stage: M2a.3 minimal Windows helper experiment; CLI remains the M1 demonstration.** The CLI explains bundled invented scenarios. The M2a.1 test-only kernel handles generated invented fixtures with simulated protection; native acquisition refuses. M2a.2 documents supported-Node capability gaps. M2a.3 tests managed Windows ACL and sharing controls on disposable invented files without integration. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
 
 ## Product and design
 
@@ -22,6 +22,7 @@
 - [Compatibility revalidation template](research/compatibility-revalidation-template.md): lightweight future comparison and retirement record.
 - [Synthetic acquisition validation](research/synthetic-acquisition-validation.md): M2a.1 mechanics, fault injection and unresolved Windows protection.
 - [Windows acquisition controls validation](research/windows-acquisition-controls-validation.md): M2a.2 synthetic mode/access and handle-sharing observations, capability gaps and separately gated helper proposal.
+- [Windows helper experiment validation](research/windows-helper-experiment-validation.md): M2a.3 descriptor readback, cross-process sharing, bounded synthetic copies, refusal/privacy/cleanup and remaining unknowns.
 
 ## Decisions
 

@@ -149,9 +149,35 @@ These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-
 - Limit: no actual scratch descriptors, effective rights, alternate-account access or filesystem capabilities were inspected.
 - Design implication: any later scratch protection evidence must verify root and child descriptors against an explicit principal policy, rather than accepting mode bits, markers or parent-only observations.
 
+### DOC-012: Managed Windows security descriptors
+
+- Sources: Microsoft [.NET ACL extensions](https://learn.microsoft.com/en-us/dotnet/api/system.io.filesystemaclextensions?view=net-10.0), [security-aware creation](https://learn.microsoft.com/en-us/dotnet/api/system.io.filesystemaclextensions.create?view=net-10.0), [descriptor readback](https://learn.microsoft.com/en-us/dotnet/api/system.io.filesystemaclextensions.getaccesscontrol?view=net-10.0) and [inheritance protection](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.objectsecurity.setaccessruleprotection?view=net-10.0), reviewed 2026-10-05.
+- Surface: supported Windows managed security descriptors, creation, readback and explicit inheritance protection.
+- Documented claim: security-aware directory/file creation and fresh descriptor retrieval are available. Directory creation does nothing when a directory already exists. Protection can remove inherited access rules.
+- Limit: APIs alone do not establish actual object policy, hostile-path safety or another account's effective access.
+- Design implication: M2a.3 refuses existing child targets and verifies every actual protected object against a current-user-only policy; no native integration follows.
+
+### DOC-013: Managed read sharing
+
+- Sources: Microsoft [FileStream constructors](https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.-ctor?view=net-10.0) and [FileShare](https://learn.microsoft.com/en-us/dotnet/api/system.io.fileshare?view=net-10.0), reviewed 2026-10-05.
+- Surface: explicit existing-file read access and managed sharing parameters.
+- Documented claim: FileStream accepts access and sharing choices; FileShare.Read permits subsequent compatible read opens while write/delete sharing require separate flags.
+- Limit: not atomic selected-set acquisition, absence-of-mapped-writers proof or Codex compatibility. Windows opening-order and handle lifetime rules remain [DOC-010](#doc-010-windows-file-handle-sharing).
+- Design implication: retain all selected Open/Read/FileShare.Read streams throughout bounded copying; test both handle orders and released namespace/write controls.
+
+### DOC-014: Bounded test host invocation
+
+- Sources: [Node 24.18.1 child processes](https://nodejs.org/download/release/v24.18.1/docs/api/child_process.html) and [PowerShell host options](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_pwsh?view=powershell-7.6), reviewed 2026-10-05.
+- Surface: explicit executable spawning, piped stdio, hidden windows, profile-free noninteractive script hosting.
+- Documented claim: Node supports spawning without a shell and with windowsHide; PowerShell supports NoProfile, NonInteractive and File invocation options.
+- Limit: these options provide neither a security sandbox nor bounded protocol/cleanup guarantees by themselves.
+- Design implication: M2a.3 uses an explicit opt-in and selected installed host, bounds/sanitizes streams, and confirms helper exit before deletion. No policy bypass or elevation.
+
 ## Synthetic implementation validation records: design decision
 
 The [M2a.1 validation record](synthetic-acquisition-validation.md) and [M2a.2 Windows controls record](windows-acquisition-controls-validation.md) describe implementation measurements using invented inputs. M2a.2 observes real Windows filesystem behavior on disposable synthetic files; it is not a founder-observed Codex experiment or an official contract. Preserve each measurement context independently of B0/B1; no WIN record is reproduced, superseded or retired by these checks.
+
+The separately authorized [M2a.3 helper record](windows-helper-experiment-validation.md) appends current-user-only descriptor and controlled cross-process sharing measurements on disposable synthetic objects. It is implementation validation, not Codex evidence or real-source readiness. Native acquisition remains disabled; earlier records retain their original scope and conclusions.
 
 ## Recording future evidence: design decision
 

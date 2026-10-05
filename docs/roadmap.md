@@ -2,7 +2,7 @@
 
 ## Authorization: design decision
 
-The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1 and M2a.1 are complete. The founder separately authorized M2a.2 Windows Acquisition Controls Validation on 2026-10-05: supported Node APIs, bounded disposable synthetic probes and exact-run cleanup. Stop at M2a.2 completion. Every later gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
+The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1, M2a.1 and M2a.2 are complete. The founder separately authorized M2a.3 Minimal Windows Helper Experiment on 2026-10-05: test-only PowerShell 7/.NET controls, disposable synthetic objects, bounded Node/helper probes and exact-run cleanup. Stop at M2a.3 completion. Every later gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
 Commits, publication, visibility changes, and cleanup require separate authorization. Approval of product direction is not approval for those actions.
 
@@ -35,13 +35,14 @@ Completion requires a fresh dependency install, typecheck, build, semantic/count
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
 
-The broader direction is approved in principle. M2a.1 is complete and M2a.2 synthetic Windows validation is separately authorized. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
+The broader direction is approved in principle. M2a.1/M2a.2 are complete and M2a.3 is separately authorized. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
 
 | Gate | Scope and exit condition |
 | --- | --- |
 | M2a.1 — synthetic kernel | Invented SQLite/JSON fixtures, explicit selection, bounded raw acquisition, ownership/containment/stability, existing WAL/SHM, analysis separation, conservative refusal, exact synthetic cleanup, privacy/source-write regression tests; stop with limitations recorded |
 | M2a.2 — Windows acquisition controls validation | Supported Node mode/access and two-handle sharing probes on bounded invented files; document established observations, capability gaps and unknowns while retaining native refusal |
-| Subsequent helper/stronger Windows validation | Separately approve a named mechanism, synthetic targets, permissions, diagnostics, handle lifetime and cleanup; no preemptive helper architecture |
+| M2a.3 — minimal Windows helper experiment | Test-only managed PowerShell 7 DACL and retained FileShare.Read controls on bounded synthetic fixtures; record descriptors, cross-process sharing and cleanup evidence; leave native refusal unchanged |
+| Subsequent synthetic integration/stronger validation | Separate proposal and approval after independent review; helper validation never enables acquisition automatically |
 | Disposable Codex validation | Separately approve isolated invented projects/chats and named sources/actions; establish current source locations, schema context and closed-app acquisition evidence |
 | M2b — first real adapter | Separately implement minimum metadata reading using validated evidence; unsupported shapes withhold dependent conclusions |
 | Personal canary | Separate single-run consent naming source files, full-copy exposure, selected fields, scratch, retention and cleanup; review before further access |
@@ -53,6 +54,8 @@ M2a.1 uses only existing dependencies and a test-only harness. Native protection
 M2a.2 uses one test-only module and fresh invented control-probe files. Deliberate bounded writes, one rename/unlink and exclusive-creation probes measure ordinary Node handle behavior separately from acquisition source-write regressions. [Validation](research/windows-acquisition-controls-validation.md) records the observed writer/namespace exclusion gap and unverified DACL protection. A demonstrated gap completes this gate; it never enables acquisition or authorizes a helper, alternate-account test, competing subprocess or later Codex experiment.
 
 Private snapshots, sanitized export formats and diffs remain future work requiring another scoped proposal. They are not acceptance prerequisites for the minimal M2 alpha. No real-state reads, real adapter or audit integration follow automatically from M2a.1 success.
+
+M2a.3 uses only the explicitly selected installed PowerShell 7 host and supported .NET APIs, with no compilation, new dependencies, elevation or policy changes. [Helper validation](research/windows-helper-experiment-validation.md) records the current-user-only descriptor policy and controlled competing Node handles. Other-account effective access, hostile races and database/companion atomicity remain unknown. Native acquisition continues to refuse. Independent review precedes an integration proposal; separate approval precedes its execution. Disposable Codex and personal sources remain later gates.
 
 M2 or later may validate real boundary evidence only with separate, specific research and implementation authorization. This optional scope includes bounded marker/policy, qualified Git-root, and instruction-metadata evidence; it does not authorize full private configuration, instruction contents, or arbitrary ancestry scans. No instruction interpreter, Git repair, marker management, or configuration repair is planned.
 
