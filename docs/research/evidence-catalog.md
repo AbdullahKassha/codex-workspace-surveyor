@@ -179,6 +179,8 @@ The [M2a.1 validation record](synthetic-acquisition-validation.md) and [M2a.2 Wi
 
 The separately authorized [M2a.3 helper record](windows-helper-experiment-validation.md) appends current-user-only descriptor and controlled cross-process sharing measurements on disposable synthetic objects. It is implementation validation, not Codex evidence or real-source readiness. Native acquisition remains disabled; earlier records retain their original scope and conclusions.
 
+The separately authorized [M2a.4 integration record](synthetic-helper-integration-validation.md) records the end-to-end test-only helper/kernel path on the unchanged invented SQLite/JSON/WAL/SHM fixtures. It reuses DOC-010–DOC-014 contracts, measures retained-handle copying and analysis separation, and records precise injected failure stages. Native acquisition remains disabled; no WIN record, source schema or Codex behavior is validated by this gate. M2a.1–M2a.3 records remain historical evidence with their original limits.
+
 ## Recording future evidence: design decision
 
 For a distinct experiment, add an observation with its own ID, date, versions, permissions, sanitized procedure, result, limits, and affected rules. Record whether it reproduces, contradicts, or supersedes earlier evidence. Link it into the compatibility matrix. Retain earlier records unchanged except for clearly identified corrections or navigation fixes.

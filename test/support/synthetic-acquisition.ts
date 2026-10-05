@@ -10,7 +10,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { constructFixtures, fixtureNames, inspectFixtureAnalysis } from './synthetic-fixtures.js';
 
 export const limits = Object.freeze({ fileBytes: 128 * 1024, totalBytes: 256 * 1024, files: 5 });
-export type Protection = 'native' | 'simulated-owner-restricted';
+export type Protection = 'native' | 'simulated-owner-restricted' | 'windows-helper-synthetic';
 export type Reason = 'selection' | 'containment' | 'protection-unverified' | 'unsupported-companions' |
   'limit' | 'unstable' | 'io' | 'unsupported-analysis';
 export type Outcome = Readonly<{
@@ -44,6 +44,15 @@ class InitializationFailure extends Error {
   }
 }
 const reject = (reason: Reason): never => { throw new Refusal(reason); };
+
+// Only our internal failures carry trusted details. Never inspect arbitrary error fields.
+export function syntheticFailure(error: unknown): Readonly<{ reason: Reason; cleanup?: Cleanup }> {
+  try {
+    if (error instanceof Refusal) return { reason: error.reason };
+    if (error instanceof InitializationFailure) return { reason: 'io', cleanup: error.cleanup };
+  } catch { /* Unknown/proxy failures remain sanitized IO refusals. */ }
+  return { reason: 'io' };
+}
 
 export function contains(parent: string, child: string): boolean {
   const delta = relative(resolve(parent), resolve(child));
@@ -145,8 +154,10 @@ export class SyntheticRun {
     try {
       this.rootIdentity = lstatSync(this.root);
       writeFileSync(join(this.root, 'owner'), this.token, { flag: 'wx', mode: 0o600 });
-      for (const dir of ['builder', 'sources', 'scratch']) mkdirSync(join(this.root, dir), { mode: 0o700 });
-      constructFixtures(join(this.root, 'builder'), this.sources);
+      if (protection !== 'windows-helper-synthetic') {
+        for (const dir of ['builder', 'sources', 'scratch']) mkdirSync(join(this.root, dir), { mode: 0o700 });
+        constructFixtures(join(this.root, 'builder'), this.sources);
+      }
       // Runtime immutability prevents accidental source re-registration through fields.
       for (const key of ['root', 'sources', 'scratch', 'acquisition', 'analysis', 'protection']) {
         Object.defineProperty(this, key, { writable: false, configurable: false });
@@ -211,6 +222,104 @@ export class SyntheticRun {
     writeFileSync(destination, bytes, { flag: 'wx', mode: 0o600 });
   }
 
+  // Test-local integration hooks. No implicit helper selection or native enablement.
+  helperRequest(): { case: 'integration'; root: string; nonce: string } {
+    this.owned();
+    if (this.protection !== 'windows-helper-synthetic' || this.attempted) reject('selection');
+    this.attempted = true;
+    return { case: 'integration', root: this.root, nonce: this.token };
+  }
+
+  buildProtectedFixtures(): void {
+    if (this.protection !== 'windows-helper-synthetic' || !this.attempted) reject('selection');
+    this.owned();
+    for (const path of [join(this.root, 'builder'), this.sources, this.scratch, this.acquisition, this.analysis]) {
+      checked(path, this.root, true);
+      if (readdirSync(path).length !== (path === this.scratch ? 2 : 0)) reject('containment');
+    }
+    constructFixtures(join(this.root, 'builder'), this.sources);
+    this.checkIntegrationBounds();
+  }
+
+  helperBaseline(selected: readonly string[]): Measurement[] {
+    if (this.protection !== 'windows-helper-synthetic' || selected.length === 0 ||
+        new Set(selected).size !== selected.length || selected.some(name => !fixtureNames.some(allowed => allowed === name))) reject('selection');
+    this.owned();
+    checked(this.sources, this.root, true);
+    checked(this.scratch, this.root, true);
+    if (overlaps(realpathSync(this.sources), realpathSync(this.scratch))) reject('containment');
+    const result = this.baseline(selected);
+    const usage = this.checkIntegrationBounds();
+    if (usage.files + 2 * result.length > 21 ||
+        usage.bytes + 2 * result.reduce((sum, item) => sum + Number(item.size), 0) > 1024 * 1024) reject('limit');
+    return result;
+  }
+
+  verifyHelperSources(selected: readonly string[], expected: readonly Measurement[], reserveCopies = false): void {
+    this.owned();
+    if (!equal(expected, this.baseline(selected))) reject('unstable');
+    const usage = this.checkIntegrationBounds();
+    if (reserveCopies && (usage.files + 2 * expected.length > 21 ||
+        usage.bytes + 2 * expected.reduce((sum, item) => sum + Number(item.size), 0) > 1024 * 1024)) reject('limit');
+  }
+
+  helperCopies(expected: readonly Measurement[]): Measurement[] {
+    this.owned();
+    this.checkIntegrationBounds();
+    return expected.map(item => {
+      checked(join(this.acquisition, item.name), this.scratch, false);
+      checked(join(this.analysis, item.name), this.scratch, false);
+      const acquired = measure(join(this.acquisition, item.name), item.name);
+      const analyzed = measure(join(this.analysis, item.name), item.name);
+      if (acquired.size !== item.size || acquired.digest !== item.digest ||
+          analyzed.size !== item.size || analyzed.digest !== item.digest) reject('unstable');
+      return acquired;
+    });
+  }
+
+  analyzeHelperCopies(selected: readonly string[], expected: readonly Measurement[]): void {
+    this.owned();
+    for (const item of expected) checked(join(this.analysis, item.name), this.scratch, false);
+    try { inspectFixtureAnalysis(selected.map(name => join(this.analysis, name))); }
+    catch { reject('unsupported-analysis'); }
+    this.checkIntegrationBounds();
+  }
+
+  verifyHelperAcquisition(expected: readonly Measurement[]): void {
+    this.owned();
+    if (!equal(expected, expected.map(item => {
+      checked(join(this.acquisition, item.name), this.scratch, false);
+      return measure(join(this.acquisition, item.name), item.name);
+    }))) reject('unstable');
+  }
+
+  private checkIntegrationBounds(): Readonly<{ bytes: number; files: number }> {
+    let files = 0; let dirs = 0; let bytes = 0;
+    const names = [...fixtureNames, 'wal.sqlite-wal', 'wal.sqlite-shm', 'standalone.sqlite-wal',
+      'standalone.sqlite-shm', 'wal.sqlite-journal', 'standalone.sqlite-journal'];
+    const walk = (path: string): void => {
+      checked(path, this.root, true);
+      if (++dirs > 6) reject('limit');
+      for (const name of readdirSync(path)) {
+        const child = join(path, name);
+        const location = relative(this.root, child).split(sep).join('/');
+        const stat = lstatSync(child);
+        if (stat.isDirectory()) {
+          if (!['builder', 'sources', 'scratch', 'scratch/acquisition', 'scratch/analysis'].includes(location)) reject('containment');
+          walk(child);
+        } else {
+          checked(child, this.root, false);
+          if (location !== 'owner' && !['builder', 'sources', 'scratch/acquisition', 'scratch/analysis']
+            .some(dir => names.some(file => location === `${dir}/${file}`))) reject('containment');
+          bytes += stat.size;
+          if (++files > 21 || stat.size > limits.fileBytes || bytes > 1024 * 1024) reject('limit');
+        }
+      }
+    };
+    walk(this.root);
+    return { bytes, files };
+  }
+
   acquire(selected: readonly string[], fault?: Fault): Outcome {
     const refuse = (reason: Reason): Outcome => ({ synthetic: true, protection: this.protection,
       status: 'refused', reason, files: 0 });
@@ -224,7 +333,7 @@ export class SyntheticRun {
       checked(this.scratch, this.root, true);
       if (overlaps(realpathSync(this.sources), realpathSync(this.scratch))) reject('containment');
       // Node-only Windows DACL verification/sharing controls are not established.
-      // The sole passing branch is deliberately fault-injected synthetic protection.
+      // This synchronous path accepts only deliberately simulated synthetic protection.
       if (this.protection !== 'simulated-owner-restricted') reject('protection-unverified');
       fault?.('before-read', this);
       const before = this.baseline(selected);
@@ -276,6 +385,7 @@ export class SyntheticRun {
       }
       this.owned();
       fault?.('before-cleanup', this);
+      if (this.protection === 'windows-helper-synthetic') this.checkIntegrationBounds();
       // Verify ALL entries before deleting ANY. No recursive rm or foreign sweep.
       const files: string[] = [];
       const directories: string[] = [];

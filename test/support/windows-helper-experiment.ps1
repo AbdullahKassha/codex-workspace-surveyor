@@ -1,4 +1,4 @@
-# M2a.3 only: disposable invented files, supported managed APIs, no acquisition integration.
+# Test-only M2a.3 probes and explicitly selected M2a.4 synthetic integration.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -15,6 +15,10 @@ $category = 'none'
 $inputBytes = 0
 $fault = 'none'
 $partialWritten = $false
+$integration = $false
+$fileLimit = 4096
+$opened = 0
+$nonce = ''
 
 function Send-Frame($value) {
     [Console]::Out.WriteLine(($value | ConvertTo-Json -Compress -Depth 3))
@@ -47,7 +51,7 @@ function Check-Object([string]$path, [bool]$directory) {
     $item = if ($directory) { [System.IO.DirectoryInfo]::new($path) } else { [System.IO.FileInfo]::new($path) }
     $item.Refresh()
     if (-not $item.Exists -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'scope' }
-    if (-not $directory -and $item.Length -gt 4096) { throw 'limit' }
+    if (-not $directory -and $item.Length -gt $fileLimit) { throw 'limit' }
     return $item
 }
 function New-Security([bool]$directory) {
@@ -109,17 +113,178 @@ function Equal-Bytes([byte[]]$expected, [byte[]]$actual, [int]$count) {
     return $true
 }
 
+function Integration-Command([string]$expected) {
+    $value = (Receive-Line) | ConvertFrom-Json
+    if ((@($value.PSObject.Properties.Name) -join ',') -ne 'command' -or $value.command -cne $expected) { throw 'protocol' }
+}
+function Integration-Frame([string]$stage) {
+    Send-Frame @{stage=$stage; run=$nonce; count=$readers.Count; protected=$true}
+}
+function Read-Retained($reader, $entry) {
+    if ($reader.Length -ne $entry.size -or $reader.Length -gt $fileLimit) { $script:outcome='unstable'; throw 'length' }
+    $reader.Position = 0
+    $buffer = [byte[]]::new([int]$entry.size + 1)
+    $count = 0
+    do {
+        $n = $reader.Read($buffer, $count, $buffer.Length - $count)
+        $count += $n
+    } while ($n -gt 0 -and $count -lt $buffer.Length)
+    if ($count -ne $entry.size) { $script:outcome='unstable'; throw 'length' }
+    $hash = [System.Security.Cryptography.SHA256]::Create()
+    try { $digest = [Convert]::ToHexString($hash.ComputeHash($buffer, 0, $count)).ToLowerInvariant() }
+    finally { $hash.Dispose() }
+    if ($digest -cne $entry.digest) { $script:outcome='unstable'; throw 'digest' }
+    return ,$buffer
+}
+function Extra-Rule([string]$path, [bool]$directory) {
+    $security = New-Security $directory
+    $everyone = [System.Security.Principal.SecurityIdentifier]::new([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+    [void]$security.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($everyone,
+        [System.Security.AccessControl.FileSystemRights]::Read, [System.Security.AccessControl.AccessControlType]::Allow))
+    $item = if ($directory) { [System.IO.DirectoryInfo]::new($path) } else { [System.IO.FileInfo]::new($path) }
+    [System.IO.FileSystemAclExtensions]::SetAccessControl($item, $security)
+}
+function Verify-IntegrationScratch($manifest) {
+    Verify-Security $root $true
+    Verify-Security $owner $false
+    foreach ($location in @('builder', 'sources', 'scratch', 'scratch/acquisition', 'scratch/analysis')) {
+        Verify-Security ([System.IO.Path]::Combine($root, $location)) $true
+    }
+    foreach ($area in @('acquisition', 'analysis')) {
+        $directory = [System.IO.Path]::Combine($root, 'scratch', $area)
+        $entries = @([System.IO.Directory]::EnumerateFileSystemEntries($directory))
+        if ($entries.Count -ne $manifest.Count) { $script:outcome='acl-refused'; throw 'entries' }
+        foreach ($entry in $manifest) { Verify-Security ([System.IO.Path]::Combine($directory, $entry.name)) $false }
+    }
+}
+function Invoke-Integration {
+    $script:phase = 'protected'
+    if ($request.fault -eq 'protected') {
+        $script:fault = 'after-protection'; throw "SYNTHETIC_PRIVATE_HELPER_CANARY $root"
+    }
+    if ($request.fault -eq 'root-dacl') {
+        Extra-Rule $root $true
+        $script:fault = 'root-descriptor'
+        Verify-Security $root $true
+    }
+    foreach ($location in @('builder', 'sources', 'scratch', 'scratch/acquisition', 'scratch/analysis')) {
+        Create-Directory ([System.IO.Path]::Combine($root, $location))
+    }
+    $readers = [System.Collections.Generic.List[System.IO.FileStream]]::new()
+    Send-Frame @{stage='protected-ready'; run=$nonce; count=0; protected=$true;
+        powershell=$PSVersionTable.PSVersion.ToString(); dotnet=[Environment]::Version.ToString()}
+    $script:phase = 'manifest'
+    $command = (Receive-Line) | ConvertFrom-Json
+    if ((@($command.PSObject.Properties.Name | Sort-Object) -join ',') -ne 'command,manifest,selected' -or
+        $command.command -cne 'acquire') { throw 'protocol' }
+    $selected = @($command.selected)
+    if ($selected.Count -lt 1 -or $selected.Count -gt 3 -or @($selected | Select-Object -Unique).Count -ne $selected.Count -or
+        @($selected | Where-Object { $_ -notin @('standalone.sqlite', 'wal.sqlite', 'metadata.json') }).Count -ne 0) { throw 'selection' }
+    $sources = [System.IO.Path]::Combine($root, 'sources')
+    $names = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in $selected) {
+        $names.Add($name)
+        if ($name.EndsWith('.sqlite')) {
+            if ([System.IO.File]::Exists([System.IO.Path]::Combine($sources, "$name-journal"))) { throw 'companions' }
+            $wal = [System.IO.File]::Exists([System.IO.Path]::Combine($sources, "$name-wal"))
+            $shm = [System.IO.File]::Exists([System.IO.Path]::Combine($sources, "$name-shm"))
+            if ($wal -ne $shm) { throw 'companions' }
+            if ($wal) { $names.Add("$name-wal"); $names.Add("$name-shm") }
+        }
+    }
+    $manifest = @($command.manifest)
+    if ($names.Count -gt 5 -or $manifest.Count -ne $names.Count) { throw 'manifest' }
+    $total = 0
+    for ($i=0; $i -lt $manifest.Count; $i++) {
+        $entry = $manifest[$i]
+        if ((@($entry.PSObject.Properties.Name | Sort-Object) -join ',') -ne 'digest,name,size' -or
+            $entry.name -cne $names[$i] -or $entry.size -isnot [long] -and $entry.size -isnot [int] -or
+            $entry.size -lt 0 -or $entry.size -gt 131072 -or $entry.digest -cnotmatch '^[a-f0-9]{64}$') { throw 'manifest' }
+        $total += $entry.size
+    }
+    if ($total -gt 262144) { throw 'limit' }
+    $script:phase = 'open'
+    foreach ($entry in $manifest) {
+        $path = [System.IO.Path]::Combine($sources, $entry.name)
+        [void](Check-Object $path $false)
+        $reader = [System.IO.FileStream]::new($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+        $streams.Add($reader); $readers.Add($reader); $script:opened = $readers.Count
+    }
+    foreach ($i in 0..($manifest.Count-1)) { [void](Read-Retained $readers[$i] $manifest[$i]) }
+    $script:phase = 'held'
+    Integration-Frame 'handles-held'
+    Integration-Command 'copy'
+    $script:phase = 'copy'
+    for ($i=0; $i -lt $manifest.Count; $i++) {
+        $buffer = Read-Retained $readers[$i] $manifest[$i]
+        foreach ($area in @('acquisition', 'analysis')) {
+            $destination = [System.IO.Path]::Combine($root, 'scratch', $area, $manifest[$i].name)
+            $writer = Create-File $destination
+            if ($request.fault -eq 'destination-dacl') {
+                Close-Stream $writer
+                Extra-Rule $destination $false
+                $script:fault = 'destination-descriptor'
+                Verify-Security $destination $false
+            }
+            if ($request.fault -eq 'partial-copy') {
+                $amount = [Math]::Min(16, [int]$manifest[$i].size)
+                $writer.Write($buffer, 0, $amount); $writer.Flush()
+                if ($amount -le 0 -or $writer.Length -ne $amount -or $writer.Position -ne $amount) { throw 'write' }
+                $script:partialWritten = $true; $script:fault = 'after-partial-write'
+                throw "SYNTHETIC_PRIVATE_HELPER_CANARY $root"
+            }
+            $writer.Write($buffer, 0, [int]$manifest[$i].size); $writer.Flush()
+            [void](Read-Retained $writer $manifest[$i])
+            Close-Stream $writer
+            Verify-Security $destination $false
+        }
+    }
+    Verify-IntegrationScratch $manifest
+    $script:copied = $true
+    $script:phase = 'analysis'
+    Integration-Frame 'copies-verified'
+    Integration-Command 'verify'
+    $script:phase = 'verify'
+    foreach ($i in 0..($manifest.Count-1)) {
+        [void](Read-Retained $readers[$i] $manifest[$i])
+        $destination = [System.IO.Path]::Combine($root, 'scratch', 'acquisition', $manifest[$i].name)
+        $check = [System.IO.FileStream]::new($destination, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+        $streams.Add($check)
+        [void](Read-Retained $check $manifest[$i]); Close-Stream $check
+    }
+    if ($request.fault -eq 'analysis-dacl') {
+        Extra-Rule ([System.IO.Path]::Combine($root, 'scratch', 'analysis', $manifest[0].name)) $false
+        $script:fault = 'analysis-descriptor'
+    }
+    Verify-IntegrationScratch $manifest
+    if ($request.fault -eq 'diagnostic') {
+        $script:fault='diagnostic'
+        [Console]::Error.WriteLine("SYNTHETIC_PRIVATE_HELPER_CANARY $root S-1-5-999-invented")
+        [Console]::Error.Flush(); throw "SYNTHETIC_PRIVATE_HELPER_CANARY $root"
+    }
+    $script:phase = 'verified'
+    Integration-Frame 'verified-held'
+    Integration-Command 'release'
+    $script:phase = 'release'
+    $script:outcome = 'ok'
+}
+
 try {
     if (-not $IsWindows -or $PSVersionTable.PSVersion.Major -ne 7) { throw 'host' }
     $request = (Receive-Line) | ConvertFrom-Json
-    if ((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -ne 'case,nonce,root' -or
+    $integration = $request.case -eq 'integration'
+    if ($integration) {
+        $fileLimit = 131072
+        if ((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -ne 'case,fault,nonce,root' -or
+            $request.fault -notin @('none', 'protected', 'root-dacl', 'destination-dacl', 'analysis-dacl', 'partial-copy', 'diagnostic')) { throw 'protocol' }
+    } elseif ((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -ne 'case,nonce,root' -or
         $request.case -notin @('acl', 'acl-refusal', 'reader', 'writer', 'rename', 'unlink', 'copy', 'partial',
             'fault-protected', 'fault-copy', 'fault-diagnostic')) { throw 'protocol' }
     $nonce = [Guid]::ParseExact($request.nonce, 'D').ToString()
     $root = [System.IO.Path]::GetFullPath($request.root)
     $temporary = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
     if ([System.IO.Path]::GetDirectoryName($root) -ne $temporary -or
-        [System.IO.Path]::GetFileName($root) -notmatch '^workspace-surveyor-helper-[A-Za-z0-9]+$' -or
+        [System.IO.Path]::GetFileName($root) -notmatch $(if ($integration) { '^workspace-surveyor-synthetic-[A-Za-z0-9]+$' } else { '^workspace-surveyor-helper-[A-Za-z0-9]+$' }) -or
         @($root.Split('\') | Where-Object { $_ -ieq '.codex' }).Count -ne 0) { throw 'scope' }
     $rootItem = Check-Object $root $true
     $owner = [System.IO.Path]::Combine($root, 'owner')
@@ -136,6 +301,7 @@ try {
     Verify-Security $root $true
     $phase = 'marker-verify'
     Verify-Security $owner $false
+    if ($integration) { Invoke-Integration; return }
     if ($request.case -eq 'fault-protected') {
         $fault = 'after-protection'
         throw "SYNTHETIC_PRIVATE_HELPER_CANARY $root"
@@ -246,6 +412,11 @@ try {
     foreach ($stream in $streams) {
         try { $stream.Dispose() } catch { $closed = $false }
     }
-    Send-Frame @{stage='finished'; outcome=$outcome; closed=$closed; copied=$copied; phase=$phase; category=$category;
-        fault=$fault; partialWritten=$partialWritten}
+    if ($integration) {
+        Send-Frame @{stage='finished'; run=$nonce; outcome=$outcome; closed=$closed; copied=$copied; phase=$phase;
+            fault=$fault; partialWritten=$partialWritten; opened=$opened}
+    } else {
+        Send-Frame @{stage='finished'; outcome=$outcome; closed=$closed; copied=$copied; phase=$phase; category=$category;
+            fault=$fault; partialWritten=$partialWritten}
+    }
 }

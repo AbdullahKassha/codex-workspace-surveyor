@@ -1,6 +1,6 @@
 # Documentation index
 
-**Stage: M2a.3 minimal Windows helper experiment; CLI remains the M1 demonstration.** The CLI explains bundled invented scenarios. The M2a.1 test-only kernel handles generated invented fixtures with simulated protection; native acquisition refuses. M2a.2 documents supported-Node capability gaps. M2a.3 tests managed Windows ACL and sharing controls on disposable invented files without integration. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
+**Stage: M2a.4 synthetic helper integration; CLI remains the M1 demonstration.** The CLI explains bundled invented scenarios. The M2a.1 kernel's native path still refuses. M2a.2 records supported-Node capability gaps and M2a.3 records managed Windows control probes. M2a.4 separately integrates those controls with the test-only kernel on fixed invented SQLite/JSON/WAL/SHM fixtures. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
 
 ## Product and design
 
@@ -23,6 +23,7 @@
 - [Synthetic acquisition validation](research/synthetic-acquisition-validation.md): M2a.1 mechanics, fault injection and unresolved Windows protection.
 - [Windows acquisition controls validation](research/windows-acquisition-controls-validation.md): M2a.2 synthetic mode/access and handle-sharing observations, capability gaps and separately gated helper proposal.
 - [Windows helper experiment validation](research/windows-helper-experiment-validation.md): M2a.3 descriptor readback, cross-process sharing, bounded synthetic copies, refusal/privacy/cleanup and remaining unknowns.
+- [Synthetic helper integration validation](research/synthetic-helper-integration-validation.md): M2a.4 retained-set copying, protected acquisition/analysis separation, final verification, fault evidence and exact cleanup.
 
 ## Decisions
 
