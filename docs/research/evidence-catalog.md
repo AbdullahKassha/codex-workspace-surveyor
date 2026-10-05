@@ -173,6 +173,29 @@ These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-
 - Limit: these options provide neither a security sandbox nor bounded protocol/cleanup guarantees by themselves.
 - Design implication: M2a.3 uses an explicit opt-in and selected installed host, bounds/sanitizes streams, and confirms helper exit before deletion. No policy bypass or elevation.
 
+### DOC-015: Codex CLI location, authentication and persistence controls
+
+- Sources: official [environment variables](https://learn.chatgpt.com/docs/config-file/environment-variables), [authentication](https://learn.chatgpt.com/docs/auth) and [noninteractive mode](https://learn.chatgpt.com/docs/non-interactive-mode), directly reviewed 2026-10-05.
+- Surface: current CLI documentation; no installed Codex version or settings inspected.
+- Documented claim: CODEX_HOME controls CLI state location; CODEX_SQLITE_HOME is overridden by sqlite_home configuration. Auth caching may use a file or OS credential store; ephemeral credential storage is process-memory-only. Noninteractive exec supports explicit permissions, while its ephemeral session option omits rollout persistence. The location page links official standalone installers.
+- Limit: these controls do not establish OS isolation, Desktop-profile separation, actual schema/filenames or coverage on an untested version. Ephemeral credentials and ephemeral sessions are different controls.
+- Design implication: later disposable CLI testing requires a fresh isolated environment, explicit child-only configuration, dedicated credentials and separately approved persistent state creation. No personal authentication import or host Codex invocation.
+
+### DOC-016: Windows disposable environment prerequisites
+
+- Sources: Microsoft [Windows Sandbox overview](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/), [Sandbox configuration](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file) and [Hyper-V installation](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/get-started/install-hyper-v), directly reviewed 2026-10-05.
+- Documented claim: Sandbox excludes Windows Home and provides a disposable environment; networking, mapped folders and redirection need explicit configuration. Hyper-V installation guidance excludes Windows Home editions.
+- Limit: documentation does not establish the host's enabled features, firmware support, license rights, available resources or safe guest settings. An absent launcher is not an exhaustive installation audit.
+- Design implication: do not enable a feature, upgrade an edition or infer a supported isolation boundary from a redirected Codex home. Record the bounded host findings and unresolved setup requirements separately.
+
+### DOC-017: Virtual machine configuration and networking
+
+- Sources: Oracle VirtualBox 7.2 [installation](https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/installation.html), [VM configuration](https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/working-with-vms.html) and [networking](https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/networkingdetails.html), directly reviewed 2026-10-05.
+- Surface: one supported-product documentation candidate; not a verified installed product or selected version for execution.
+- Documented claim: VM configuration exposes virtual hardware, shared clipboard, drag/drop, folders and network settings; NAT is a network mode rather than a destination allowlist, and host services can be reachable.
+- Limit: no guest was created and no configuration, host compatibility, egress policy or effective isolation was tested. No guarantee for other vendors is inferred.
+- Design implication: a future exact environment proposal must disable host integrations and validate a separately scoped network policy before Codex execution; NAT alone is insufficient.
+
 ## Synthetic implementation validation records: design decision
 
 The [M2a.1 validation record](synthetic-acquisition-validation.md) and [M2a.2 Windows controls record](windows-acquisition-controls-validation.md) describe implementation measurements using invented inputs. M2a.2 observes real Windows filesystem behavior on disposable synthetic files; it is not a founder-observed Codex experiment or an official contract. Preserve each measurement context independently of B0/B1; no WIN record is reproduced, superseded or retired by these checks.
@@ -180,6 +203,10 @@ The [M2a.1 validation record](synthetic-acquisition-validation.md) and [M2a.2 Wi
 The separately authorized [M2a.3 helper record](windows-helper-experiment-validation.md) appends current-user-only descriptor and controlled cross-process sharing measurements on disposable synthetic objects. It is implementation validation, not Codex evidence or real-source readiness. Native acquisition remains disabled; earlier records retain their original scope and conclusions.
 
 The separately authorized [M2a.4 integration record](synthetic-helper-integration-validation.md) records the end-to-end test-only helper/kernel path on the unchanged invented SQLite/JSON/WAL/SHM fixtures. It reuses DOC-010–DOC-014 contracts, measures retained-handle copying and analysis separation, and records precise injected failure stages. Native acquisition remains disabled; no WIN record, source schema or Codex behavior is validated by this gate. M2a.1–M2a.3 records remain historical evidence with their original limits.
+
+## Read-only environment feasibility record
+
+The [disposable Codex isolation-feasibility record](disposable-codex-isolation-feasibility.md) contains dated, agent-executed bounded host observations, unavailable queries, DOC-015–DOC-017 research and future design decisions. It is not synthetic acquisition validation, a founder-observed Codex experiment or an isolation certification. Its readiness-gap outcome does not authorize setup or execution. Earlier records, WIN IDs and B0/B1 gaps are preserved.
 
 ## Recording future evidence: design decision
 

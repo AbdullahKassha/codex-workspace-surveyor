@@ -2,7 +2,11 @@
 
 ## Current authorization
 
-M0/Foundation, M1 and M2a.1–M2a.3 are complete. Following independent M2a.3 review, the founder separately authorized M2a.4 Synthetic Helper Integration on 2026-10-05. Work only on the test-only synthetic kernel/helper path and supporting documentation, then stop for independent review. A roadmap describes future work; it does not grant authority to execute it. Preserve [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md) and the committed M2a.1–M2a.3 validation records.
+M0/Foundation, M1 and M2a.1–M2a.4 are complete. The founder separately authorized Disposable Real Codex Validation's **isolation-feasibility slice only** on 2026-10-05. Permitted work is targeted read-only host-capability checks, official-source research and supporting documentation. No disposable environment creation, Codex launch, acquisition, acquisition-code changes or later gate is authorized. A roadmap describes future work; it does not grant authority to execute it. Preserve [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md) and all committed M2a.1–M2a.4 validation records.
+
+The [isolation-feasibility record](docs/research/disposable-codex-isolation-feasibility.md) records a readiness gap, not validated isolation. Bounded executable checks did not establish an available supported VM mechanism; unavailable hardware observations remain unknown. Do not broaden discovery to existing VM inventories, personal disk images, profiles, credentials or Codex homes. No installation, elevation, account creation, feature enablement, fallback mechanism or cleanup is authorized by this slice. Keep runtime code, tests, helpers, package scripts/dependencies and native refusal unchanged; ordinary existing regression checks remain permitted. Stop after documenting the gap and subsequent approval prerequisites. CLI-created state is the later first target; Desktop, personal canaries and M2b/M2c remain deferred.
+
+Historical authorization: following independent M2a.3 review, the founder separately authorized M2a.4 Synthetic Helper Integration on 2026-10-05. It passed independent review and was committed before this feasibility slice.
 
 Permitted M2a.4 changes: a distinct explicitly opted-in asynchronous test coordinator; reuse of the supported PowerShell 7/.NET descriptor and retained Open/Read/FileShare.Read controls; fixed harness-created SQLite/JSON sources including the existing WAL/SHM fixture; helper-only acquisition/analysis data copies; bounded identity/set/hash/stability checks, conservative refusal, sanitization, faults and authenticated exact-run cleanup. Integration limits are five selected files, 128 KiB per file, 256 KiB selected content, and 21 files/six directories/1 MiB content across the entire current run. Keep the fixture builder, simulated path, native refusal, CLI, package scripts/dependencies and historical records unchanged. See [M2a.4 validation](docs/research/synthetic-helper-integration-validation.md).
 
@@ -34,13 +38,13 @@ Do not create real scanners/acquisition, Git or boundary discovery, a generalize
 
 ## Private data and actions
 
-- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during M2a.4. No App Server inspection, real filesystem ancestry scans, AGENTS diagnostics, or verification turns.
+- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during isolation feasibility. No App Server inspection, real filesystem ancestry scans, AGENTS diagnostics, or verification turns.
 - A specific read-only research authorization must identify the target and purpose. Authorization for documentation is not authorization for such research.
 - Use the founder's supplied observations, official documentation, and invented examples only. Replace personal identifying details in supplied material.
 - Never create repository copies of real paths, OS usernames, thread/project IDs, conversation titles, prompt text, screenshots, databases, sessions, or audit reports.
 - Generic filenames, field names, environment-variable names, and placeholder paths are technical vocabulary, not private data. Label examples as synthetic.
 - Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR; see [ADR 0001](docs/decisions/0001-observation-and-action-boundary.md).
-- Do not clean unrelated directories, move worktrees, delete records, or send verification turns during M2a.4. Only the approved exact current-run synthetic artifact cleanup is permitted.
+- Do not clean unrelated directories, move worktrees, delete records, or send verification turns during isolation feasibility. Existing regression tests may clean only their exact current-run synthetic artifacts; no environment disposal or other cleanup is authorized.
 - Do not commit, publish, push, change repository visibility, or perform other cleanup without separate authorization.
 - Do not use a supported API merely because its name sounds read-only; investigate documented and observed side effects first.
 
@@ -66,4 +70,4 @@ Run typecheck, build, semantic/counterexample tests, text goldens, and CLI tests
 
 Ignore patterns are defense in depth, not proof of privacy. Review every proposed repository file. Do not stage content merely to inspect it.
 
-At M2a.4 completion, report delivered files, empirical versus ordinary passes/skips, checks performed, observed controls/gaps, cleanup status and remaining unknowns. Stop for independent review before further integration, alternate helpers, disposable Codex experiments, real adapters or private research. No production/public helper interface or real discovery is authorized. Do not stage, commit, push, publish or start a later gate without separate authorization.
+At isolation-feasibility completion, report documentation changes, bounded observations and unavailable checks, the readiness gap, regression passes/skips, privacy/scope/link checks and remaining prerequisites. Availability is not validated isolation. Stop before environment setup, further integration, alternate helpers, disposable Codex execution, real adapters or private research. No production/public helper interface or real discovery is authorized. Do not stage, commit, push, publish or start a later gate without separate authorization.

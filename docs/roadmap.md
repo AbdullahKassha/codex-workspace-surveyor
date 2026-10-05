@@ -2,7 +2,7 @@
 
 ## Authorization: design decision
 
-The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1 and M2a.1–M2a.3 are complete. Following independent helper review, the founder separately authorized M2a.4 Synthetic Helper Integration on 2026-10-05: a test-only helper/kernel path on fixed invented fixtures, retained source handles, protected copies and exact-run cleanup. Stop for independent review at M2a.4 completion. Every later gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
+The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1 and M2a.1–M2a.4 are complete; M2a.4 passed independent review and was committed. On 2026-10-05 the founder separately authorized only the isolation-feasibility slice of Disposable Real Codex Validation: targeted read-only host checks, official research and documentation. The result is a documented readiness gap; no environment was created or Codex launched. Every subsequent setup, execution or acquisition gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
 Commits, publication, visibility changes, and cleanup require separate authorization. Approval of product direction is not approval for those actions.
 
@@ -35,7 +35,7 @@ Completion requires a fresh dependency install, typecheck, build, semantic/count
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
 
-The broader direction is approved in principle. M2a.1–M2a.3 are complete and M2a.4 is separately authorized. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
+The broader direction is approved in principle. M2a.1–M2a.4 are complete. Isolation feasibility alone is separately authorized; it does not authorize the later disposable experiment. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
 
 | Gate | Scope and exit condition |
 | --- | --- |
@@ -44,7 +44,9 @@ The broader direction is approved in principle. M2a.1–M2a.3 are complete and M
 | M2a.3 — minimal Windows helper experiment | Test-only managed PowerShell 7 DACL and retained FileShare.Read controls on bounded synthetic fixtures; record descriptors, cross-process sharing and cleanup evidence; leave native refusal unchanged |
 | M2a.4 — synthetic helper integration | Explicit test-only protected SQLite/JSON/WAL/SHM copying under retained handles, separate analysis, final verification and authenticated cleanup; native refusal remains unchanged; independent review before any next proposal |
 | Subsequent stronger validation | Separate proposal and approval after independent review; synthetic integration never authorizes real acquisition |
-| Disposable Codex validation | Separately approve isolated invented projects/chats and named sources/actions; establish current source locations, schema context and closed-app acquisition evidence |
+| Disposable Codex isolation feasibility | Authorized read-only host checks and documentation; complete with a precise setup proposal or readiness gap, without creating an environment or launching Codex |
+| Disposable environment setup and test-only source binding | Subsequent explicit proposal/approval; resolve the feasibility gap, establish isolation and separate Codex originals from scratch ownership before any acquisition |
+| Disposable Codex validation | Separately authorize creation, closed-app acquisition and copied-only inspection; CLI first, exact named sources/actions, current source/schema evidence; Desktop deferred |
 | M2b — first real adapter | Separately implement minimum metadata reading using validated evidence; unsupported shapes withhold dependent conclusions |
 | Personal canary | Separate single-run consent naming source files, full-copy exposure, selected fields, scratch, retention and cleanup; review before further access |
 | M2c — conservative audit | Separate real CLI integration with provenance, qualified source coverage and text explanations |
@@ -63,6 +65,12 @@ M2a.4 reuses that helper only through an explicitly opted-in test coordinator. N
 M2 or later may validate real boundary evidence only with separate, specific research and implementation authorization. This optional scope includes bounded marker/policy, qualified Git-root, and instruction-metadata evidence; it does not authorize full private configuration, instruction contents, or arbitrary ancestry scans. No instruction interpreter, Git repair, marker management, or configuration repair is planned.
 
 Acceptance: evidence/context recorded, no source mutations, partial scans qualified, private canaries absent from shareable outputs, and all claims scoped to tested environments. Live scanning remains experimental until separately validated.
+
+### Disposable Codex isolation feasibility: completed gap outcome
+
+The [feasibility record](research/disposable-codex-isolation-feasibility.md) separates dated host observations from official contracts and future design. The observed Core edition, absent Sandbox launcher, no candidate VM executable in the bounded checked locations and unavailable hardware queries do not establish an installed supported environment. They do not prove system-wide absence. No environment, credentials, Codex process or source was created or inspected. Fresh Windows VM isolation remains a conditional candidate, with installation/setup and hardware/network prerequisites requiring a subsequent proposal.
+
+Later phases remain distinct: create CLI-only disposable state; acquire exact named files after verified writer closure; inspect only protected analysis copies. M2a.4's fixed synthetic selection/schema and source-owning cleanup require separately reviewed test-only adaptation before real disposable originals can be bound. No automatic limit increases, production interface, general native acquisition, personal canary or M2b/M2c follows. Historical M2a.1–M2a.4 records stay unchanged.
 
 <a id="m3"></a>
 ## M3: Early visual relationship report
