@@ -6,6 +6,8 @@ M0 was documentation-only. M1 implements bundled synthetic CLI explanations, wit
 
 M2a.1 adds a test-only synthetic acquisition kernel under [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md). Native acquisition refuses; successful fixture tests explicitly simulate protection. No real source or Codex behavior has been validated by this addition.
 
+M2a.2 adds supported-Node Windows control probes on disposable invented files. Ordinary read-opens admitted writes, rename and unlink; scratch DACL protection remains unverified. These measurements do not enable acquisition or certify any Codex source. See [the controls record](research/windows-acquisition-controls-validation.md).
+
 Schema compatibility, behavioral applicability, and platform/runtime support are separate. A familiar filename or parseable schema does not establish lifecycle behavior.
 
 ## M1 synthetic implementation validation
@@ -36,6 +38,17 @@ All B0/B1 applicability and retirement decisions below remain unchanged. Real sc
 The [synthetic validation record](research/synthetic-acquisition-validation.md) details actual invented-file copying under simulated protection, native refusal, exact-run cleanup, companion/stability checks, privacy canaries and source-write regressions. Hashes and operation-boundary checks do not prove absence of transient writes, verified ACL isolation, writer exclusion or atomic cross-source acquisition. No founder experiment is reproduced or retired.
 
 Later validation, helpers, disposable Codex experiments, real adapters and personal canaries remain separately gated. Approval of the broader roadmap grants no source access.
+
+<a id="m2a2-windows-acquisition-controls-validation"></a>
+## M2a.2 Windows acquisition controls validation
+
+**Design decision / implementation validation on synthetic inputs — 2026-10-05:** the founder separately authorized supported Node filesystem probes and exact-run cleanup. The baseline was `2e51e45`; probe changes were uncommitted. Node 24.18.1, bundled libuv 1.52.1, `win32`/`x64` and Windows release `10.0.26300` were measured through built-in runtime APIs. The official matching source was reviewed before execution. Filesystem type, actual ACLs and all Codex versions/state remain unknown. This contemporaneous release observation does not backfill B0, B1 or M2a.1.
+
+**Observed controls:** requesting directory/file modes and applying `chmod(0600)`/`chmod(0644)` left reported permission bits `0666`; current-process R_OK/W_OK checks succeeded. No descriptor or alternate-account access was inspected. Ordinary Node read-opens admitted a verified synthetic write in both handle orders, one rename and one unlink. A retained `'wx'` handle refused another exclusive creation but admitted a writing handle. These are narrow counterexamples to exclusion, not a safety certification. Native acquisition still refuses with `protection-unverified`.
+
+**Completed checks:** typecheck, build and **58/58 tests passed**, with zero skips on native Windows: the original 46 tests and 12 added control/safety tests. All five empirical probes cleaned their exact artifacts. Injected residual and unknown-entry cases withheld observations, preserved ownership/unrelated sentinels and completed authenticated retry cleanup. Captured diagnostics for an error injected after successful initialization and output allowlisting withheld canaries and temporary paths; M2a.2 did not test initialization-failure or partial-initialization paths. Documentation review checked 268 relative links/anchors in 30 documents and all 20 WIN anchors. Privacy/scope review of the exact seven changed files and `git diff --check` passed. The kernel, fixture builder, CLI, package/lockfile/scripts, goldens, historical ADRs and M2a.1 record remained unchanged; no helper, dependency installation, real-state access, staging, commit or push occurred.
+
+See [M2a.2 procedures, results and limitations](research/windows-acquisition-controls-validation.md), with official sources [DOC-009](research/evidence-catalog.md#doc-009-node-and-bundled-libuv-sharing-boundary), [DOC-010](research/evidence-catalog.md#doc-010-windows-file-handle-sharing) and [DOC-011](research/evidence-catalog.md#doc-011-windows-object-security-and-inheritance). A documented capability gap completes this gate. Any helper experiment, stronger validation, disposable Codex experiment, adapter or personal canary requires separate approval.
 
 <a id="baseline-context-b0"></a>
 ## Baseline context B0

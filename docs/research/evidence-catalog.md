@@ -58,7 +58,7 @@ Article discussions of official documentation, source code, and issue reports ar
 
 ## Official documentation records
 
-These are separate from B0 and B1. Each page was reviewed on **2026-10-04**. Public documentation can change; record a new review when a material claim changes. No downloaded page copies or screenshots are stored here. Product names reflect the sources' current presentation, not a retroactive identification of the founder's build.
+These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-04**; later entries carry their own review dates. Public documentation can change; record a new review when a material claim changes. No downloaded page copies or screenshots are stored here. Product names reflect the sources' current presentation, not a retroactive identification of the founder's build.
 
 ### DOC-001: App Server listing side effects
 
@@ -124,6 +124,34 @@ These are separate from B0 and B1. Each page was reviewed on **2026-10-04**. Pub
 - Documented claim: Windows mode changes do not implement owner/group/other distinctions; `fs.access()` does not check ACLs. The documented Windows open flags provide no caller-selected deny-write/delete sharing parameter.
 - Limit: this review does not establish local DACLs, effective Codex locations, hostile-race resistance or a zero-write guarantee. It does not prove that no other mechanism could provide stronger protection.
 - Design implication: M2a.1 default acquisition refuses with unverified protection; successful invented-fixture tests explicitly simulate that prerequisite. Helpers require later scoped approval.
+
+### DOC-009: Node and bundled libuv sharing boundary
+
+- Sources: Node 24.18.1 [filesystem API](https://nodejs.org/download/release/v24.18.1/docs/api/fs.html), [bundled libuv version header](https://github.com/nodejs/node/blob/v24.18.1/deps/uv/include/uv/version.h), [Windows open implementation](https://github.com/nodejs/node/blob/v24.18.1/deps/uv/src/win/fs.c) and [exposed constants](https://github.com/nodejs/node/blob/v24.18.1/src/node_constants.cc), directly reviewed 2026-10-05.
+- Surface: public Node flags and the version-matched bundled Windows implementation; libuv 1.52.1 matches the measured runtime.
+- Official-source claim: the ordinary Windows open branch supplies `FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE`. The internal `UV_FS_O_EXLOCK` branch supplies zero sharing; Node exposes `UV_FS_O_FILEMAP`, but not the exclusive-sharing constant.
+- Inference and limit: mapped I/O is not a caller-selected deny-write/delete contract; source inspection is not a supported Node API commitment. No undocumented numeric flag or mapping was executed. This does not prove that every possible Node-associated mechanism is incapable of stronger controls.
+- Design implication: preserve native refusal; [M2a.2](windows-acquisition-controls-validation.md) tests ordinary documented opens and records the precise supported-API gap.
+
+### DOC-010: Windows file handle sharing
+
+- Source: Microsoft [CreateFileW documentation](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew), directly reviewed 2026-10-05.
+- Surface: Windows desired access, sharing modes and open-handle lifetime.
+- Documented claim: incompatible existing access/sharing requests fail; sharing options persist until the handle closes regardless of process context. Delete access includes rename. Exclusive creation is a creation disposition, separate from sharing.
+- Limit: the documentation does not identify the sharing parameters actually requested by a Node call or certify atomic multi-file acquisition.
+- Design implication: two same-process handles can demonstrate an exclusion counterexample; positive cross-process enforcement and continuously retained handle-set validation remain later scope.
+
+### DOC-011: Windows object security and inheritance
+
+- Source: Microsoft [file security and access rights](https://learn.microsoft.com/en-us/windows/win32/fileio/file-security-and-access-rights), directly reviewed 2026-10-05.
+- Surface: per-object security descriptors, DACL evaluation and ACE inheritance.
+- Documented claim: object ACLs govern access; a parent descriptor is not used directly to control a child's access. Inheritance rules determine restrictions transferred to children.
+- Limit: no actual scratch descriptors, effective rights, alternate-account access or filesystem capabilities were inspected.
+- Design implication: any later scratch protection evidence must verify root and child descriptors against an explicit principal policy, rather than accepting mode bits, markers or parent-only observations.
+
+## Synthetic implementation validation records: design decision
+
+The [M2a.1 validation record](synthetic-acquisition-validation.md) and [M2a.2 Windows controls record](windows-acquisition-controls-validation.md) describe implementation measurements using invented inputs. M2a.2 observes real Windows filesystem behavior on disposable synthetic files; it is not a founder-observed Codex experiment or an official contract. Preserve each measurement context independently of B0/B1; no WIN record is reproduced, superseded or retired by these checks.
 
 ## Recording future evidence: design decision
 

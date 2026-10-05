@@ -2,7 +2,13 @@
 
 ## Current authorization
 
-M0/Foundation and M1 are complete. The founder explicitly authorized the narrowed M2a.1 synthetic acquisition-safety kernel on 2026-10-04. Work only within that synthetic test-harness slice and stop at M2a.1 completion. Later validation and implementation require separate explicit authorization. A roadmap describes future work; it does not grant authority to execute it. See [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md).
+M0/Foundation, M1 and M2a.1 are complete. The founder separately authorized M2a.2 Windows Acquisition Controls Validation on 2026-10-05. Implement only the approved bounded, disposable synthetic Windows probes and supporting documentation, then stop at M2a.2 completion. Later validation and implementation require separate explicit authorization. A roadmap describes future work; it does not grant authority to execute it. Preserve [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md) and the committed M2a.1 validation record.
+
+Permitted M2a.2 changes: one test-only module for supported Node mode/access observations, reader-first and writer-first handle probes, single rename/unlink attempts and exclusive-creation distinction; bounded owned synthetic fixtures, sanitized diagnostics, privacy/cleanup checks and supporting documentation. Use at most eight files, four directories, 4 KiB per file and 32 KiB total file content per run. Deliberate writes and namespace operations are permitted only on these newly created control-probe fixtures, separately from acquisition source-write tests. Record only non-identifying runtime context and allowlisted observations. Close all handles before authenticated exact-run cleanup; report residuals rather than sweeping storage. Non-Windows cases skip empirical validation.
+
+Do not alter the M2a.1 kernel, fixture builder, native refusal, CLI, dependencies or historical records. Supported Node APIs only: no undocumented numeric flags, memory-mapping strategy, helper, worker, competing subprocess, SQLite probe, parent ACL inspection or alternate-account experiment. A demonstrated capability gap is a successful gate outcome. See the [M2a.2 validation record](docs/research/windows-acquisition-controls-validation.md).
+
+Historical authorization: the founder explicitly authorized the narrowed M2a.1 synthetic acquisition-safety kernel on 2026-10-04 under ADR 0008.
 
 Permitted M2a.1 changes: invented SQLite/JSON fixture builders; explicit harness-owned source selection; bounded raw reads/copies; ownership, containment, overlap and stability checks; existing database/WAL/SHM acquisition; separate untouched acquisition and analysis copies; conservative refusals; exact current-run synthetic artifact cleanup; fault injection, privacy and source-write regression tests; supporting documentation. Keep the kernel under `test/support`, outside CLI imports. No dependency installation, Windows helper or acquisition subprocess is authorized. Native scratch protection remains unverified and must refuse copying; explicitly labeled simulated protection may exercise invented fixture mechanics only. SQLite may open fixture builder and analysis paths, never designated sources.
 
@@ -12,17 +18,17 @@ Permitted M1 changes: the single private TypeScript/Node package, exact developm
 
 The accepted product name is **Workspace Surveyor for Codex**, with **Workspace Surveyor** as the contextual short name. Follow [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md) for technical names and the future synthetic CLI surface. Naming decisions do not authorize M1, publication, local-path changes, Local Project reassignment, or Thread/CWD migration. Preserve legacy names in historical observations and founding ADR wording.
 
-Do not create real scanners/acquisition, Git or boundary discovery, a generalized rules engine, visual UI, public APIs/JSON contracts, generated schemas, plugins, release workflows, or empty scaffolding. The existing dependencies suffice for M2a.1; do not install dependencies. No public bin declaration or global executable installation. Use the cli script, never a doctor script. Preserve the existing local folder, Local Project, Thread assignments, and CWDs; no rename or migration work.
+Do not create real scanners/acquisition, Git or boundary discovery, a generalized rules engine, visual UI, public APIs/JSON contracts, generated schemas, plugins, release workflows, or empty scaffolding. The existing dependencies suffice for M2a.2; do not install dependencies. No public bin declaration or global executable installation. Use the cli script, never a doctor script. Preserve the existing local folder, Local Project, Thread assignments, and CWDs; no rename or migration work.
 
 ## Private data and actions
 
-- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during M2a.1. No App Server inspection, real filesystem ancestry scans, AGENTS diagnostics, or verification turns.
+- Do not inspect real Codex state, databases, session files, conversation metadata, auth, logs, or other private artifacts during M2a.2. No App Server inspection, real filesystem ancestry scans, AGENTS diagnostics, or verification turns.
 - A specific read-only research authorization must identify the target and purpose. Authorization for documentation is not authorization for such research.
 - Use the founder's supplied observations, official documentation, and invented examples only. Replace personal identifying details in supplied material.
 - Never create repository copies of real paths, OS usernames, thread/project IDs, conversation titles, prompt text, screenshots, databases, sessions, or audit reports.
 - Generic filenames, field names, environment-variable names, and placeholder paths are technical vocabulary, not private data. Label examples as synthetic.
 - Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR; see [ADR 0001](docs/decisions/0001-observation-and-action-boundary.md).
-- Do not clean unrelated directories, move worktrees, delete records, or send verification turns during M2a.1. Only the approved exact current-run synthetic artifact cleanup is permitted.
+- Do not clean unrelated directories, move worktrees, delete records, or send verification turns during M2a.2. Only the approved exact current-run synthetic artifact cleanup is permitted.
 - Do not commit, publish, push, change repository visibility, or perform other cleanup without separate authorization.
 - Do not use a supported API merely because its name sounds read-only; investigate documented and observed side effects first.
 
@@ -48,4 +54,4 @@ Run typecheck, build, semantic/counterexample tests, text goldens, and CLI tests
 
 Ignore patterns are defense in depth, not proof of privacy. Review every proposed repository file. Do not stage content merely to inspect it.
 
-At M2a.1 completion, report delivered files, checks performed, and remaining unknowns. Stop before later M2a validation, disposable Codex experiments, real adapters or private research. Do not commit, push, publish, add helpers or start those activities without separate authorization.
+At M2a.2 completion, report delivered files, checks performed, observed control gaps, cleanup status and remaining unknowns. Stop before helper experiments, disposable Codex experiments, real adapters or private research. Do not stage, commit, push, publish, add helpers or start those activities without separate authorization.
