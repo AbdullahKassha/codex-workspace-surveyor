@@ -4,6 +4,12 @@
 
 The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1 and M2a.1–M2a.4 are complete; M2a.4 passed independent review and was committed. On 2026-10-05 the founder separately authorized only the isolation-feasibility slice of Disposable Real Codex Validation: targeted read-only host checks, official research and documentation. The result is a documented readiness gap; no environment was created or Codex launched. Every subsequent setup, execution or acquisition gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
+On 2026-10-06 the founder approved [personal closed-app canary preparation](research/personal-canary-preparation-validation.md) with synthetic validation only. [ADR 0009](decisions/0009-personal-closed-app-canary.md) permits a separately consented personal canary without requiring VM setup. The readiness-gap record is preserved; personal execution remains deferred until independent review and exact single-run consent.
+
+The separately approved P1/P2 preparation correction adds authenticated persistent recovery before source-content reads, exclusive exact-run restart cleanup and pre-spawn request validation with retained lifecycle ownership. Its checkpoint passed 171 with no skips; the ordinary run passed 78 with 93 skips. Subsequent review identified receive-deadline release during Node deletion. The separately approved remaining P1 fix keeps Node identity authorization and moves each synchronous recovery scratch deletion into the exclusive-handle helper; deadlines and protocol failures stop subsequent dispatch. Resolved P2 and existing timeouts remain unchanged. Independent re-review remains pending. No actual personal slot, source or Codex process was inspected, and graceful synthetic recovery does not establish crash or power-loss durability.
+
+Final lifetime-correction validation passed **179** explicit synthetic tests with no skips and **79** ordinary tests with **100** skips, with zero failures and typecheck/build passing. Controlled deadline crossing and concurrent recovery demonstrate the corrected scratch-deletion lifetime only; no personal execution or subsequent gate is authorized.
+
 Commits, publication, visibility changes, and cleanup require separate authorization. Approval of product direction is not approval for those actions.
 
 <a id="m0"></a>
@@ -35,7 +41,7 @@ Completion requires a fresh dependency install, typecheck, build, semantic/count
 <a id="m2"></a>
 ## M2: Private Windows read-only alpha
 
-The broader direction is approved in principle. M2a.1–M2a.4 are complete. Isolation feasibility alone is separately authorized; it does not authorize the later disposable experiment. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
+The broader direction is approved in principle. M2a.1–M2a.4 and isolation feasibility are complete. Personal canary preparation is separately approved; no real experiment is authorized. Preserve the following gates; do not interpret approval of the direction as authority to execute them together.
 
 | Gate | Scope and exit condition |
 | --- | --- |
@@ -48,7 +54,9 @@ The broader direction is approved in principle. M2a.1–M2a.4 are complete. Isol
 | Disposable environment setup and test-only source binding | Subsequent explicit proposal/approval; resolve the feasibility gap, establish isolation and separate Codex originals from scratch ownership before any acquisition |
 | Disposable Codex validation | Separately authorize creation, closed-app acquisition and copied-only inspection; CLI first, exact named sources/actions, current source/schema evidence; Desktop deferred |
 | M2b — first real adapter | Separately implement minimum metadata reading using validated evidence; unsupported shapes withhold dependent conclusions |
-| Personal canary | Separate single-run consent naming source files, full-copy exposure, selected fields, scratch, retention and cleanup; review before further access |
+| Personal canary preparation | Approved private runner/helper, persistent authenticated recovery with helper-owned synchronous deletion, pre-spawn validation, invented-file checks and external-run procedure; independent re-review before any personal execution |
+| Personal closed-app canary | Separate exact single-run consent; full copies, schema-only analysis, verified closure, retained read handles and exact scratch cleanup; no VM prerequisite, no automatic adapter |
+| Bounded schema/metadata qualification | Separate proposal after successful real canary; qualify minimum metadata before M2b |
 | M2c — conservative audit | Separate real CLI integration with provenance, qualified source coverage and text explanations |
 | Git/worktree mapping | Deferred; a later bounded proposal must assess side effects and ownership limits |
 

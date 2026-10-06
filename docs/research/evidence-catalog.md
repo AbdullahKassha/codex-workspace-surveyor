@@ -208,6 +208,40 @@ The separately authorized [M2a.4 integration record](synthetic-helper-integratio
 
 The [disposable Codex isolation-feasibility record](disposable-codex-isolation-feasibility.md) contains dated, agent-executed bounded host observations, unavailable queries, DOC-015–DOC-017 research and future design decisions. It is not synthetic acquisition validation, a founder-observed Codex experiment or an isolation certification. Its readiness-gap outcome does not authorize setup or execution. Earlier records, WIN IDs and B0/B1 gaps are preserved.
 
+### DOC-018: Analysis-copy SQLite controls
+
+- Source: official [Node 24.18.1 SQLite documentation](https://nodejs.org/download/release/v24.18.1/docs/api/sqlite.html), reviewed 2026-10-06.
+- Documented claim: DatabaseSync supports read-only and defensive opening, extension controls, limits and a statement authorizer. Authorizer callbacks can deny statement actions.
+- Limit: read-only opening does not certify provenance, safety of an original path, companion consistency or schema compatibility. These APIs do not independently establish a permitted query policy.
+- Design implication: canary preparation opens only analysis copies, fixes two schema probes and denies application/catalog-column access. Synthetic tests exercise refusals; no personal SQLite source is opened.
+
+### DOC-019: Finite process-name observation
+
+- Source: Microsoft [.NET Process.GetProcessesByName](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.getprocessesbyname?view=net-10.0), reviewed 2026-10-06.
+- Documented claim: the local overload returns Process components for processes matching a friendly executable name without its extension; callers dispose components when finished.
+- Limit: a named snapshot is not process discovery, complete writer coverage or prevention of restart. No matching process or current writer list was inspected during preparation.
+- Design implication: later consent must supply a reviewed complete name list and no-restart commitment. Preparation uses injected closure observations; the real observation branch remains unvalidated.
+
+## Personal canary preparation record
+
+The separately authorized [preparation record](personal-canary-preparation-validation.md) distinguishes synthetic protected-copy/inspection tests from the unexecuted personal path. Its P1/P2 checkpoint records authenticated persistence before copying, controlled process-restart recovery, short-duration lifetime exclusion, tampering/deletion refusals and pre-spawn validation: 171 explicit passes with no skips and 78 ordinary passes with 93 skips. Subsequent review found the deadline gap during Node deletion. The separately authorized remaining P1 correction moves synchronous scratch deletion into the exclusive-handle helper with per-step Node identity authorization and real deadline-crossing/protocol regressions. Resolved P2 is preserved. The record retains initial measurements and historical controls/feasibility records, discloses development residuals and requires independent re-review and precise future consent. No personal slot was inspected, and no WIN record or Codex behavior is reproduced, superseded or retired.
+
+Final lifetime-correction measurements passed **179** explicit tests with no skips and **79** ordinary tests with **100** skips, zero failures. The controlled interval exceeded 35 seconds while the unchanged Node timeout fired; the concurrent recovery remained busy and a fresh recovery succeeded after confirmed release. Failure and operation-boundary regressions preserve exact-run authentication, sentinels and sanitized evidence. This is not crash durability, hostile-race protection or personal-state readiness.
+
+### DOC-020: Recovery location and flush controls
+
+- Sources: Microsoft [.NET Environment.GetFolderPath](https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath?view=net-10.0) and [FileStream.Flush(Boolean)](https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0), directly reviewed 2026-10-06.
+- Documented claim: GetFolderPath returns the specified system special-folder path, or an empty string if it does not physically exist. Flush(true) flushes intermediate file buffers to disk.
+- Limit: these APIs alone establish neither access controls, authenticated identity nor power-loss durability. The personal known-folder branch was not executed during preparation.
+- Design implication: resolve one fixed private slot rather than searching, refuse an unavailable location, protect and authenticate the record independently, and flush/reread before source-content access. Managed sharing contracts remain DOC-010/DOC-013; graceful synthetic restart tests provide separate implementation evidence.
+
+### DOC-021: Fixed nonrecursive managed deletion
+
+- Sources: Microsoft [.NET File.Delete](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.delete?view=net-10.0) and [Directory.Delete](https://learn.microsoft.com/en-us/dotnet/api/system.io.directory.delete?view=net-10.0), directly reviewed 2026-10-06.
+- Documented claim: File.Delete targets the specified file without wildcards and does not throw for an absent file. Directory.Delete supports deleting an empty directory without recursive deletion.
+- Limit: these APIs alone do not authenticate identities, enforce exclusion or prevent hostile path replacement.
+- Design implication: the private recovery helper deletes only individually authorized fixed members synchronously under its exclusive record handle. Node authenticates each remaining identity before authorizing a step; the helper checks protection and remaining membership. Deadline/cancellation lifetime behavior is separately tested synthetic implementation evidence.
+
 ## Recording future evidence: design decision
 
 For a distinct experiment, add an observation with its own ID, date, versions, permissions, sanitized procedure, result, limits, and affected rules. Record whether it reproduces, contradicts, or supersedes earlier evidence. Link it into the compatibility matrix. Retain earlier records unchanged except for clearly identified corrections or navigation fixes.

@@ -1,6 +1,6 @@
 # Documentation index
 
-**Stage: disposable Codex isolation feasibility; CLI remains the M1 demonstration.** M2a.1–M2a.4 are complete and preserve native refusal. The latest documentation-only slice records bounded host observations and an isolation-readiness gap; no environment was created or Codex launched. The reviewed M2a.4 helper/kernel integration still accepts only invented fixtures. These documents distinguish implemented synthetic behavior from future intent and historical evidence; no real scanner, private acquisition capability, or visual UI exists.
+**Stage: personal closed-app canary preparation; CLI remains the M1 demonstration.** M2a.1–M2a.4 preserve native refusal. The committed isolation-feasibility record reports a readiness gap. A separate private canary runner is prepared and tested only on invented sources; personal execution requires independent review and exact later consent. No real Codex state or processes were inspected. These documents distinguish synthetic measurements from future intent and historical evidence; no real audit or visual UI exists.
 
 ## Product and design
 
@@ -25,6 +25,7 @@
 - [Windows helper experiment validation](research/windows-helper-experiment-validation.md): M2a.3 descriptor readback, cross-process sharing, bounded synthetic copies, refusal/privacy/cleanup and remaining unknowns.
 - [Synthetic helper integration validation](research/synthetic-helper-integration-validation.md): M2a.4 retained-set copying, protected acquisition/analysis separation, final verification, fault evidence and exact cleanup.
 - [Disposable Codex isolation feasibility](research/disposable-codex-isolation-feasibility.md): bounded host checks, official isolation options, readiness gap and separately gated setup/creation/acquisition/inspection requirements; no real Codex experiment.
+- [Personal canary preparation](research/personal-canary-preparation-validation.md): external-source/scratch separation, protected retained-handle copying, schema-only probes, authenticated restart recovery with helper-owned synchronous deletion, deadline/exclusion evidence, pre-spawn validation and residual disclosures; independent re-review and personal consent remain required.
 
 ## Decisions
 
@@ -38,6 +39,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0006: project naming and CLI surface](decisions/0006-project-naming-and-cli-surface.md).
 - [ADR 0007: synthetic CLI foundation](decisions/0007-synthetic-cli-foundation.md).
 - [ADR 0008: synthetic acquisition kernel](decisions/0008-synthetic-acquisition-kernel.md).
+- [ADR 0009: separately authorized personal closed-app canary](decisions/0009-personal-closed-app-canary.md).
 
 ## Qualified manual workflows
 
