@@ -7,12 +7,13 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync, constants } from 'node:sqlite';
+import { inspectQualificationAnalysis, type Qualification, type QualificationTest } from './personal-qualification.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
 const names = ['database.sqlite', 'database.sqlite-wal', 'database.sqlite-shm'] as const;
 const steps = ['prepared', 'recovery-ready', 'held', 'copied', 'verified'] as const;
-const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'helper', 'cleanup', 'io'] as const;
+const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'unsupported', 'helper', 'cleanup', 'io'] as const;
 type Reason = typeof reasons[number];
 export type CanaryFault = 'none' | 'protected' | 'descriptor' | 'partial-copy' | 'diagnostic' |
   'recovery-create' | 'recovery-descriptor' | 'recovery-write' | 'recovery-flush' | 'recovery-readback';
@@ -28,6 +29,7 @@ type Frame = { stage: 'prepared' | 'recovery-ready' | 'recovery-verified' | 'cop
 export type CanaryResult = Readonly<{ status: 'passed' | 'refused'; reason: Reason | 'none';
   cleanup: 'removed' | 'residual'; files: number; schemaReadable: boolean; sourcesStable: boolean;
   recovery: 'removed' | 'available' | 'unavailable';
+  qualification?: Qualification | null;
   evidence: { stages: readonly string[]; phase: string; fault: string; partialWritten: boolean;
     opened: number; exitConfirmed: boolean; diagnosticsDiscarded: boolean } }>;
 class Refusal extends Error {
@@ -466,6 +468,8 @@ export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:s
 type PersonalSelection = { source:string; consent:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
   executable:string;
+  analysis?: 'qualification';
+  qualificationHook?: QualificationTest;
   selection: {kind:'synthetic';fixture:SyntheticSelection} | {kind:'personal';private:PersonalSelection};
   fault?:CanaryFault;
   closure?:()=> 'absent'|'present'|'unknown';
@@ -493,7 +497,12 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
   const synthetic=options.selection.kind==='synthetic';
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
+  let qualification:Qualification|undefined;
   try{
+    if (options.analysis !== undefined && options.analysis !== 'qualification') stop('selection');
+    if (options.qualificationHook && options.analysis !== 'qualification') stop('selection');
+    if (!synthetic && options.analysis === 'qualification' &&
+        process.env.WORKSPACE_SURVEYOR_PERSONAL_QUALIFICATION !== '1') stop('selection');
     if(blocked||process.platform!=='win32'||!isAbsolute(options.executable)||!/pwsh\.exe$/i.test(options.executable))stop('selection');
     if(!lstatSync(options.executable).isFile())stop('selection');
     const source=options.selection.kind==='synthetic'?options.selection.fixture.source:options.selection.private.source;
@@ -508,7 +517,7 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
     }else{
       if(options.selection.kind!=='personal'||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
           options.selection.private.consent!==true||options.fault||options.closure||options.hook||options.inspectHook||
-          options.cleanupFault||options.corruptFrame||options.simulateExitUncertainty||options.afterSpawn)stop('selection');
+          options.cleanupFault||options.corruptFrame||options.simulateExitUncertainty||options.afterSpawn||options.qualificationHook)stop('selection');
       if(realpathSync(options.selection.private.scratchParent)!==realpathSync(tmpdir())||
           options.selection.private.writers.length<1||options.selection.private.writers.length>12||
           options.selection.private.writers.some(n=>!/^[A-Za-z0-9_.-]{1,64}$/.test(n)))stop('selection');
@@ -545,7 +554,11 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
     for(let i=0;i<count;i++)for(const area of ['acquisition','analysis'] as const)
       if(digestCopy(scratch.path(area,i))!==manifest[i]?.digest)stop('unstable');
     await options.hook?.('copied',scratch);
-    try{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}catch{stop('analysis');}
+    try{
+      if(options.analysis==='qualification'){
+        qualification=inspectQualificationAnalysis(scratch,options.qualificationHook);readable=true;
+      }else{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}
+    }catch{stop('analysis');}
     await options.hook?.('analyzed',scratch);
     if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
     for(let i=0;i<count;i++)if(digestCopy(scratch.path('acquisition',i))!==manifest[i]?.digest)stop('unstable');
@@ -587,7 +600,11 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
     }else{recovery='removed';}
   }
   const f=session?.final;
+  // Withhold findings on any acquisition, verification, exit or cleanup failure.
+  const qualified = candidate ? qualification : null;
+  if(candidate&&qualification?.structure==='unsupported'){candidate=false;reason='unsupported';}
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
+    ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
     schemaReadable:candidate&&readable,sourcesStable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
       opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};

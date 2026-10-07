@@ -2,6 +2,10 @@
 
 ## Current support: design decision
 
+**Current supplement, 2026-10-06:** [PCAN-001](research/personal-canary-observation.md) is founder-reported evidence of one successful personal database/WAL/SHM acquisition, schema-only readability and cleanup. It does not establish a supported source schema or metadata semantics. Separate synthetic runtime requalification passed 179/0 explicit and 79/100 ordinary (passes/skips), with no failures, using PowerShell 7.6.6/.NET 10.0.12 and Node 24.18.1. Earlier measurements below remain historical. No product audit support, reusable adapter or renewed personal authorization follows; copied-schema qualification is synthetic preparation only pending independent review and fresh consent.
+
+The [qualification preparation record](research/personal-qualification-preparation-validation.md) separately tests the fixed `main.threads` hypothesis under [ADR 0010](decisions/0010-copied-schema-qualification.md). It preserves the original canary and uses only invented data. Projected schema fields exclude defaults; one sample returns type/nullness flags rather than record strings. The full synthetic suite passed **203** with no skips; the ordinary run passed **98** with **105** skips, no failures, with typecheck/build passing. These tests establish no current personal schema compatibility or metadata meaning. Independent review remains pending.
+
 M0 was documentation-only. M1 implements bundled synthetic CLI explanations, with no real audit capability. No Codex build, source schema, runtime, or operating system is certified for auditing. Windows-native is the first intended real-data target. macOS, WSL, remote hosts, and live-state acquisition remain unvalidated.
 
 M2a.1 adds a test-only synthetic acquisition kernel under [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md). Native acquisition refuses; successful fixture tests explicitly simulate protection. No real source or Codex behavior has been validated by this addition.

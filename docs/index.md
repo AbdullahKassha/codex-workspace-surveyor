@@ -1,5 +1,7 @@
 # Documentation index
 
+**Current supplement, 2026-10-06:** [PCAN-001](research/personal-canary-observation.md) records a founder-reported successful personal closed-app canary and separately attributed patch-runtime synthetic qualification. The original personal authorization is consumed. Bounded schema/metadata qualification is now authorized for synthetic preparation only, with independent review and a new personal authorization required. The following preparation-stage summary is historical; the product CLI remains synthetic and native acquisition remains fail-closed.
+
 **Stage: personal closed-app canary preparation; CLI remains the M1 demonstration.** M2a.1–M2a.4 preserve native refusal. The committed isolation-feasibility record reports a readiness gap. A separate private canary runner is prepared and tested only on invented sources; personal execution requires independent review and exact later consent. No real Codex state or processes were inspected. These documents distinguish synthetic measurements from future intent and historical evidence; no real audit or visual UI exists.
 
 ## Product and design
@@ -13,6 +15,8 @@
 
 ## Evidence and research
 
+- [PCAN-001: Personal canary observation](research/personal-canary-observation.md): supplied sanitized result, separate runtime qualification and preceding version observations, reported cleanup and strict limits on what the result establishes.
+- [Copied-schema qualification preparation](research/personal-qualification-preparation-validation.md): synthetic fixed-schema/type/nullness tests, preserved protected acquisition/recovery, limitations and separately gated future manual procedure.
 - [Evidence catalog](research/evidence-catalog.md): category definitions, observation index, and official-source records.
 - [Windows observations, 2026-10-04](research/windows-2026-10-04.md): original investigation, WIN-001–WIN-017.
 - [Project Boundary observations](research/project-boundary-observations.md): separate article-derived founder research, WIN-018–WIN-020; historical versions uncertain.
@@ -40,6 +44,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0007: synthetic CLI foundation](decisions/0007-synthetic-cli-foundation.md).
 - [ADR 0008: synthetic acquisition kernel](decisions/0008-synthetic-acquisition-kernel.md).
 - [ADR 0009: separately authorized personal closed-app canary](decisions/0009-personal-closed-app-canary.md).
+- [ADR 0010: bounded copied-schema qualification preparation](decisions/0010-copied-schema-qualification.md).
 
 ## Qualified manual workflows
 

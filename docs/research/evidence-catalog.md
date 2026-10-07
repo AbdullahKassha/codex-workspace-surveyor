@@ -56,6 +56,10 @@ Source: [founder's article](https://kassha.xyz/blog/git-metadata-vs-codex-projec
 
 Article discussions of official documentation, source code, and issue reports are not promoted to official evidence by citation alone. DOC-005 and DOC-006 below were reviewed directly and remain separate from the founder observations.
 
+## Separate personal canary evidence: PCAN-001
+
+[PCAN-001](personal-canary-observation.md) records the founder's report on 2026-10-06 of one separately authorized standalone personal canary: three selected files, successful readability/stability checks, confirmed exit, scratch and recovery controls reported removed, exit code 0 and no recovery required. Exact execution time is unknown; intended commit `44453cd` and preceding runtime/Desktop version observations are not attested by the result JSON. The record separately attributes the PowerShell 7.6.6/.NET 10.0.12 synthetic requalification (179 passed/0 skipped explicit; 79 passed/100 skipped ordinary; no failures). No personal identifiers, paths, hashes or contents are retained. This does not reproduce or retire any WIN observation or establish schema compatibility. New qualification requires separate personal consent after synthetic preparation and review.
+
 ## Official documentation records
 
 These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-04**; later entries carry their own review dates. Public documentation can change; record a new review when a material claim changes. No downloaded page copies or screenshots are stored here. Product names reflect the sources' current presentation, not a retroactive identification of the founder's build.
@@ -241,6 +245,17 @@ Final lifetime-correction measurements passed **179** explicit tests with no ski
 - Documented claim: File.Delete targets the specified file without wildcards and does not throw for an absent file. Directory.Delete supports deleting an empty directory without recursive deletion.
 - Limit: these APIs alone do not authenticate identities, enforce exclusion or prevent hostile path replacement.
 - Design implication: the private recovery helper deletes only individually authorized fixed members synchronously under its exclusive record handle. Node authenticates each remaining identity before authorizing a step; the helper checks protection and remaining membership. Deadline/cancellation lifetime behavior is separately tested synthetic implementation evidence.
+
+### DOC-022: Projected schema metadata
+
+- Source: official [SQLite PRAGMA documentation](https://www.sqlite.org/pragma.html#pragma_table_xinfo), reviewed 2026-10-06.
+- Documented claim: `table_list` identifies object kind and column count; `table_xinfo` includes hidden/generated column indicators. Table-valued PRAGMA functions permit selecting a subset of result columns, with the schema argument supplied after other arguments.
+- Limit: direct `table_xinfo` includes default expressions. A projected result does not establish a Codex schema contract, metadata semantics or a hard SQLite execution-time limit.
+- Design implication: the founder approved replacing the proposed direct xinfo statement with a fixed `cid, name, type, hidden` projection excluding defaults. [ADR 0010](../decisions/0010-copied-schema-qualification.md) fixes this statement and one type/nullness-only sample. Synthetic validation is recorded separately below.
+
+## Copied-schema qualification preparation
+
+The [qualification preparation record](personal-qualification-preparation-validation.md) records synthetic-only tests of a fixed `main.threads` hypothesis, exact SQL and phase-specific authorizer controls, bounded result shapes, sanitized type/nullness flags, and protected acquisition/cleanup integration. PCAN-001 does not establish that hypothesis. Original canary statements, managed helper, historical records and native refusal are preserved. A new personal authorization after independent review is required; no retained personal copy exists to inspect.
 
 ## Recording future evidence: design decision
 

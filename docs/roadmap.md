@@ -2,6 +2,8 @@
 
 ## Authorization: design decision
 
+**Current supplement, 2026-10-06:** [PCAN-001](research/personal-canary-observation.md) records the founder's successful separately authorized closed-app canary report: three files, readability and source stability passed, helper exit confirmed, scratch/recovery controls reported removed, exit code 0, no separate recovery. The intended implementation was `44453cd`; the result itself does not attest its commit or runtime. The personal authorization is consumed. Only documentation and synthetic preparation of the bounded schema/metadata qualification gate are now authorized; independent review and fresh personal consent precede another acquisition. Earlier status statements below remain dated historical context.
+
 The roadmap describes planned outcomes. It does not authorize implementing all milestones in one run. M0, M1 and M2a.1–M2a.4 are complete; M2a.4 passed independent review and was committed. On 2026-10-05 the founder separately authorized only the isolation-feasibility slice of Disposable Real Codex Validation: targeted read-only host checks, official research and documentation. The result is a documented readiness gap; no environment was created or Codex launched. Every subsequent setup, execution or acquisition gate requires separate scoped approval. Private-state research also needs specific authorization identifying what will be read and why.
 
 On 2026-10-06 the founder approved [personal closed-app canary preparation](research/personal-canary-preparation-validation.md) with synthetic validation only. [ADR 0009](decisions/0009-personal-closed-app-canary.md) permits a separately consented personal canary without requiring VM setup. The readiness-gap record is preserved; personal execution remains deferred until independent review and exact single-run consent.
@@ -56,7 +58,7 @@ The broader direction is approved in principle. M2a.1–M2a.4 and isolation feas
 | M2b — first real adapter | Separately implement minimum metadata reading using validated evidence; unsupported shapes withhold dependent conclusions |
 | Personal canary preparation | Approved private runner/helper, persistent authenticated recovery with helper-owned synchronous deletion, pre-spawn validation, invented-file checks and external-run procedure; independent re-review before any personal execution |
 | Personal closed-app canary | Separate exact single-run consent; full copies, schema-only analysis, verified closure, retained read handles and exact scratch cleanup; no VM prerequisite, no automatic adapter |
-| Bounded schema/metadata qualification | Separate proposal after successful real canary; qualify minimum metadata before M2b |
+| Bounded schema/metadata qualification | [ADR 0010](decisions/0010-copied-schema-qualification.md) and [synthetic validation](research/personal-qualification-preparation-validation.md): fixed candidate schema, projected metadata excluding defaults, and one type/nullness sample only; independent review and separate fresh personal-run consent before execution; no M2b authorization |
 | M2c — conservative audit | Separate real CLI integration with provenance, qualified source coverage and text explanations |
 | Git/worktree mapping | Deferred; a later bounded proposal must assess side effects and ownership limits |
 
