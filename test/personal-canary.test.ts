@@ -36,6 +36,13 @@ function fixture(selected:'standalone.sqlite'|'wal.sqlite'='standalone.sqlite') 
   };
   return {run,source,scratches,selection:{kind:'synthetic' as const,fixture:{source,ownerRoot:run.root,ownerNonce:readFileSync(join(run.root,'owner'),'utf8')}}};
 }
+function cleanupLinkedFixtures(removeLink:()=>void,other:ReturnType<typeof fixture>,source:ReturnType<typeof fixture>):void {
+  try{removeLink();}
+  finally{
+    try{assert.equal(other.run.cleanup().status,'removed');}
+    finally{assert.equal(source.run.cleanup().status,'removed');}
+  }
+}
 function options(f:ReturnType<typeof fixture>, extra:Partial<CanaryOptions>={}):CanaryOptions {
   const executable=process.env.WORKSPACE_SURVEYOR_HELPER_PWSH??'';
   return {executable,selection:f.selection,closure:()=> 'absent',...extra,hook:async(phase,scratch)=>{
@@ -80,12 +87,21 @@ for(const bound of ['file','total'] as const)test(`canary ${bound} limit refuses
 test('canary source hard links are refused',()=>{
   const f=fixture();const other=fixture();const alias=join(other.run.sources,'alias');
   try{linkSync(f.source,alias);assert.throws(()=>selectedPaths(f.source),{message:'Canary refused'});}
-  finally{fs.unlinkSync(alias);assert.equal(other.run.cleanup().status,'removed');assert.equal(f.run.cleanup().status,'removed');}
+  finally{cleanupLinkedFixtures(()=>fs.unlinkSync(alias),other,f);}
 });
 test('canary source directory junction is refused without following external sources',()=>{
   const f=fixture();const other=fixture();const alias=join(other.run.sources,'alias');
   try{symlinkSync(f.run.sources,alias,'junction');assert.throws(()=>selectedPaths(join(alias,'standalone.sqlite')),{message:'Canary refused'});}
-  finally{fs.unlinkSync(alias);assert.equal(other.run.cleanup().status,'removed');assert.equal(f.run.cleanup().status,'removed');}
+  finally{cleanupLinkedFixtures(()=>fs.unlinkSync(alias),other,f);}
+});
+test('canary link teardown cleans both fixtures after link removal throws',()=>{
+  const f=fixture();const other=fixture();let reached=false;
+  try{
+    assert.throws(()=>cleanupLinkedFixtures(()=>{reached=true;throw new Error('Synthetic link removal failure');},other,f),
+      {message:'Synthetic link removal failure'});
+    assert.equal(reached,true);
+    assert.equal(existsSync(other.run.root),false);assert.equal(existsSync(f.run.root),false);
+  }finally{cleanupLinkedFixtures(()=>{},other,f);}
 });
 test('scratch cleanup preserves external sources and sentinel after child deletion failure',()=>{
   const f=fixture();const scratch=new CanaryScratch();const before=sourceSnapshot(f.source);
