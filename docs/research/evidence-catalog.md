@@ -66,6 +66,10 @@ Article discussions of official documentation, source code, and issue reports ar
 
 The [two-field adapter validation](thread-cwd-adapter-validation.md) is synthetic implementation evidence under [ADR 0011](../decisions/0011-thread-cwd-adapter-preparation.md), not another personal experiment. Later actual-value reads require fresh consent. Existing DOC-018/DOC-022 support the API/query mechanics; schema acceptance policy and bounds are design decisions.
 
+## Separate MAP preparation: synthetic implementation evidence
+
+The [personal MAP preparation record](personal-thread-cwd-preparation-validation.md) adds synthetic implementation evidence under [ADR 0012](../decisions/0012-personal-thread-cwd-map-preparation.md). It tests fixed invocation of the existing adapter, consent and attempt-consumption boundaries, summary-only release and inherited safety cleanup. It contains no new personal-source observation, runtime/source mapping or additional data permission. PCAN-001, PSQ-001, WIN observations and historical residual disclosures remain unchanged.
+
 ## Official documentation records
 
 These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-04**; later entries carry their own review dates. Public documentation can change; record a new review when a material claim changes. No downloaded page copies or screenshots are stored here. Product names reflect the sources' current presentation, not a retroactive identification of the founder's build.

@@ -8,6 +8,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync, constants } from 'node:sqlite';
 import { inspectQualificationAnalysis, type Qualification, type QualificationTest } from './personal-qualification.js';
+import type { AdapterResult } from './thread-cwd-adapter.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
@@ -30,6 +31,8 @@ export type CanaryResult = Readonly<{ status: 'passed' | 'refused'; reason: Reas
   cleanup: 'removed' | 'residual'; files: number; schemaReadable: boolean; sourcesStable: boolean;
   recovery: 'removed' | 'available' | 'unavailable';
   qualification?: Qualification | null;
+  mapping?: AdapterResult['summary'] | null;
+  attemptConsumed?: boolean;
   evidence: { stages: readonly string[]; phase: string; fault: string; partialWritten: boolean;
     opened: number; exitConfirmed: boolean; diagnosticsDiscarded: boolean } }>;
 class Refusal extends Error {
@@ -413,9 +416,14 @@ async function removeRecoveredScratch(p:RecoveryPayload,session:CanarySession,or
   validateRemaining(p);if(!missing(p.root.path))stop('cleanup');
 }
 export async function resolvePersonalRecoveryStore(executable:string):Promise<string> {
+  return locatePersonalRecoveryStore(executable);
+}
+async function locatePersonalRecoveryStore(executable:string,attempt?:{consumed:boolean}):Promise<string> {
   if(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1')stop('selection');
   const nonce=randomUUID(),session=new CanarySession({operation:'locate',nonce},executable,nonce,undefined,['location']);
-  try{session.start();const frame=await session.expect('location');if(frame.stage!=='location')stop('helper');
+  try{
+    if(attempt)attempt.consumed=true; // Request construction succeeded; helper startup begins now.
+    session.start();const frame=await session.expect('location');if(frame.stage!=='location')stop('helper');
     if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
     recoveryLocation(frame.store);return frame.store;
   }finally{await session.finish();}
@@ -465,10 +473,10 @@ function removeBootstrapStore(store:string,id:Identity):boolean {
 }
 
 export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:string };
-type PersonalSelection = { source:string; consent:true; scratchParent:string; writers:readonly string[] };
+type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
   executable:string;
-  analysis?: 'qualification';
+  analysis?: 'qualification' | 'thread-cwd';
   qualificationHook?: QualificationTest;
   selection: {kind:'synthetic';fixture:SyntheticSelection} | {kind:'personal';private:PersonalSelection};
   fault?:CanaryFault;
@@ -492,15 +500,40 @@ export async function retryCanaryCleanup():Promise<'removed'|'residual'> {
   if(result==='removed'){residual=undefined;return 'removed';}return 'residual';
 }
 export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
+  if(options.analysis!=='thread-cwd')return runCanaryOperation(options);
+  const attempt={consumed:false};
+  try{return await runCanaryOperation(options,attempt);}
+  catch{
+    // Even an unexpected teardown exception cannot reset a consumed attempt.
+    return {status:'refused',reason:'io',cleanup:attempt.consumed?'residual':'removed',
+      recovery:attempt.consumed?'unavailable':'removed',files:0,schemaReadable:false,sourcesStable:false,
+      mapping:null,attemptConsumed:attempt.consumed,
+      evidence:{stages:[],phase:'input',fault:'none',partialWritten:false,opened:0,exitConfirmed:false,diagnosticsDiscarded:true}};
+  }
+}
+export function validPersonalMapSource(source:string):boolean {
+  // Syntax only: no source metadata/content access before the consent boundary.
+  return typeof source==='string'&&source.length<=2048&&/^[A-Za-z]:[\\/][^:]*$/.test(source)&&
+    !/[<>"|?*\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(source);
+}
+async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boolean}):Promise<CanaryResult>{
   const scratch=new CanaryScratch();let session:CanarySession|undefined;let reason:Reason|'none'='io';
   let cleanup:'removed'|'residual'='removed', readable=false,stable=false, candidate=false,exit=false,count=0;
   const synthetic=options.selection.kind==='synthetic';
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
   let qualification:Qualification|undefined;
+  let mapping:AdapterResult|undefined;
+  let adapter:typeof import('./thread-cwd-adapter.js')|undefined;
+  const from=attempt?new Date().toISOString():undefined;
+  const namespace=attempt?'source-'+randomUUID():undefined;
   try{
-    if (options.analysis !== undefined && options.analysis !== 'qualification') stop('selection');
+    if (options.analysis !== undefined && options.analysis !== 'qualification' && options.analysis !== 'thread-cwd') stop('selection');
     if (options.qualificationHook && options.analysis !== 'qualification') stop('selection');
+    if(attempt&&options.inspectHook)stop('selection');
+    if(!synthetic&&attempt&&(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
+      process.env.WORKSPACE_SURVEYOR_PERSONAL_THREAD_CWD!=='1'||options.selection.kind!=='personal'||
+      options.selection.private.consent!==true||options.selection.private.actualValueConsent!==true))stop('selection');
     if (!synthetic && options.analysis === 'qualification' &&
         process.env.WORKSPACE_SURVEYOR_PERSONAL_QUALIFICATION !== '1') stop('selection');
     if(blocked||process.platform!=='win32'||!isAbsolute(options.executable)||!/pwsh\.exe$/i.test(options.executable))stop('selection');
@@ -508,21 +541,28 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
     const source=options.selection.kind==='synthetic'?options.selection.fixture.source:options.selection.private.source;
     if(synthetic){
       if(process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1'||options.selection.kind!=='synthetic')stop('selection');
+      if(attempt){
+        if(!options.closure||options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
+        attempt.consumed=true; // First harness-source access models the personal boundary.
+      }
       const fixture=options.selection.fixture;checked(fixture.ownerRoot,true);
       const owner=join(fixture.ownerRoot,'owner');checked(owner,false);
       if(!/^[a-f0-9-]{36}$/.test(fixture.ownerNonce)||lstatSync(owner).size!==36||readFileSync(owner,'utf8')!==fixture.ownerNonce||
           !contains(join(fixture.ownerRoot,'sources'),source))stop('selection');
-      if(!options.closure)stop('closure');
-      if(options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
+      if(!attempt){
+        if(!options.closure)stop('closure');
+        if(options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
+      }
     }else{
       if(options.selection.kind!=='personal'||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
           options.selection.private.consent!==true||options.fault||options.closure||options.hook||options.inspectHook||
           options.cleanupFault||options.corruptFrame||options.simulateExitUncertainty||options.afterSpawn||options.qualificationHook)stop('selection');
+      if(attempt&&(!validPersonalMapSource(source)||options.selection.private.writers.join(',')!=='ChatGPT,Codex'))stop('selection');
       if(realpathSync(options.selection.private.scratchParent)!==realpathSync(tmpdir())||
           options.selection.private.writers.length<1||options.selection.private.writers.length>12||
           options.selection.private.writers.some(n=>!/^[A-Za-z0-9_.-]{1,64}$/.test(n)))stop('selection');
     }
-    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await resolvePersonalRecoveryStore(options.executable);
+    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await locatePersonalRecoveryStore(options.executable,attempt);
     recoveryLocation(store,undefined,source);if(!missing(store)){cleanup='residual';recovery='unavailable';stop('selection');}
     const paths=selectedPaths(source);const before=paths.map(metadata);count=paths.length;
     cleanup='residual';scratch.initialize();await options.hook?.('initialized',scratch);
@@ -555,7 +595,11 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
       if(digestCopy(scratch.path(area,i))!==manifest[i]?.digest)stop('unstable');
     await options.hook?.('copied',scratch);
     try{
-      if(options.analysis==='qualification'){
+      if(options.analysis==='thread-cwd'){
+        adapter=await import('./thread-cwd-adapter.js');
+        mapping=adapter.readThreadCwdCopy(scratch,{namespace:namespace!,from:from!,through:new Date().toISOString()});
+        readable=mapping.summary.reason!=='analysis';
+      }else if(options.analysis==='qualification'){
         qualification=inspectQualificationAnalysis(scratch,options.qualificationHook);readable=true;
       }else{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}
     }catch{stop('analysis');}
@@ -603,8 +647,20 @@ export async function runCanary(options:CanaryOptions):Promise<CanaryResult>{
   // Withhold findings on any acquisition, verification, exit or cleanup failure.
   const qualified = candidate ? qualification : null;
   if(candidate&&qualification?.structure==='unsupported'){candidate=false;reason='unsupported';}
+  let mapSummary:AdapterResult['summary']|null=null;
+  if(attempt&&candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&mapping&&adapter){
+    if(mapping.summary.status==='ready'){
+      mapping=new adapter.AdapterResult(mapping.summary,mapping.readClaims(),{namespace:namespace!,from:from!,through:new Date().toISOString()});
+    }else{
+      candidate=false;
+      reason=mapping.summary.reason==='limit'?'limit':mapping.summary.reason==='unsupported-schema'?'unsupported':'analysis';
+    }
+    mapSummary=mapping.summary;
+  }else if(attempt&&candidate){candidate=false;reason='analysis';}
+  mapping=undefined; // Only the allowlisted summary leaves this coordinator.
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
+    ...(attempt?{mapping:mapSummary,attemptConsumed:attempt.consumed}:{}),
     schemaReadable:candidate&&readable,sourcesStable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
       opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};

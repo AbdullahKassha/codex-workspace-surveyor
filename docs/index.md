@@ -1,5 +1,7 @@
 # Documentation index
 
+**Current MAP preparation supplement, 2026-10-07:** the [private MAP entry and fixed coordinator mode](research/personal-thread-cwd-preparation-validation.md) are authorized for synthetic preparation under [ADR 0012](decisions/0012-personal-thread-cwd-map-preparation.md). A later personal run requires new actual-value consent and returns summary counts/coverage only. Attempt consumption begins with consented state access or helper startup, not confirmation alone. No personal execution or value display is authorized by this preparation.
+
 **Current supplement, 2026-10-07:** [PSQ-001](research/personal-qualification-observation.md) records founder-reported candidate-structure and one-row type/nullness qualification. No actual record strings were returned. The next authorized implementation is the [synthetic two-field adapter](research/thread-cwd-adapter-validation.md) under ADR 0011; personal value reads require new consent after independent review. Earlier stage summaries retain their historical context.
 
 **Current supplement, 2026-10-06:** [PCAN-001](research/personal-canary-observation.md) records a founder-reported successful personal closed-app canary and separately attributed patch-runtime synthetic qualification. The original personal authorization is consumed. Bounded schema/metadata qualification is now authorized for synthetic preparation only, with independent review and a new personal authorization required. The following preparation-stage summary is historical; the product CLI remains synthetic and native acquisition remains fail-closed.
@@ -17,6 +19,7 @@
 
 ## Evidence and research
 
+- [Personal thread/CWD map preparation](research/personal-thread-cwd-preparation-validation.md): synthetic validation, summary-only output, attempt boundary and proposed fresh authorization/manual procedure.
 - [PSQ-001: Personal qualification observation](research/personal-qualification-observation.md): supplied sanitized result, limited row evidence, separate context and procedural observations.
 - [Synthetic two-field adapter validation](research/thread-cwd-adapter-validation.md): private record/CWD claims, bounds, coverage, refusal, privacy and cleanup gating.
 
@@ -51,6 +54,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0009: separately authorized personal closed-app canary](decisions/0009-personal-closed-app-canary.md).
 - [ADR 0010: bounded copied-schema qualification preparation](decisions/0010-copied-schema-qualification.md).
 - [ADR 0011: private two-field adapter preparation](decisions/0011-thread-cwd-adapter-preparation.md).
+- [ADR 0012: summary-only personal thread/CWD map preparation](decisions/0012-personal-thread-cwd-map-preparation.md).
 
 ## Qualified manual workflows
 
