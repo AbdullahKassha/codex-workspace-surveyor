@@ -60,6 +60,12 @@ Article discussions of official documentation, source code, and issue reports ar
 
 [PCAN-001](personal-canary-observation.md) records the founder's report on 2026-10-06 of one separately authorized standalone personal canary: three selected files, successful readability/stability checks, confirmed exit, scratch and recovery controls reported removed, exit code 0 and no recovery required. Exact execution time is unknown; intended commit `44453cd` and preceding runtime/Desktop version observations are not attested by the result JSON. The record separately attributes the PowerShell 7.6.6/.NET 10.0.12 synthetic requalification (179 passed/0 skipped explicit; 79 passed/100 skipped ordinary; no failures). No personal identifiers, paths, hashes or contents are retained. This does not reproduce or retire any WIN observation or establish schema compatibility. New qualification requires separate personal consent after synthetic preparation and review.
 
+## Separate personal qualification evidence: PSQ-001
+
+[PSQ-001](personal-qualification-observation.md) records the founder's 2026-10-07 report of a successful separately authorized standalone qualification: accepted candidate structure, one sample with non-null TEXT ID/CWD values by type only, three files, successful reported verification/disposal/cleanup, exit 0. Actual record strings were not returned. Executing commit/runtime are not attested by the JSON. The record separately attributes preceding package/process checks, founder handle/version observations and synthetic validation, plus the SDK-preflight and background-process observations. It neither validates all records nor establishes classification or CWD semantics. No source or recovery slot was re-inspected to record it; no WIN evidence is retired.
+
+The [two-field adapter validation](thread-cwd-adapter-validation.md) is synthetic implementation evidence under [ADR 0011](../decisions/0011-thread-cwd-adapter-preparation.md), not another personal experiment. Later actual-value reads require fresh consent. Existing DOC-018/DOC-022 support the API/query mechanics; schema acceptance policy and bounds are design decisions.
+
 ## Official documentation records
 
 These are separate from B0 and B1. DOC-001–DOC-008 were reviewed on **2026-10-04**; later entries carry their own review dates. Public documentation can change; record a new review when a material claim changes. No downloaded page copies or screenshots are stored here. Product names reflect the sources' current presentation, not a retroactive identification of the founder's build.
@@ -256,6 +262,13 @@ Final lifetime-correction measurements passed **179** explicit tests with no ski
 ## Copied-schema qualification preparation
 
 The [qualification preparation record](personal-qualification-preparation-validation.md) records synthetic-only tests of a fixed `main.threads` hypothesis, exact SQL and phase-specific authorizer controls, bounded result shapes, sanitized type/nullness flags, and protected acquisition/cleanup integration. PCAN-001 does not establish that hypothesis. Original canary statements, managed helper, historical records and native refusal are preserved. A new personal authorization after independent review is required; no retained personal copy exists to inspect.
+
+### DOC-023: SQLite oversized-value result
+
+- Source: official [SQLite result codes](https://www.sqlite.org/rescode.html#toobig), reviewed 2026-10-07.
+- Documented claim: `SQLITE_TOOBIG` is result code 18 and covers strings/BLOBs exceeding SQLite limits.
+- Limit: the code alone does not identify which adapter budget was exceeded or provide a hard time/memory bound.
+- Design implication: the private adapter maps the recognized Node SQLite oversized-value error to a sanitized limit refusal and withholds its map. Synthetic tests cover a value rejected by SQLite before JavaScript string materialization, separately from the adapter's tighter UTF-8 budgets.
 
 ## Recording future evidence: design decision
 
