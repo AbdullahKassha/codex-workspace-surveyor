@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync, constants } from 'node:sqlite';
 import { inspectQualificationAnalysis, type Qualification, type QualificationTest } from './personal-qualification.js';
 import type { AdapterResult } from './thread-cwd-adapter.js';
+import { LocalMapDelivery, LocalMapCapability } from './local-thread-cwd-capability.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
@@ -473,7 +474,7 @@ function removeBootstrapStore(store:string,id:Identity):boolean {
 }
 
 export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:string };
-type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; scratchParent:string; writers:readonly string[] };
+type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; displayConsent?:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
   executable:string;
   analysis?: 'qualification' | 'thread-cwd';
@@ -516,7 +517,23 @@ export function validPersonalMapSource(source:string):boolean {
   return typeof source==='string'&&source.length<=2048&&/^[A-Za-z]:[\\/][^:]*$/.test(source)&&
     !/[<>"|?*\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(source);
 }
-async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boolean}):Promise<CanaryResult>{
+// Fixed private operation. No caller callback or arbitrary destination receives values.
+export async function runThreadCwdDisplay(options:CanaryOptions):Promise<LocalMapDelivery>{
+  const attempt={consumed:false};const delivery:{capability?:LocalMapCapability}={};
+  try{
+    if(options.analysis!=='thread-cwd'||(options.selection.kind==='personal'&&
+      (process.env.WORKSPACE_SURVEYOR_PERSONAL_THREAD_CWD_DISPLAY!=='1'||options.selection.private.displayConsent!==true)))stop('selection');
+    const safety=await runCanaryOperation(options,attempt,delivery);
+    return new LocalMapDelivery(safety,delivery.capability);
+  }catch(error){
+    delivery.capability?.discard();delete delivery.capability;
+    return new LocalMapDelivery({status:'refused',reason:safeReason(error),cleanup:attempt.consumed?'residual':'removed',
+      recovery:attempt.consumed?'unavailable':'removed',files:0,schemaReadable:false,sourcesStable:false,
+      mapping:null,attemptConsumed:attempt.consumed,
+      evidence:{stages:[],phase:'input',fault:'none',partialWritten:false,opened:0,exitConfirmed:false,diagnosticsDiscarded:true}});
+  }
+}
+async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boolean},delivery?:{capability?:LocalMapCapability}):Promise<CanaryResult>{
   const scratch=new CanaryScratch();let session:CanarySession|undefined;let reason:Reason|'none'='io';
   let cleanup:'removed'|'residual'='removed', readable=false,stable=false, candidate=false,exit=false,count=0;
   const synthetic=options.selection.kind==='synthetic';
@@ -656,8 +673,9 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       reason=mapping.summary.reason==='limit'?'limit':mapping.summary.reason==='unsupported-schema'?'unsupported':'analysis';
     }
     mapSummary=mapping.summary;
+    if(delivery&&candidate&&mapping.summary.status==='ready')delivery.capability=new LocalMapCapability(mapping);
   }else if(attempt&&candidate){candidate=false;reason='analysis';}
-  mapping=undefined; // Only the allowlisted summary leaves this coordinator.
+  mapping=undefined; // Standard results stay summary-only; display delivery is a separate private capability.
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
     ...(attempt?{mapping:mapSummary,attemptConsumed:attempt.consumed}:{}),

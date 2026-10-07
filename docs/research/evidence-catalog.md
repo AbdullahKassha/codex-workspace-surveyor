@@ -1,5 +1,7 @@
 # Evidence catalog
 
+**Current local-display supplement, 2026-10-07:** [PMAP-001](personal-thread-cwd-observation.md) is separate founder-reported evidence: the supplied private MAP result reports 139 claims / 15 exact stored-CWD groups, zero omissions/ambiguous IDs, three selected files and successful verification/cleanup. Intended implementation was `b1449d8`; executing runtime/commit and cleanup were not independently re-inspected. Unconsumed columns are presence evidence, not proven drift. Its authorization is consumed and no personal map remains. [ADR 0013](../decisions/0013-local-thread-cwd-display-preparation.md) and [terminal display validation](local-thread-cwd-display-preparation-validation.md) describe synthetic-only preparation and later fresh acquisition/display consent, separately from this personal observation. Historical evidence and residual disclosures remain intact.
+
 ## Claim categories
 
 | Category | Meaning | Recording requirement |
