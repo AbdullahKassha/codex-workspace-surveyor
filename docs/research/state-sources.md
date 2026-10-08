@@ -1,5 +1,7 @@
 # Candidate state sources
 
+**M3a mapping supplement, 2026-10-07:** [PLD-001](personal-local-display-observation.md) completes bounded ID/CWD display validation, not title/Project semantics. [M3a preparation](m3a-explorer-preparation.md) adds a fixed public-source `threads.title` hypothesis and explicitly invented Project fixtures. Current global registry keys/types/location remain unknown; historical `thread-project-assignments` does not identify a current Project decoder. An unavailable Project capability never turns saved folders into Projects. No new personal source is inspected; the smallest later qualification is a finite allowlist on one explicitly selected copied global-state JSON file, with no broad key discovery.
+
 ## Status and boundary
 
 **Design decision:** M0 names potential sources without inspecting them. This is an assessment, not a validated schema inventory. No real database, JSON state, session, title, identifier, or private configuration was read.

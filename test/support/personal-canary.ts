@@ -10,16 +10,20 @@ import { DatabaseSync, constants } from 'node:sqlite';
 import { inspectQualificationAnalysis, type Qualification, type QualificationTest } from './personal-qualification.js';
 import type { AdapterResult } from './thread-cwd-adapter.js';
 import { LocalMapDelivery, LocalMapCapability } from './local-thread-cwd-capability.js';
+import { ExplorerSnapshot, reconcile } from '../../src/explorer/model.js';
+import type { ReaderResult } from '../../src/explorer/readers.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
 const names = ['database.sqlite', 'database.sqlite-wal', 'database.sqlite-shm'] as const;
+const explorerNames = [...names, 'global-state.json'] as const;
+export const explorerScratchLimits = Object.freeze({...canaryLimits, files:9});
 const steps = ['prepared', 'recovery-ready', 'held', 'copied', 'verified'] as const;
 const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'unsupported', 'helper', 'cleanup', 'io'] as const;
 type Reason = typeof reasons[number];
 export type CanaryFault = 'none' | 'protected' | 'descriptor' | 'partial-copy' | 'diagnostic' |
   'recovery-create' | 'recovery-descriptor' | 'recovery-write' | 'recovery-flush' | 'recovery-readback';
-type Entry = { name: typeof names[number]; size: number; digest: string };
+type Entry = { name: typeof explorerNames[number]; size: number; digest: string };
 type Stat = { dev: bigint; ino: bigint; size: bigint; mtime: bigint; ctime: bigint };
 type Final = { stage: 'finished'; run: string; outcome: 'ok' | 'io' | 'acl-refused' | 'sharing-refused' |
   'closure-refused' | 'unstable'; closed: boolean; copied: boolean; phase: string; fault: string;
@@ -92,6 +96,11 @@ export function selectedPaths(source: string): string[] {
 
 // Owns scratch only. No source argument, source registration or recursive deletion.
 export class CanaryScratch {
+  constructor(readonly copyNames:readonly string[]=names,readonly profile:'canary'|'explorer'='canary') {
+    if(profile==='canary'&&copyNames!==names)stop('selection');
+    if(profile==='explorer'&&!['database.sqlite,global-state.json','database.sqlite,database.sqlite-wal,database.sqlite-shm,global-state.json'].includes(copyNames.join(',')))stop('selection');
+    this.copyNames=Object.freeze([...copyNames]);
+  }
   root: string | undefined;
   readonly nonce = randomUUID();
   private identity: { dev: bigint; ino: bigint } | undefined;
@@ -118,9 +127,9 @@ export class CanaryScratch {
     if (lstatSync(owner).size !== this.nonce.length || readFileSync(owner, 'utf8') !== this.nonce) stop('containment');
   }
   path(area: 'acquisition' | 'analysis', index: number): string {
-    if (!Number.isInteger(index) || index < 0 || index >= names.length) stop('selection');
+    if (!Number.isInteger(index) || index < 0 || index >= this.copyNames.length) stop('selection');
     this.owned(); checked(join(this.root!, area), true);
-    return join(this.root!, area, names[index]!);
+    return join(this.root!, area, this.copyNames[index]!);
   }
   entries(): { files: string[]; directories: string[] } {
     this.owned();
@@ -133,12 +142,12 @@ export class CanaryScratch {
       if (!rootEntries.includes(area)) continue;
       checked(directory, true); directories.push(directory);
       for (const name of readdirSync(directory)) {
-        if (!names.some(n => n === name)) stop('containment');
+        if (!this.copyNames.some(n => n === name)) stop('containment');
         const path = join(directory, name); const stat = metadata(path);
         bytes += Number(stat.size); files.push(path);
       }
     }
-    if (files.length > canaryLimits.files || directories.length + 1 > canaryLimits.directories || bytes > canaryLimits.scratch) stop('limit');
+    if (files.length > (this.profile==='explorer'?explorerScratchLimits.files:canaryLimits.files) || directories.length + 1 > canaryLimits.directories || bytes > canaryLimits.scratch) stop('limit');
     return { files, directories };
   }
   cleanup(fault?: (phase: 'child' | 'root') => void): 'removed' | 'residual' {
@@ -188,13 +197,13 @@ export function inspectCanaryAnalysis(scratch: CanaryScratch, test?: (db: Databa
     return true;
   } finally { db.close(); }
 }
-export function parseCanaryFrame(raw: string, nonce: string): Frame {
+export function parseCanaryFrame(raw: string, nonce: string, copyNames:readonly string[]=names): Frame {
   if (Buffer.byteLength(raw) > 8192) stop('helper');
   let value: unknown; try { value=JSON.parse(raw); } catch { stop('helper'); }
   if (!value || typeof value !== 'object' || Array.isArray(value)) stop('helper');
   const x=value as Record<string,unknown>, keys=Object.keys(x).sort().join(',');
   if (x.run !== nonce) stop('helper');
-  const count=(v:unknown):v is number=>typeof v==='number' && Number.isInteger(v) && v>=0 && v<=3;
+  const count=(v:unknown):v is number=>typeof v==='number' && Number.isInteger(v) && v>=0 && v<= (copyNames.includes('global-state.json')?4:3);
   if (['prepared','recovery-ready','recovery-verified','copied','verified'].includes(String(x.stage)) && keys==='count,protected,run,stage' &&
       x.protected===true && count(x.count) && (['prepared','recovery-ready','recovery-verified'].includes(String(x.stage)) ? x.count===0 : x.count>0)) return x as Frame;
   if (x.stage==='held' && keys==='count,manifest,run,stage' && count(x.count) && x.count>0 &&
@@ -203,18 +212,18 @@ export function parseCanaryFrame(raw: string, nonce: string): Frame {
     x.manifest.forEach((v:unknown,i:number)=>{
       if(!v || typeof v!=='object' || Array.isArray(v))stop('helper');
       const e=v as Record<string,unknown>;
-      if(Object.keys(e).sort().join(',')!=='digest,name,size' || e.name!==names[i] ||
+      if(Object.keys(e).sort().join(',')!=='digest,name,size' || e.name!==copyNames[i] ||
           typeof e.size!=='number' || !Number.isInteger(e.size) || e.size<0 || e.size>canaryLimits.file ||
           typeof e.digest!=='string' || !/^[a-f0-9]{64}$/.test(e.digest))stop('helper');
       total+=e.size;
     });
-    if ((x.count!==1 && x.count!==3) || total>canaryLimits.selected)stop('helper');
+    if ((copyNames.includes('global-state.json')?x.count!==copyNames.length:x.count!==1&&x.count!==3) || total>canaryLimits.selected)stop('helper');
     return x as Frame;
   }
   if(x.stage==='recovery-held' && keys==='payload,run,stage' && typeof x.payload==='string' && Buffer.byteLength(x.payload)<=6144)return x as Frame;
   if(x.stage==='location' && keys==='run,stage,store' && typeof x.store==='string' && x.store.length<=2048)return x as Frame;
   if(['recovery-deleted','recovery-paused'].includes(String(x.stage)) && keys==='count,deleted,run,stage' &&
-      Number.isInteger(x.count) && Number(x.count)>=1 && Number(x.count)<=10 && typeof x.deleted==='boolean' &&
+      Number.isInteger(x.count) && Number(x.count)>=1 && Number(x.count)<=(copyNames.includes('global-state.json')?12:10) && typeof x.deleted==='boolean' &&
       (x.stage!=='recovery-paused'||x.deleted===true))return x as Frame;
   if(x.stage==='finished' && keys==='closed,copied,fault,opened,outcome,partialWritten,phase,run,stage' &&
       ['ok','io','acl-refused','sharing-refused','closure-refused','unstable'].includes(String(x.outcome)) &&
@@ -229,11 +238,12 @@ export function prepareCanaryRequest(request:object):Buffer {
     const value=JSON.parse(bytes.toString('utf8')) as Record<string,unknown>;
     let reserve=1024;
     if(value.operation==='acquire'){
-      if(typeof value.root!=='string'||typeof value.nonce!=='string'||![1,3].includes(Number(value.count)))stop('helper');
+      const explorer=value.profile==='explorer';
+      if(typeof value.root!=='string'||typeof value.nonce!=='string'||!(explorer?[2,4]:[1,3]).includes(Number(value.count)))stop('helper');
       const id={dev:'9'.repeat(20),ino:'9'.repeat(20)};
       const entries=[{name:'owner',kind:'file',...id},...['acquisition','analysis'].flatMap(area=>[
-        {name:area,kind:'directory',...id},...names.slice(0,Number(value.count)).map(name=>({name:area+'/'+name,kind:'file',...id}))])];
-      const payload=JSON.stringify({version:1,store:id,root:{path:value.root,...id},nonce:value.nonce,entries});
+        {name:area,kind:'directory',...id},...(explorer?[...names.slice(0,Number(value.count)-1),'global-state.json']:names.slice(0,Number(value.count))).map(name=>({name:area+'/'+name,kind:'file',...id}))])];
+      const payload=JSON.stringify({version:explorer?2:1,...(explorer?{profile:'explorer'}:{}),store:id,root:{path:value.root,...id},nonce:value.nonce,entries});
       reserve=Buffer.byteLength(JSON.stringify({command:'persist',payload})+'\n');
       for(const command of ['acquire','copy','verify','release'])reserve+=Buffer.byteLength(JSON.stringify({command})+'\n');
     }
@@ -246,9 +256,10 @@ export class CanarySession {
   private queue:Frame[]=[]; private timer:NodeJS.Timeout|undefined;
   private initial:Buffer;
   constructor(request:object,private executable:string,private nonce:string,private corrupt?: (s:string)=>string,
-    private order:readonly string[]=steps) { this.initial=prepareCanaryRequest(request); }
+    private order:readonly string[]=steps,private copyNames:readonly string[]=names) { this.initial=prepareCanaryRequest(request); }
   get processExited():boolean{return !this.child||this.exited;}
   get spawned():boolean{return this.child!==undefined;}
+  allowExplorerRecovery():void { this.copyNames=explorerNames; }
   unsafe=false; diagnostics=false; final:Final|undefined; reached:string[]=[];
   start(afterSpawn?:()=>void):void {
     if(this.child)stop('helper');
@@ -268,7 +279,7 @@ export class CanarySession {
       while((end=this.buffer.indexOf('\n'))>=0){
         const line=this.buffer.slice(0,end).trimEnd();this.buffer=this.buffer.slice(end+1);
         try{
-          const f=parseCanaryFrame(this.corrupt?.(line)??line,this.nonce);
+          const f=parseCanaryFrame(this.corrupt?.(line)??line,this.nonce,this.copyNames);
           if(this.final)stop('helper');
           if(f.stage==='finished')this.final=f;
           else {if(f.stage!==this.order[this.reached.length])stop('helper');this.reached.push(f.stage);}
@@ -307,7 +318,7 @@ function recoveryEntries(path:string):string[]{
 }
 type Identity={dev:string;ino:string};
 type RecoveryEntry=Identity & {name:string;kind:'file'|'directory'};
-type RecoveryPayload={version:1;store:Identity;root:Identity & {path:string};nonce:string;entries:RecoveryEntry[]};
+type RecoveryPayload={version:1|2;profile?:'explorer';store:Identity;root:Identity & {path:string};nonce:string;entries:RecoveryEntry[]};
 export type RecoveryStatus='removed'|'busy'|'refused'|'residual'|'unavailable';
 export type CleanupPhase='file'|'child'|'marker'|'root'|'metadata';
 const controlNames=['key','record'];
@@ -336,22 +347,24 @@ export function recoveryPayload(scratch:CanaryScratch,store:string):string {
   const all=scratch.entries();
   const entries:RecoveryEntry[]=[...all.files.map(path=>({name:relative(scratch.root!,path).split(sep).join('/'),kind:'file' as const,...identity(path,false)})),
     ...all.directories.map(path=>({name:relative(scratch.root!,path).split(sep).join('/'),kind:'directory' as const,...identity(path,true)}))].sort((a,b)=>a.name.localeCompare(b.name));
-  return JSON.stringify({version:1,store:identity(store,true),root:{path:scratch.root,...identity(scratch.root!,true)},nonce:scratch.nonce,entries});
+  return JSON.stringify({version:scratch.profile==='explorer'?2:1,...(scratch.profile==='explorer'?{profile:'explorer'}:{}),store:identity(store,true),root:{path:scratch.root,...identity(scratch.root!,true)},nonce:scratch.nonce,entries});
 }
 function parseRecoveryPayload(raw:string,store:string):RecoveryPayload {
   if(Buffer.byteLength(raw)>6144)stop('cleanup');
   const x=JSON.parse(raw) as RecoveryPayload;
   const keys=(v:unknown,wanted:string):boolean=>!!v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).sort().join(',')===wanted;
   const validId=(v:Identity):boolean=>typeof v.dev==='string'&&/^\d{1,20}$/.test(v.dev)&&typeof v.ino==='string'&&/^[1-9]\d{0,19}$/.test(v.ino);
-  if(!keys(x,'entries,nonce,root,store,version')||x.version!==1||!keys(x.store,'dev,ino')||!validId(x.store)||
+  const explorer=x.version===2&&x.profile==='explorer';
+  if(!keys(x,explorer?'entries,nonce,profile,root,store,version':'entries,nonce,root,store,version')||(!explorer&&x.version!==1)||!keys(x.store,'dev,ino')||!validId(x.store)||
     !keys(x.root,'dev,ino,path')||!validId(x.root)||typeof x.root.path!=='string'||
     typeof x.nonce!=='string'||!/^[a-f0-9-]{36}$/.test(x.nonce)||!Array.isArray(x.entries))stop('cleanup');
   recoveryLocation(store,x.root.path);
   if(dirname(x.root.path)!==realpathSync(tmpdir())||!/^workspace-surveyor-canary-[A-Za-z0-9]+$/.test(relative(dirname(x.root.path),x.root.path)))stop('containment');
   identified(store,true,x.store);
-  const count=x.entries.length===5?1:x.entries.length===9?3:0;if(!count)stop('cleanup');
+  const count=explorer?(x.entries.length===7?1:x.entries.length===11?3:0):(x.entries.length===5?1:x.entries.length===9?3:0);if(!count)stop('cleanup');
   const expected=new Map<string,string>([['owner','file'],['acquisition','directory'],['analysis','directory']]);
   for(const area of ['acquisition','analysis'])for(const name of names.slice(0,count))expected.set(area+'/'+name,'file');
+  if(explorer)for(const area of ['acquisition','analysis'])expected.set(area+'/global-state.json','file');
   for(const entry of x.entries){
     if(!keys(entry,'dev,ino,kind,name')||!validId(entry)||expected.get(entry.name)!==entry.kind)stop('cleanup');
     expected.delete(entry.name);
@@ -379,7 +392,7 @@ function validateRemaining(p:RecoveryPayload):void {
       for(const child of recoveryEntries(join(p.root.path,n)))actual.push(n+'/'+child);
     }
   }
-  if(actual.length>9)stop('limit');let total=0;
+  if(actual.length>(p.version===2?11:9))stop('limit');let total=0;
   for(const name of actual){const entry=p.entries.find(e=>e.name===name);if(!entry)stop('cleanup');
     const path=join(p.root.path,name);identified(path,entry.kind==='directory',entry);
     if(entry.kind==='file'){const size=lstatSync(path).size;if(size>canaryLimits.file)stop('limit');total+=size;}
@@ -446,6 +459,7 @@ export async function recoverCanary(options:RecoveryOptions):Promise<RecoverySta
       probe:options.probe??'none'},options.executable,nonce,undefined,order);
     session.start();const f=await session.expect('recovery-held');if(f.stage!=='recovery-held')stop('helper');
     const payload=parseRecoveryPayload(f.payload,options.store);validateRemaining(payload);
+    if(payload.version===2)session.allowExplorerRecovery();
     await options.locked?.();session.send({command:'verify-recovery'});await session.expect('recovery-verified',0);
     cleanupBegan=true;await removeRecoveredScratch(payload,session,order,options);
     session.send({command:'release'});
@@ -477,7 +491,9 @@ export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:s
 type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; displayConsent?:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
   executable:string;
-  analysis?: 'qualification' | 'thread-cwd';
+  analysis?: 'qualification' | 'thread-cwd' | 'explorer';
+  // Fixed, synthetic-only source profile. No existing personal action accepts it.
+  explorer?: {globalState:string};
   qualificationHook?: QualificationTest;
   selection: {kind:'synthetic';fixture:SyntheticSelection} | {kind:'personal';private:PersonalSelection};
   fault?:CanaryFault;
@@ -533,19 +549,23 @@ export async function runThreadCwdDisplay(options:CanaryOptions):Promise<LocalMa
       evidence:{stages:[],phase:'input',fault:'none',partialWritten:false,opened:0,exitConfirmed:false,diagnosticsDiscarded:true}});
   }
 }
-async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boolean},delivery?:{capability?:LocalMapCapability}):Promise<CanaryResult>{
-  const scratch=new CanaryScratch();let session:CanarySession|undefined;let reason:Reason|'none'='io';
+async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boolean},delivery?:{capability?:LocalMapCapability},explorerDelivery?:{result?:ReaderResult}):Promise<CanaryResult>{
+  let scratch=new CanaryScratch();let session:CanarySession|undefined;let reason:Reason|'none'='io';
   let cleanup:'removed'|'residual'='removed', readable=false,stable=false, candidate=false,exit=false,count=0;
   const synthetic=options.selection.kind==='synthetic';
+  const explorer=options.analysis==='explorer';
+  let explorerResult:ReaderResult|undefined;
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
   let qualification:Qualification|undefined;
   let mapping:AdapterResult|undefined;
   let adapter:typeof import('./thread-cwd-adapter.js')|undefined;
-  const from=attempt?new Date().toISOString():undefined;
-  const namespace=attempt?'source-'+randomUUID():undefined;
+  const from=attempt||explorer?new Date().toISOString():undefined;
+  const namespace=attempt||explorer?'source-'+randomUUID():undefined;
   try{
-    if (options.analysis !== undefined && options.analysis !== 'qualification' && options.analysis !== 'thread-cwd') stop('selection');
+    if (options.analysis !== undefined && options.analysis !== 'qualification' && options.analysis !== 'thread-cwd' && !explorer) stop('selection');
+    if(options.explorer&&!explorer)stop('selection');
+    if(explorer&&(!explorerDelivery||!synthetic||!options.explorer||process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1'||options.inspectHook||options.qualificationHook))stop('selection');
     if (options.qualificationHook && options.analysis !== 'qualification') stop('selection');
     if(attempt&&options.inspectHook)stop('selection');
     if(!synthetic&&attempt&&(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
@@ -581,17 +601,31 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     }
     store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await locatePersonalRecoveryStore(options.executable,attempt);
     recoveryLocation(store,undefined,source);if(!missing(store)){cleanup='residual';recovery='unavailable';stop('selection');}
-    const paths=selectedPaths(source);const before=paths.map(metadata);count=paths.length;
+    const select=():string[]=>{
+      const paths=selectedPaths(source);
+      if(explorer){
+        const globalState=options.explorer!.globalState;
+        if(options.selection.kind!=='synthetic'||!contains(join(options.selection.fixture.ownerRoot,'sources'),globalState)||
+          paths.some(p=>overlap(p,globalState)))stop('selection');
+        paths.push(globalState);
+        if(paths.reduce((size,p)=>size+metadata(p).size,0n)>BigInt(canaryLimits.selected))stop('limit');
+      }
+      return paths;
+    };
+    const paths=select();const before=paths.map(metadata);count=paths.length;
+    if(explorer)scratch=new CanaryScratch([...names.slice(0,count-1),'global-state.json'],'explorer');
     cleanup='residual';scratch.initialize();await options.hook?.('initialized',scratch);
     if(overlap(dirname(source),scratch.root!)||overlap(source,scratch.root!))stop('containment');
     recoveryLocation(store,scratch.root,source);mkdirSync(store);storeId=identity(store,true);
     const fault=options.fault??'none';if(!['none','protected','descriptor','partial-copy','diagnostic','recovery-create','recovery-descriptor','recovery-write','recovery-flush','recovery-readback'].includes(fault))stop('selection');
     const writers=options.selection.kind==='personal'?[...options.selection.private.writers]:[];
-    session=new CanarySession({operation:'acquire',store,count,root:scratch.root,nonce:scratch.nonce,source,mode:synthetic?'synthetic':'personal',writers,fault},options.executable,scratch.nonce,options.corruptFrame);
+    if(explorer&&overlap(dirname(options.explorer!.globalState),scratch.root!))stop('containment');
+    session=new CanarySession({operation:'acquire',store,count,root:scratch.root,nonce:scratch.nonce,source,mode:synthetic?'synthetic':'personal',writers,fault,
+      ...(explorer?{profile:'explorer',globalState:options.explorer!.globalState}:{})},options.executable,scratch.nonce,options.corruptFrame,steps,scratch.copyNames);
     session.start(options.afterSpawn);
     await session.expect('prepared',0);await options.hook?.('prepared',scratch);
     identified(store,true,storeId);scratch.owned();
-    if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
+    if(!same(before,select().map(metadata)))stop('unstable');
     const payload=recoveryPayload(scratch,store);
     session.send({command:'persist',payload});await session.expect('recovery-ready',0);
     if(JSON.stringify(readAuthenticatedRecord(store))!==JSON.stringify(JSON.parse(payload)))stop('cleanup');
@@ -605,14 +639,18 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(manifest.some((e,i)=>BigInt(e.size)!==before[i]?.size))stop('unstable');
     await options.hook?.('held',scratch);
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
-    if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
+    if(!same(before,select().map(metadata)))stop('unstable');
     session.send({command:'copy'});await session.expect('copied',count);
     scratch.entries();
     for(let i=0;i<count;i++)for(const area of ['acquisition','analysis'] as const)
       if(digestCopy(scratch.path(area,i))!==manifest[i]?.digest)stop('unstable');
     await options.hook?.('copied',scratch);
     try{
-      if(options.analysis==='thread-cwd'){
+      if(explorer){
+        const reader=await import('../../src/explorer/readers.js');
+        explorerResult=reader.readExplorerCopies(scratch,{namespace:namespace!,from:from!,through:new Date().toISOString()},count-1,'invented-v1');
+        readable=explorerResult.status==='ready';
+      }else if(options.analysis==='thread-cwd'){
         adapter=await import('./thread-cwd-adapter.js');
         mapping=adapter.readThreadCwdCopy(scratch,{namespace:namespace!,from:from!,through:new Date().toISOString()});
         readable=mapping.summary.reason!=='analysis';
@@ -621,17 +659,17 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       }else{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}
     }catch{stop('analysis');}
     await options.hook?.('analyzed',scratch);
-    if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
+    if(!same(before,select().map(metadata)))stop('unstable');
     for(let i=0;i<count;i++)if(digestCopy(scratch.path('acquisition',i))!==manifest[i]?.digest)stop('unstable');
     session.send({command:'verify'});await session.expect('verified',count);
     await options.hook?.('verified',scratch);
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
-    if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
+    if(!same(before,select().map(metadata)))stop('unstable');
     session.send({command:'release'});candidate=true;
     exit=await session.finish();
     if(!exit||session.unsafe||session.final?.outcome!=='ok'||session.final.phase!=='release'||
         session.final.opened!==count||!session.final.copied||session.final.fault!=='none')stop('helper');
-    if(!same(before,selectedPaths(source).map(metadata)))stop('unstable');
+    if(!same(before,select().map(metadata)))stop('unstable');
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
     stable=true;reason='none';
   }catch(error){reason=safeReason(error);candidate=false;}
@@ -676,10 +714,29 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(delivery&&candidate&&mapping.summary.status==='ready')delivery.capability=new LocalMapCapability(mapping);
   }else if(attempt&&candidate){candidate=false;reason='analysis';}
   mapping=undefined; // Standard results stay summary-only; display delivery is a separate private capability.
+  if(explorerResult){
+    if(candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&explorerResult.status==='ready'){
+      // Only the fixed synthetic bridge can take this one-use capability.
+      const data=explorerResult.snapshot!.take()!;
+      explorerResult.snapshot=new ExplorerSnapshot(reconcile({...data.provenance,through:new Date().toISOString()},
+        data.coverage,data.threads,data.projects,data.assignments));
+      explorerDelivery!.result=explorerResult;
+    }else{explorerResult.snapshot?.discard();candidate=false;if(reason==='none')reason=explorerResult.reason==='limit'?'limit':explorerResult.reason==='schema'?'unsupported':'analysis';}
+  }
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
     ...(attempt?{mapping:mapSummary,attemptConsumed:attempt.consumed}:{}),
     schemaReadable:candidate&&readable,sourcesStable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
       opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};
+}
+
+export async function runSyntheticExplorer(options:CanaryOptions):Promise<{safety:CanaryResult|null;snapshot?:ExplorerSnapshot;summary?:ReaderResult['summary']}> {
+  if(options.selection.kind!=='synthetic'||options.analysis!=='explorer'||!options.explorer)return {safety:null};
+  const delivery:{result?:ReaderResult}={};
+  try{
+    const safety=await runCanaryOperation(options,undefined,undefined,delivery),read=delivery.result;
+    if(safety.status!=='passed'||!read?.snapshot){read?.snapshot?.discard();return {safety};}
+    return {safety,snapshot:read.snapshot,...(read.summary?{summary:read.summary}:{})};
+  }catch{delivery.result?.snapshot?.discard();return {safety:null};}
 }

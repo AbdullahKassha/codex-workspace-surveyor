@@ -1,5 +1,20 @@
 # Evidence catalog
 
+**Current M3a supplement, 2026-10-07:** [PLD-001](personal-local-display-observation.md) is separate founder-reported evidence: 146 claims, 15 exact groups, no omissions/ambiguities and reported successful verification/cleanup/display closure, exit 0. No complete JSON was supplied or reconstructed. M2 validation is complete; [M3a preparation](m3a-explorer-preparation.md) is synthetic-only, with real Project shape explicitly unknown. All earlier personal observations and residual disclosures remain intact.
+
+### SRC-001: Public title hypothesis
+
+- Source: OpenAI [threads migration](https://github.com/openai/codex/blob/main/codex-rs/state/migrations/0001_threads.sql), reviewed 2026-10-07.
+- Category: official public implementation source, mutable main branch, not an installed-release contract.
+- Observed source structure: the ordinary thread table includes a TEXT title alongside ID/CWD.
+- Limit: no mapping to the founder's runtime revision or visible Desktop title semantics. Fixed copied-state invariants and later founder comparison are required.
+
+### DOC-024: Local Project folder semantics
+
+- Source: official [Projects and chats](https://learn.chatgpt.com/docs/projects), reviewed 2026-10-07.
+- Documented claim: local Projects may attach multiple folders with a selected primary folder.
+- Limit: no JSON registry/assignment serialization contract or current private source location is established. Historical WIN-006 remains historical comparative evidence, not a guessed current decoder.
+
 **Current local-display supplement, 2026-10-07:** [PMAP-001](personal-thread-cwd-observation.md) is separate founder-reported evidence: the supplied private MAP result reports 139 claims / 15 exact stored-CWD groups, zero omissions/ambiguous IDs, three selected files and successful verification/cleanup. Intended implementation was `b1449d8`; executing runtime/commit and cleanup were not independently re-inspected. Unconsumed columns are presence evidence, not proven drift. Its authorization is consumed and no personal map remains. [ADR 0013](../decisions/0013-local-thread-cwd-display-preparation.md) and [terminal display validation](local-thread-cwd-display-preparation-validation.md) describe synthetic-only preparation and later fresh acquisition/display consent, separately from this personal observation. Historical evidence and residual disclosures remain intact.
 
 ## Claim categories

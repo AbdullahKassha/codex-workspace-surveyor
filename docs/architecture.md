@@ -1,5 +1,13 @@
 # Conceptual architecture
 
+## M3a concrete browser preparation
+
+Under [ADR 0014](decisions/0014-named-threads-and-local-projects.md), the private synthetic acquisition bridge supplies owned analysis copies → fixed source-specific readers → evidence-bearing snapshot → pure exact-string reconciliation → short-lived loopback browser. Core `src/explorer` modules import no fixtures, helper protocols, opt-ins or canary entries. Product CLI remains the M1 demonstration. Historical architecture below retains its milestone context.
+
+The browser is a focused Projects/Locations explorer, not an all-nodes graph. Thread and Project identities have separate source namespaces; relations retain stored evidence versus exact-string derivation. Unclassified records, unknown membership and uninspected locations remain visible. Repository/worktree adapters and unused entity scaffolding are deferred.
+
+The managed acquisition boundary remains private under test support. Its concrete new profile adds one explicitly selected JSON file and expands authenticated recovery inventory while preserving old profiles. No generic provider/plugin architecture or public acquisition interface is introduced. The one-use snapshot is delivered only after source/copy verification, helper exit and authenticated cleanup. Loopback delivery is separately permissioned for future personal use; no personal browser entry is enabled. See [M3a preparation](research/m3a-explorer-preparation.md).
+
 ## Direction: design decisions
 
 M0 selected TypeScript/Node.js and one package as the implementation direction, without creating a runtime package or contracts. M1 follows that direction. Introduce concrete module boundaries only when working code needs them; no public API, registry, dependency-injection system, or framework is established.

@@ -1,5 +1,7 @@
 # Compatibility and evidence matrix
 
+**Current M3a supplement, 2026-10-07:** [PLD-001](research/personal-local-display-observation.md) reports a successful bounded personal terminal display; M2 validation is complete without universal coverage or live/atomic guarantees. [M3a](research/m3a-explorer-preparation.md) evaluates schema/capabilities, not Desktop version equality. Public `threads.title` is a hypothesis; real Project decoding is unavailable pending exact registry/assignment qualification. Additional ordinary columns remain unconsumed observations, not proven drift. Synthetic browser/JSON tests do not certify current Desktop semantics. Historical status/measurement records below are preserved.
+
 ## Current support: design decision
 
 **Current local-display preparation supplement, 2026-10-07:** [PMAP-001](research/personal-thread-cwd-observation.md) reports a successful bounded private map of 139 claims / 15 exact CWD groups, with selected-table interpretation complete and cleanup reported removed. Additional columns were unconsumed, not proven drift; versions remain provenance and schema/acquisition capabilities determine compatibility. [ADR 0013](decisions/0013-local-thread-cwd-display-preparation.md) prepares a private escaped terminal view on invented inputs only, gated by verified cleanup and future explicit local-display consent. The completed authorization is consumed and no retained personal map exists. Earlier status/measurement statements below retain their historical timing.
