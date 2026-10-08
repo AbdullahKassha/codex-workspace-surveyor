@@ -488,11 +488,12 @@ function removeBootstrapStore(store:string,id:Identity):boolean {
 }
 
 export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:string };
-type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; displayConsent?:true; scratchParent:string; writers:readonly string[] };
+type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; displayConsent?:true;
+  titleConsent?:true; browserConsent?:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
   executable:string;
   analysis?: 'qualification' | 'thread-cwd' | 'explorer';
-  // Fixed, synthetic-only source profile. No existing personal action accepts it.
+  // DB + JSON remains synthetic-only until an exact real Project allowlist is qualified.
   explorer?: {globalState:string};
   qualificationHook?: QualificationTest;
   selection: {kind:'synthetic';fixture:SyntheticSelection} | {kind:'personal';private:PersonalSelection};
@@ -554,6 +555,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   let cleanup:'removed'|'residual'='removed', readable=false,stable=false, candidate=false,exit=false,count=0;
   const synthetic=options.selection.kind==='synthetic';
   const explorer=options.analysis==='explorer';
+  const explorerJson=explorer&&options.explorer!==undefined;
   let explorerResult:ReaderResult|undefined;
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
@@ -565,10 +567,17 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   try{
     if (options.analysis !== undefined && options.analysis !== 'qualification' && options.analysis !== 'thread-cwd' && !explorer) stop('selection');
     if(options.explorer&&!explorer)stop('selection');
-    if(explorer&&(!explorerDelivery||!synthetic||!options.explorer||process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1'||options.inspectHook||options.qualificationHook))stop('selection');
+    if(explorer&&(!explorerDelivery||options.inspectHook||options.qualificationHook))stop('selection');
+    if(explorer&&synthetic&&process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1')stop('selection');
+    if(explorer&&!synthetic&&(options.explorer||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
+      process.env.WORKSPACE_SURVEYOR_PERSONAL_EXPLORER!=='1'||options.selection.kind!=='personal'||
+      options.selection.private.consent!==true||options.selection.private.actualValueConsent!==true||
+      options.selection.private.titleConsent!==true||options.selection.private.browserConsent!==true||
+      options.fault||options.closure||options.hook||options.cleanupFault||options.corruptFrame||
+      options.simulateExitUncertainty||options.afterSpawn))stop('selection');
     if (options.qualificationHook && options.analysis !== 'qualification') stop('selection');
     if(attempt&&options.inspectHook)stop('selection');
-    if(!synthetic&&attempt&&(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
+    if(!synthetic&&attempt&&!explorer&&(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
       process.env.WORKSPACE_SURVEYOR_PERSONAL_THREAD_CWD!=='1'||options.selection.kind!=='personal'||
       options.selection.private.consent!==true||options.selection.private.actualValueConsent!==true))stop('selection');
     if (!synthetic && options.analysis === 'qualification' &&
@@ -603,7 +612,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     recoveryLocation(store,undefined,source);if(!missing(store)){cleanup='residual';recovery='unavailable';stop('selection');}
     const select=():string[]=>{
       const paths=selectedPaths(source);
-      if(explorer){
+      if(explorerJson){
         const globalState=options.explorer!.globalState;
         if(options.selection.kind!=='synthetic'||!contains(join(options.selection.fixture.ownerRoot,'sources'),globalState)||
           paths.some(p=>overlap(p,globalState)))stop('selection');
@@ -613,15 +622,15 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       return paths;
     };
     const paths=select();const before=paths.map(metadata);count=paths.length;
-    if(explorer)scratch=new CanaryScratch([...names.slice(0,count-1),'global-state.json'],'explorer');
+    if(explorerJson)scratch=new CanaryScratch([...names.slice(0,count-1),'global-state.json'],'explorer');
     cleanup='residual';scratch.initialize();await options.hook?.('initialized',scratch);
     if(overlap(dirname(source),scratch.root!)||overlap(source,scratch.root!))stop('containment');
     recoveryLocation(store,scratch.root,source);mkdirSync(store);storeId=identity(store,true);
     const fault=options.fault??'none';if(!['none','protected','descriptor','partial-copy','diagnostic','recovery-create','recovery-descriptor','recovery-write','recovery-flush','recovery-readback'].includes(fault))stop('selection');
     const writers=options.selection.kind==='personal'?[...options.selection.private.writers]:[];
-    if(explorer&&overlap(dirname(options.explorer!.globalState),scratch.root!))stop('containment');
+    if(explorerJson&&overlap(dirname(options.explorer!.globalState),scratch.root!))stop('containment');
     session=new CanarySession({operation:'acquire',store,count,root:scratch.root,nonce:scratch.nonce,source,mode:synthetic?'synthetic':'personal',writers,fault,
-      ...(explorer?{profile:'explorer',globalState:options.explorer!.globalState}:{})},options.executable,scratch.nonce,options.corruptFrame,steps,scratch.copyNames);
+      ...(explorerJson?{profile:'explorer',globalState:options.explorer!.globalState}:{})},options.executable,scratch.nonce,options.corruptFrame,steps,scratch.copyNames);
     session.start(options.afterSpawn);
     await session.expect('prepared',0);await options.hook?.('prepared',scratch);
     identified(store,true,storeId);scratch.owned();
@@ -648,7 +657,8 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     try{
       if(explorer){
         const reader=await import('../../src/explorer/readers.js');
-        explorerResult=reader.readExplorerCopies(scratch,{namespace:namespace!,from:from!,through:new Date().toISOString()},count-1,'invented-v1');
+        explorerResult=reader.readExplorerCopies(scratch,{namespace:namespace!,from:from!,through:new Date().toISOString()},
+          explorerJson?count-1:undefined,explorerJson?'invented-v1':'unavailable');
         readable=explorerResult.status==='ready';
       }else if(options.analysis==='thread-cwd'){
         adapter=await import('./thread-cwd-adapter.js');
@@ -703,7 +713,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   const qualified = candidate ? qualification : null;
   if(candidate&&qualification?.structure==='unsupported'){candidate=false;reason='unsupported';}
   let mapSummary:AdapterResult['summary']|null=null;
-  if(attempt&&candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&mapping&&adapter){
+  if(attempt&&!explorer&&candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&mapping&&adapter){
     if(mapping.summary.status==='ready'){
       mapping=new adapter.AdapterResult(mapping.summary,mapping.readClaims(),{namespace:namespace!,from:from!,through:new Date().toISOString()});
     }else{
@@ -712,11 +722,12 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     }
     mapSummary=mapping.summary;
     if(delivery&&candidate&&mapping.summary.status==='ready')delivery.capability=new LocalMapCapability(mapping);
-  }else if(attempt&&candidate){candidate=false;reason='analysis';}
+  }else if(attempt&&!explorer&&candidate){candidate=false;reason='analysis';}
   mapping=undefined; // Standard results stay summary-only; display delivery is a separate private capability.
   if(explorerResult){
-    if(candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&explorerResult.status==='ready'){
-      // Only the fixed synthetic bridge can take this one-use capability.
+    if(candidate&&stable&&exit&&cleanup==='removed'&&recovery==='removed'&&explorerResult.status==='ready'&&
+      (!attempt||!!explorerResult.summary?.claims)){
+      // Fixed browser bridges alone receive this cleanup-gated one-use capability.
       const data=explorerResult.snapshot!.take()!;
       explorerResult.snapshot=new ExplorerSnapshot(reconcile({...data.provenance,through:new Date().toISOString()},
         data.coverage,data.threads,data.projects,data.assignments));
@@ -725,7 +736,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   }
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
-    ...(attempt?{mapping:mapSummary,attemptConsumed:attempt.consumed}:{}),
+    ...(attempt?{...(!explorer?{mapping:mapSummary}:{}),attemptConsumed:attempt.consumed}:{}),
     schemaReadable:candidate&&readable,sourcesStable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
       opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};
@@ -739,4 +750,31 @@ export async function runSyntheticExplorer(options:CanaryOptions):Promise<{safet
     if(safety.status!=='passed'||!read?.snapshot){read?.snapshot?.discard();return {safety};}
     return {safety,snapshot:read.snapshot,...(read.summary?{summary:read.summary}:{})};
   }catch{delivery.result?.snapshot?.discard();return {safety:null};}
+}
+
+export type ExplorerDelivery={safety:CanaryResult;snapshot?:ExplorerSnapshot;summary?:ReaderResult['summary']};
+export const explorerPreflightSafety:CanaryResult=Object.freeze({status:'refused',reason:'selection',cleanup:'removed',
+  recovery:'removed',files:0,schemaReadable:false,sourcesStable:false,attemptConsumed:false,
+  evidence:{stages:[],phase:'input',fault:'none',partialWritten:false,opened:0,exitConfirmed:false,diagnosticsDiscarded:false}});
+// Dedicated personal browser action; does not grant JSON decoding or caller callbacks.
+export async function runPersonalExplorer(options:CanaryOptions):Promise<ExplorerDelivery>{
+  return runTitledExplorer(options,false);
+}
+// Harness-owned mirror of the new operation, never selects personal sources/processes.
+export async function runTitledExplorerPreparation(options:CanaryOptions):Promise<ExplorerDelivery>{
+  return runTitledExplorer(options,true);
+}
+async function runTitledExplorer(options:CanaryOptions,synthetic:boolean):Promise<ExplorerDelivery>{
+  const attempt={consumed:false},delivery:{result?:ReaderResult}={};
+  try{
+    if(options.analysis!=='explorer'||options.explorer||options.selection.kind!==(synthetic?'synthetic':'personal'))stop('selection');
+    const safety=await runCanaryOperation(options,attempt,undefined,delivery),read=delivery.result;
+    if(safety.status!=='passed'||!read?.snapshot){read?.snapshot?.discard();return {safety};}
+    return {safety,snapshot:read.snapshot,...(read.summary?{summary:read.summary}:{})};
+  }catch(error){
+    delivery.result?.snapshot?.discard();
+    return {safety:{...explorerPreflightSafety,reason:safeReason(error),attemptConsumed:attempt.consumed,
+      cleanup:attempt.consumed?'residual':'removed',recovery:attempt.consumed?'unavailable':'removed',
+      evidence:{...explorerPreflightSafety.evidence,diagnosticsDiscarded:true}}};
+  }
 }

@@ -1,5 +1,7 @@
 # Compatibility and evidence matrix
 
+**Current activation preparation, 2026-10-08:** the [private personal-browser path](research/personal-explorer-preparation-validation.md) evaluates fixed ID/CWD/title structure and acquisition capabilities; Desktop version changes alone remain informational. Title acceptance is structural, with real label semantics pending founder comparison. Missing title keeps fallback location claims. Real Project decoding/JSON acquisition remain unavailable; only invented Project fixtures are decoded. Structure qualification and cross-source correspondence are separate. Preparation tests establish no personal title/Project semantics or new execution authority.
+
 **Current M3a supplement, 2026-10-07:** [PLD-001](research/personal-local-display-observation.md) reports a successful bounded personal terminal display; M2 validation is complete without universal coverage or live/atomic guarantees. [M3a](research/m3a-explorer-preparation.md) evaluates schema/capabilities, not Desktop version equality. Public `threads.title` is a hypothesis; real Project decoding is unavailable pending exact registry/assignment qualification. Additional ordinary columns remain unconsumed observations, not proven drift. Synthetic browser/JSON tests do not certify current Desktop semantics. Historical status/measurement records below are preserved.
 
 ## Current support: design decision

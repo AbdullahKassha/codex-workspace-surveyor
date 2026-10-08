@@ -1,5 +1,7 @@
 # Evidence catalog
 
+**M3a activation preparation, 2026-10-08 (design/synthetic evidence):** [ADR 0015](../decisions/0015-personal-titled-browser-preparation.md) and [validation/proposed procedure](personal-explorer-preparation-validation.md) prepare the private titled-location browser against invented copies. Fixed title structure can be checked during one useful future authorized display; label semantics remain unqualified pending founder comparison. Real Project targets/correspondence remain unknown, and no personal JSON is selected. No new personal observation or research access follows from this preparation.
+
 **Current M3a supplement, 2026-10-07:** [PLD-001](personal-local-display-observation.md) is separate founder-reported evidence: 146 claims, 15 exact groups, no omissions/ambiguities and reported successful verification/cleanup/display closure, exit 0. No complete JSON was supplied or reconstructed. M2 validation is complete; [M3a preparation](m3a-explorer-preparation.md) is synthetic-only, with real Project shape explicitly unknown. All earlier personal observations and residual disclosures remain intact.
 
 ### SRC-001: Public title hypothesis

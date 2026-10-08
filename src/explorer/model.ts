@@ -7,7 +7,7 @@ export type ProjectClaim = Readonly<{ id: string; label: string | null; roots: r
 export type AssignmentClaim = Readonly<{ threadId: string; projectId: string }>;
 export type Membership = 'stored-assignment' | 'no-assignment-observed' | 'unknown' | 'conflicting' | 'dangling';
 export type Coverage = Readonly<{ rowsRead: number; omittedRows: number; ambiguousIds: number;
-  titles: 'accepted' | 'unavailable'; projects: 'synthetic-qualified' | 'unavailable';
+  titles: 'accepted' | 'unavailable'; projects: 'synthetic-qualified' | 'structure-qualified' | 'unavailable';
   unconsumedColumns: boolean; correspondence: 'qualified' | 'unknown' }>;
 export type Relation = Readonly<{ kind: 'reports-cwd' | 'assigned-project' | 'declares-root' | 'shares-exact-cwd' | 'matches-exact-root';
   subject: number; target: number; evidence: 'stored' | 'derived-exact-string' }>;
@@ -44,6 +44,7 @@ export function reconcile(provenance: Provenance, coverage: Coverage, threads: r
     locations, memberships, relations,
     danglingAssignments:assignments.filter(a=>!threads.some(t=>t.id===a.threadId)||!projects.some(p=>p.id===a.projectId)).length,
     limitations:['Selected copied table only; record visibility and classification unknown.',
+      'Title acceptance checks stored structure; Desktop label semantics require a founder comparison.',
       'Stored locations are uninspected exact strings; repository/worktree and runtime identity unknown.',
       'Missing assignment is not projectlessness; a snapshot does not establish stable CWD.',
       'Exact-root matches do not establish membership. Additional columns are unconsumed observations, not proven drift.']};
