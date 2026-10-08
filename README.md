@@ -1,82 +1,89 @@
 # Workspace Surveyor for Codex
 
-Understand the relationships between local Codex projects, chats, working directories, repositories, worktrees, and historical state before changing anything.
+**Understand the relationships between Codex threads, Local Projects and stored working locations.**
 
-**Status: M2a.1 synthetic acquisition-safety kernel; CLI remains the M1 demonstration.** A working local CLI explains bundled invented scenarios. The test-only kernel copies harness-created invented SQLite/JSON fixtures; native scratch protection refuses, and successful copying tests explicitly simulate that prerequisite. It does not inspect Codex, accept external data, or provide a supported real audit. No visual UI or published package exists. The repository remains private bootstrap; a license has not been selected and no open-source release is being claimed.
+Workspace Surveyor is a Windows-first, read-only explorer of Codex relationships. It helps explain shared working locations, stored Project assignments and uncertainty in the available evidence.
 
-Workspace Surveyor for Codex is an independent community project for understanding and organizing Codex workspace relationships. It is not an official OpenAI product and is not affiliated with, endorsed by, or sponsored by OpenAI.
+**Current status:** M2 private read-only validation is complete. M3a browser preparation is implemented, synthetic-tested and independently reviewed. Try it with invented data today; real titled-thread and Project browser exploration has not yet been demonstrated.
 
-**Naming decision:** Workspace Surveyor is the primary identity; "for Codex" describes compatibility. The private package/repository name is `codex-workspace-surveyor`, and the future executable is `codex-surveyor`. These names do not imply a published package or global command. Existing local folders may retain `codex-workspace-doctor`; no folder or Codex Local Project migration is required. See [ADR 0006](docs/decisions/0006-project-naming-and-cli-surface.md).
+## Why it exists
 
-## Run the synthetic demonstration
+Several threads can share a working location, Projects can declare overlapping folder roots, and assignments can disagree with stored locations. Workspace Surveyor brings these relationships together before you consider organization changes.
 
-Use Node 24.x and npm 11.x in the existing checkout. No globally installed executable is needed.
+A **stored CWD** is the working-directory string recorded for a thread. It does not prove that the directory exists or is the thread's current runtime location.
 
-```text
+## What the explorer shows
+
+- **Locations:** exact stored-CWD groups containing titled thread records, with title and location search.
+- **Projects:** Local Project labels, declared folder roots and recorded thread assignments, currently demonstrated with invented Project fixtures.
+- **Details:** record IDs, assignments, ambiguity, provenance (where a claim came from) and coverage (what was inspected).
+- **Uncertainty:** missing observations, conflicts and unresolved references remain visible. Matching path strings do not establish Project membership or filesystem identity.
+
+## Current implementation
+
+| Area | Status |
+| --- | --- |
+| Protected acquisition and thread ID/CWD mapping | Demonstrated in bounded, separately authorized, closed-app personal Windows runs, including local terminal display |
+| Named-thread reader and relationship model | Implemented and tested with synthetic copies; real title semantics remain unqualified |
+| Local browser explorer | Working synthetic Projects/Locations views, search and record details |
+| Real Project decoding | Explicitly unavailable until exact source keys, types and reference relationships are qualified |
+| General personal-state browser workflow | Not available; the current browser entry accepts invented fixtures only |
+
+The earlier synthetic CLI remains available for bundled text explanations. There is no published package, globally installed command or public API.
+
+<a id="run-the-synthetic-demonstration"></a>
+## Try the synthetic demo
+
+Use a native Windows checkout and PowerShell 7. The validated setup is Node **24.18.1**, npm **11.x**, and PowerShell **7.6.6** with .NET **10.0.12**.
+
+Run from the repository directory in that PowerShell session:
+
+```powershell
 npm ci --ignore-scripts --no-audit --no-fund
-npm run typecheck
 npm run build
-npm run cli -- demo
+
+$env:WORKSPACE_SURVEYOR_HELPER_PWSH = [Environment]::ProcessPath
+$env:WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION = '1'
+$env:WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION = '1'
+node dist/test/support/explorer-entry.js
 ```
 
-Choose `npm run cli -- demo disagreement` or `npm run cli -- demo coverage`; `demo` and `demo overview` are equivalent. `npm run cli -- demo --list` lists scenarios, and `npm run cli -- --help` displays usage. Rebuild after editing source; `npm test` builds and runs the semantic, fixture, text-golden, and CLI tests.
+The demo uses invented SQLite/JSON files and verified protected copies. Its temporary artifacts are removed before browser delivery. It does not read personal Codex state or use the real recovery slot.
 
-| Scenario | What it explains |
-| --- | --- |
-| `overview` | Shared stored-CWD strings, separate project ID namespaces, explicit assignment and unknown membership |
-| `disagreement` | Ambiguous root correspondence and conflicting assignment/CWD reports, with source and time preserved |
-| `coverage` | Present versus accessible absence, inaccessible/offline/unsupported/uninspected paths, and incomplete membership evidence |
+Open the printed local URL. Browse **Locations** and **Projects**, search titles or locations, and select a record for details. Use **Close local session** or Ctrl+C to finish. The server expires after ten minutes if page-exit closure is not delivered.
 
-Every report is labeled synthetic. All identities, paths, statuses, and timestamps are invented; represented paths are never inspected. Matching path strings do not establish physical identity. `info`/`warning` describes the explanation; `limited` means a conclusion is bounded by the stipulations, while `unresolved` means the evidence cannot settle the relationship. Neither is numeric confidence. Historical WIN references explain design motivation, not verified behavior on a current Codex build.
+For the older text demo, run `npm run cli -- demo` or `npm run cli -- demo disagreement`. Developer checks are `npm run typecheck` and `npm test`.
 
-Output is text only. The CLI has no file/stdin input, JSON contract, configuration, discovery, acquisition, App Server inspection, Git/boundary or AGENTS diagnostics, actions, or migration. Exit codes are `0` for a successful demonstration (including warnings), `2` for invalid usage, and `1` for an internal failure; they are not workspace health scores. There is no public `bin` declaration or library API.
+See the [preparation record](docs/research/m3a-explorer-preparation.md#synthetic-demonstration) for the verified procedure, validation results and runtime limits.
 
-See [ADR 0007](docs/decisions/0007-synthetic-cli-foundation.md) for the deliberately small implementation and its limits.
+## How it works
 
-## Synthetic acquisition tests
+Selected sources → protected acquisition and separate analysis copies → bounded metadata readers → evidence-bearing relationships → local browser view.
 
-M2a.1 adds a kernel and fixture builder under `test/support`, exercised by `npm test` using existing dependencies. Selection is limited to three generated invented fixtures; there is no external-data input or audit command. Source reads/copies are bounded, WAL/SHM stay together, analysis uses separate copies, and cleanup removes exact current-run synthetic artifacts.
+Browser delivery follows successful verification and cleanup. A temporary loopback server (accessible on this machine only) holds the dataset in memory and checks session access. Stored strings are rendered as text; paths have no filesystem actions.
 
-Windows ACL protection and deny-write/delete sharing are not established by Node alone. Default acquisition refuses before copying; successful tests explicitly inject simulated protection. Source-write regression checks and privacy canaries demonstrate bounded synthetic behavior, not readiness to read real Codex state. See [ADR 0008](docs/decisions/0008-synthetic-acquisition-kernel.md) and [validation and limitations](docs/research/synthetic-acquisition-validation.md).
+## Current limitations and next steps
 
-## Why this project exists
+Real title semantics and Project structures remain unqualified; real Project decoding is unavailable. Compatibility depends on required data structures and acquisition capabilities, not Desktop version alone. Extra ordinary columns are ignored and reported as unconsumed observations.
 
-Local Codex state can be difficult to understand because app identities and filesystem identities have different lifecycles. A chat can be projectless while retaining a real working directory. Several chats can share a folder. Removing a project can leave its chats and files intact. A renamed folder can leave a chat pointing to its old location.
+Next: qualify real titles and exact Project/assignment structures for a separately authorized browser run. Repository/worktree relationships at selected roots follow later. Filesystem validation, full discovery, exports and organization actions remain future work.
 
-These are **founder-observed Windows experiments from 2026-10-04**, not promises about every Codex release. The [research record](docs/research/windows-2026-10-04.md) preserves the observations with synthetic identifying details and explicit limits.
+## Privacy and read-only design
 
-The intended workflow is:
+Workspace Surveyor does not mutate Codex-owned SQLite or JSON state. Real access requires explicit, scope-specific permission. The browser has no external assets, upload, browser storage, saved report or automatic refresh.
 
-**Inspect → understand → explain → detect risks → consider organization improvements → follow supported workflows → re-audit.**
+Cleanup covers authenticated, owned run artifacts. Historical synthetic residuals remain [disclosed](docs/research/m3a-explorer-preparation.md#validation); their removal is not claimed. Browser memory erasure and protection from external capture are not guaranteed.
 
-The product should explain why something looks risky or worth organizing. An unusual relationship is not automatically broken, and an internal record is not automatically garbage.
+## Independent project
 
-## Intended product
+Workspace Surveyor for Codex is an independent community project. It is not an official OpenAI product and is not affiliated with, endorsed by or sponsored by OpenAI. The package is private; no public release or open-source license is currently claimed.
 
-The first engineering surface is a Windows-first, read-only CLI. A local visual relationship report is an explicit early milestone. The long-term experience should make projects, chats, directories, worktrees, evidence, and conflicts visually obvious.
+## Documentation
 
-Planned real-data capabilities include conservative relationship reconciliation, evidence-linked advice, private audit snapshots, sanitized reports, and before/after comparisons. M1 uses TypeScript/Node.js for synthetic explanations only; acquisition and distribution decisions remain deferred.
-
-Project Boundary Diagnostics is intended product scope beyond M1, with separate research and implementation authorization. It should explain why a child directory appears to be a separate project, why Git and Codex roots differ, whether a parent instruction file lies outside discovery scope, whether a nearby marker supports another boundary, or why evidence is insufficient. App project roots, thread CWDs, discovery boundaries, markers, Git roots, and instruction scope remain distinct.
-
-This capability is explanatory: it is not Git repair, marker cleanup, AGENTS rewriting, configuration repair, or proof of ownership or an incorrect boundary. The [later boundary-research set](docs/research/project-boundary-observations.md) is separate from the original 17 experiments; no boundary discovery is implemented or added to M1.
-
-See the [product definition](docs/product.md), [conceptual architecture](docs/architecture.md), and [milestone roadmap](docs/roadmap.md).
-
-## Safety and privacy
-
-M0 used supplied observations, official documentation, and synthetic examples. M1 uses bundled invented scenarios and does not read private Codex state. Any future research involving real state requires specific authorization.
-
-The planned product observes Codex-owned state and guides supported actions. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. No automatic cleanup or migration is planned for the first CLI release.
-
-Repository examples must be synthetic. Do not contribute real paths, identifiers, conversation titles, screenshots, databases, sessions, or private reports. See [safety and privacy](docs/safety-and-privacy.md), [contributing](CONTRIBUTING.md), and [security reporting](SECURITY.md).
-
-## Start reading
-
-- [Documentation index](docs/index.md): navigation and claim categories.
-- [Relationship model](docs/relationship-model.md): what the entities mean.
-- [Compatibility matrix](docs/compatibility.md): original WIN-001–WIN-017 and separate boundary WIN-018–WIN-020, version gaps, and retirement criteria.
-- [Evidence catalog](docs/research/evidence-catalog.md): founder evidence and official sources.
-- [Experimental CWD migration guide](docs/workflows/projectless-cwd-migration.md): qualified manual procedure, not an automated repair.
-
-M1 is complete; the founder separately authorized M2a.1 implementation and exact current-run synthetic artifact cleanup. Stop at that gate. Helpers, later Windows validation, disposable Codex experiments, real adapters, personal canaries, commits and publication require separate authorization. The existing local folder, Codex Local Project, Thread assignments, and CWDs are intentionally retained.
+- [Documentation index](docs/index.md)
+- [Product direction](docs/product.md) and [roadmap](docs/roadmap.md)
+- [Architecture](docs/architecture.md) and [relationship model](docs/relationship-model.md)
+- [Compatibility and evidence](docs/compatibility.md)
+- [M3a preparation and qualification requirements](docs/research/m3a-explorer-preparation.md)
+- [Completed M2 display observation](docs/research/personal-local-display-observation.md)
+- [Safety and privacy](docs/safety-and-privacy.md), [contributing](CONTRIBUTING.md) and [security reporting](SECURITY.md)
