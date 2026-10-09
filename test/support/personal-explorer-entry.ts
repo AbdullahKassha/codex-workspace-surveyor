@@ -1,79 +1,39 @@
-// Private preparation only. Real use requires separately reviewed read/browser consent.
+// Explicit local read-only launch; never started automatically or by tests on real state.
 import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import type { EventEmitter } from 'node:events';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runExplorerEntry } from './explorer-entry.js';
 import { runPersonalExplorer, explorerPreflightSafety, validPersonalMapSource, type CanaryOptions } from './personal-canary.js';
 import { serveLocalExplorer } from '../../src/explorer/server.js';
 import { escapeStored } from '../../src/explorer/view.js';
 
-type Context={enabled:boolean;nodeVersion:string;executable:string;scratchParent:string};
+type Context={enabled:boolean;nodeVersion:string;executable:string;scratchParent:string;home:string};
 function active(signal:AbortSignal):void {if(signal.aborted)throw new Error('Preflight refused');}
-// Pure input preparation: source/recovery metadata and helper startup are excluded.
-export async function preparePersonalExplorer(input:(prompt:string)=>Promise<string>,display:(text:string)=>void,
+// Pure selection preparation: no source, settings or recovery access/helper startup.
+export async function preparePersonalExplorer(args:readonly string[],display:(text:string)=>void,
   context:Context,signal:AbortSignal):Promise<CanaryOptions>{
   try{
-  active(signal);
-  if(!context.enabled||context.nodeVersion!=='24.18.1'||!validPersonalMapSource(context.executable)||
-    !/\\pwsh\.exe$/i.test(context.executable.replaceAll('/','\\'))||!validPersonalMapSource(context.scratchParent))throw new Error('Preflight refused');
-  display('One separately authorized titled-thread acquisition and local browser display. Use an unrecorded terminal.\n'+
-    'Close local ChatGPT Desktop and Codex normally. Browser chatgpt.com may remain open.\n'+
-    'Full copies expose unselected data. IDs, exact CWDs and stored titles may appear in the local browser.\n'+
-    'Projects remain unavailable. No JSON source, export or persistence is permitted.\n');
-  const source=await input('Enter the exact separately authorized database path (visible locally):');
-  active(signal);if(!validPersonalMapSource(source))throw new Error('Input refused');
-  display('Temporary parent: '+escapeStored(context.scratchParent)+'\nClosure names: ChatGPT,Codex\n'+
-    'Recovery policy: Windows Local Application Data / WorkspaceSurveyor-Canary-Recovery.\n');
-  if(await input('Confirm fresh title/value/browser permission by typing AUTHORIZE ONE TITLED BROWSER RUN:')!==
-    'AUTHORIZE ONE TITLED BROWSER RUN')throw new Error('Consent refused');
-  active(signal);
-  return {executable:context.executable,analysis:'explorer',selection:{kind:'personal',private:{source,
-    scratchParent:context.scratchParent,writers:['ChatGPT','Codex'],consent:true,actualValueConsent:true,
-    titleConsent:true,browserConsent:true}}};
+    active(signal);
+    if(!context.enabled||context.nodeVersion.split('.')[0]!=='24'||!validPersonalMapSource(context.executable)||
+      !/\\pwsh\.exe$/i.test(context.executable.replaceAll('/','\\'))||!validPersonalMapSource(context.scratchParent))throw new Error('Preflight refused');
+    if(args.length!==0&&(args.length!==2||args[0]!=='--source'))throw new Error('Preflight refused');
+    if(args.length===0&&!validPersonalMapSource(context.home))throw new Error('Preflight refused');
+    const source=args.length===0?join(context.home,'.codex','state_5.sqlite'):args[1]!;
+    if(!validPersonalMapSource(source))throw new Error('Preflight refused');
+    display('Local read-only titled-thread browser. Launching requests inspection; no background inspection or automatic retry.\n'+
+      'Close local ChatGPT Desktop and Codex normally. Browser chatgpt.com may remain open.\n'+
+      'Full copies expose unselected data. IDs, exact CWDs and stored titles may appear in the local browser.\n'+
+      'Projects remain unavailable. No saved selection, JSON source or dataset export/persistence.\n'+
+      'Selected database: '+escapeStored(source)+'\n'+
+      'The default is a convention, not discovered storage. If missing or incompatible, select an exact path with --source; no alternative search occurs.\n'+
+      'Temporary parent: '+escapeStored(context.scratchParent)+'\nClosure names: ChatGPT,Codex\n'+
+      'Recovery policy: Windows Local Application Data / WorkspaceSurveyor-Canary-Recovery.\n');
+    active(signal);
+    return {executable:context.executable,analysis:'explorer',selection:{kind:'personal',private:{source,
+      scratchParent:context.scratchParent,writers:['ChatGPT','Codex'],consent:true,actualValueConsent:true,
+      titleConsent:true,browserConsent:true}}};
   }catch{throw new Error('Preflight refused');}
-}
-
-type Input=Pick<NodeJS.ReadStream,'isTTY'|'isRaw'|'readable'|'readableEnded'|'destroyed'>&Pick<EventEmitter,'on'|'off'>&{
-  setRawMode:(value:boolean)=>unknown;setEncoding:(encoding:BufferEncoding)=>unknown;resume:()=>unknown;pause:()=>unknown};
-type Output=Pick<NodeJS.WriteStream,'isTTY'|'write'>;
-// Bounded visible prompts; cancellation owns restoration even before input arrives.
-export async function visibleExplorerInput(prompt:string,signal:AbortSignal,input:Input=process.stdin,
-  output:Output=process.stdout):Promise<string>{
-  active(signal);
-  if(!input.isTTY||!output.isTTY||!input.readable||input.readableEnded||input.destroyed)throw new Error('Input refused');
-  return new Promise<string>((resolve,reject)=>{
-    let value='',settled=false;const wasRaw=!!input.isRaw;
-    const finish=(ok:boolean)=>{
-      if(settled)return;settled=true;
-      input.off('data',read);input.off('end',cancel);input.off('close',cancel);input.off('error',cancel);
-      signal.removeEventListener('abort',cancel);
-      try{input.setRawMode(wasRaw);input.pause();output.write('\n');}catch{ok=false;}
-      if(ok)resolve(value);else reject(new Error('Input refused'));
-    };
-    const cancel=()=>finish(false);
-    const read=(chunk:string)=>{
-      try{
-      for(const char of chunk){
-        if(settled)return;
-        if(char==='\r'||char==='\n'){finish(true);return;}
-        if(char==='\b'||char==='\u007f'){
-          if(value.length){value=[...value].slice(0,-1).join('');output.write('\b \b');}continue;
-        }
-        if(/[\x00-\x1f\x80-\x9f\p{Cf}\u2028\u2029]/u.test(char)||value.length+char.length>2048){cancel();return;}
-        value+=char;output.write(char);
-      }
-      }catch{cancel();}
-    };
-    try{
-      input.on('data',read);input.on('end',cancel);input.on('close',cancel);input.on('error',cancel);
-      signal.addEventListener('abort',cancel,{once:true});
-      output.write(prompt+'\n');if(settled)return;
-      input.setEncoding('utf8');if(settled)return;input.setRawMode(true);
-      if(settled){input.setRawMode(wasRaw);input.pause();return;}
-      if(signal.aborted||input.readableEnded||input.destroyed||!input.readable){cancel();return;}input.resume();
-    }catch{cancel();}
-  });
 }
 
 export async function manualPersonalExplorer():Promise<void>{
@@ -81,11 +41,10 @@ export async function manualPersonalExplorer():Promise<void>{
     createFixture:()=>({acquire:async signal=>{
       let options:CanaryOptions;
       try{
-        if(process.argv.length!==2||!process.stdin.isTTY||!process.stdout.isTTY||
-          process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||process.env.WORKSPACE_SURVEYOR_PERSONAL_EXPLORER!=='1')throw new Error('Preflight refused');
-        options=await preparePersonalExplorer(prompt=>visibleExplorerInput(prompt,signal),text=>process.stdout.write(text),{
-          enabled:true,nodeVersion:process.versions.node,executable:process.env.WORKSPACE_SURVEYOR_HELPER_PWSH??'',
-          scratchParent:realpathSync(tmpdir())},signal);
+        if(!process.stdin.isTTY||!process.stdout.isTTY)throw new Error('Preflight refused');
+        const executable=process.env.WORKSPACE_SURVEYOR_HELPER_PWSH??join(process.env.ProgramFiles??'','PowerShell','7','pwsh.exe');
+        options=await preparePersonalExplorer(process.argv.slice(2),text=>process.stdout.write(text),{
+          enabled:true,nodeVersion:process.versions.node,executable,scratchParent:realpathSync(tmpdir()),home:homedir()},signal);
         active(signal);
       }catch{return {safety:explorerPreflightSafety};}
       // After the coordinator starts, cancellation withholds delivery but never aborts cleanup.

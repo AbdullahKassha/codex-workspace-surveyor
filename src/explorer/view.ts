@@ -11,13 +11,13 @@ let data=null,view='locations',query='',closed=false;
 const snapshotLoad=new AbortController();
 const byId=id=>document.getElementById(id);
 const text=(tag,value,className)=>{const e=document.createElement(tag);e.textContent=escapeStored(String(value));if(className)e.className=className;return e;};
-const label=t=>t.title||'Untitled record';
+const label=t=>t.title?(t.titleState==='shortened'?t.title+' … [shortened]':t.title):'Untitled record [title unavailable]';
 const locationLabel=p=>p.split(/[\\\\/]/).filter(Boolean).at(-1)||p;
 const matches=t=>!query||label(t).toLocaleLowerCase().includes(query)||t.cwd.toLocaleLowerCase().includes(query);
 function details(index){
  if(closed||!data)return;
  const t=data.threads[index],panel=byId('details');panel.replaceChildren(text('h2',label(t)));
- for(const [name,value] of [['Record ID',t.id],['Exact stored CWD',t.cwd],['Membership evidence',data.memberships[index]],
+ for(const [name,value] of [['Title display',t.titleState||'complete'],['Record ID',t.id],['Exact stored CWD',t.cwd],['Membership evidence',data.memberships[index]],
  ['Identity',t.ambiguous?'Ambiguous duplicate ID — claims preserved':'Source-local opaque ID; UI visibility unknown'],
  ['Source namespace',data.provenance.namespace],['Project namespace',data.projectNamespace],['Acquisition interval',data.provenance.from+' → '+data.provenance.through]]){
   panel.append(text('h3',name),text('p',value,'exact'));
@@ -78,7 +78,7 @@ addEventListener('pagehide',()=>{void closeView();});
 (async()=>{try{
  const response=await fetch('/snapshot',{headers:{'X-Surveyor-Session':token},cache:'no-store',signal:snapshotLoad.signal});if(closed)return;if(!response.ok)throw 0;
  const loaded=await response.json();if(closed)return;data=loaded;const c=data.coverage;
- byId('coverage').textContent=c.rowsRead+' rows traversed in selected table · '+data.threads.length+' retained claims · '+c.omittedRows+' omissions · '+c.ambiguousIds+' ambiguous IDs · '+data.danglingAssignments+' dangling references · titles '+c.titles+' · Projects '+c.projects+' · unconsumed columns '+c.unconsumedColumns;
+ byId('coverage').textContent=c.rowsRead+' rows traversed in selected table · '+data.threads.length+' retained claims · '+c.omittedRows+' omissions · '+c.ambiguousIds+' ambiguous IDs · '+data.danglingAssignments+' dangling references · titles '+c.titles+' · '+(c.shortenedTitles||0)+' shortened titles · '+(c.unavailableTitles||0)+' unavailable titles · Projects '+c.projects+' · unconsumed columns '+c.unconsumedColumns;
  byId('limitations').replaceChildren(...data.limitations.map(v=>text('p',v)));
  if(c.projects==='synthetic-qualified')byId('notice').textContent='INVENTED demonstration data. Project format is synthetic; real decoding remains unavailable.';
  render();

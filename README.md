@@ -66,11 +66,11 @@ Browser delivery follows successful verification and cleanup. A temporary loopba
 
 Real title semantics and Project structures remain unqualified; real Project decoding is unavailable. Compatibility depends on required data structures and acquisition capabilities, not Desktop version alone. Extra ordinary columns are ignored and reported as unconsumed observations.
 
-Next: qualify real titles and exact Project/assignment structures for a separately authorized browser run. Repository/worktree relationships at selected roots follow later. Filesystem validation, full discovery, exports and organization actions remain future work.
+The [local read-only entry](docs/research/explorer-local-read-only-validation.md) now uses explicit launch and bounded title previews. It derives a default source and accepts `--source` without saving the selection. This correction is synthetic-tested preparation pending focused review. Real title meaning still needs a founder comparison; exact Project/assignment structures remain unqualified. Repository/worktree relationships at selected roots follow later. Filesystem validation, full discovery, exports and organization actions remain future work.
 
 ## Privacy and read-only design
 
-Workspace Surveyor does not mutate Codex-owned SQLite or JSON state. Real access requires explicit, scope-specific permission. The browser has no external assets, upload, browser storage, saved report or automatic refresh.
+Workspace Surveyor does not mutate Codex-owned SQLite or JSON state. Explicitly launching the local explorer requests read-only inspection; it performs no background acquisition or automatic retry. The selected path is not saved; acquired datasets are not saved. The browser has no external assets, upload, browser storage, saved report or automatic refresh.
 
 Cleanup covers authenticated, owned run artifacts. Historical synthetic residuals remain [disclosed](docs/research/m3a-explorer-preparation.md#validation); their removal is not claimed. Browser memory erasure and protection from external capture are not guaranteed.
 

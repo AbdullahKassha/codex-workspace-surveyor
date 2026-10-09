@@ -1,5 +1,7 @@
 # Documentation index
 
+**Local-read-only supplement, 2026-10-09:** [ADR 0016](decisions/0016-local-read-only-explorer-and-title-previews.md) and [current usage/validation](research/explorer-local-read-only-validation.md) define explicit launch, a derived default source with an explicit `--source` override, optional title previews and precise limit diagnostics. Historical one-attempt run sheets below are superseded only for everyday explorer launch behavior.
+
 **Current activation preparation, 2026-10-08:** [ADR 0015](decisions/0015-personal-titled-browser-preparation.md) and the [personal browser validation/run sheet](research/personal-explorer-preparation-validation.md) prepare one private titled-location operation with independent attempt tracking and cleanup-gated delivery. Real Projects remain unavailable; exact keys/types and correspondence must be qualified before a real decoder is enabled. No personal execution is authorized.
 
 **Current M3a supplement, 2026-10-07:** [PLD-001](research/personal-local-display-observation.md) completes M2's private validation milestone. [ADR 0014](decisions/0014-named-threads-and-local-projects.md) and [M3a preparation](research/m3a-explorer-preparation.md) deliver synthetic titled-location/Project views in a bounded local browser. Real Project decoding remains explicitly unavailable pending exact key/type qualification. No fresh personal access is authorized. The following dated statements describe historical gates.

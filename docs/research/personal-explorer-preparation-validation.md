@@ -1,5 +1,7 @@
 # Personal titled-location browser: preparation and qualification
 
+**Superseding usage correction, 2026-10-09:** [ADR 0016](../decisions/0016-local-read-only-explorer-and-title-previews.md) and [current usage/validation](explorer-local-read-only-validation.md) replace per-run explorer opt-ins/typed consent and title budgets with explicit launch, a derived default source with a nonpersistent override, and visibly bounded previews. The original measurements, authorization wording and procedure below describe the reviewed historical commit. The failed personal run has an unknown exceeded limit; no successful title correspondence is inferred.
+
 ## Authorization and implementation
 
 On 2026-10-08 the founder approved the M3a real-data activation preparation under [ADR 0015](../decisions/0015-personal-titled-browser-preparation.md). Baseline is `9a44df286ffa1cab960a173bc4017e63a7a1bc51`. This record describes synthetic implementation evidence, not a personal execution or a renewed authorization. [PLD-001](personal-local-display-observation.md), the M2 completion record, all prior observations and every historical/unconfirmed residual disclosure remain unchanged.

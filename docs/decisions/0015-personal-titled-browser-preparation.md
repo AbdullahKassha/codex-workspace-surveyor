@@ -27,3 +27,7 @@ Before a real decoder is implemented, nominate exact registry and assignment bra
 The model vocabulary distinguishes synthetic-qualified, structure-qualified and unavailable Projects separately from qualified/unknown correspondence. The new operation always reports Projects unavailable. A structure-qualified status does not itself permit cross-source assignment resolution.
 
 See the [preparation validation and proposed run sheet](../research/personal-explorer-preparation-validation.md). No personal execution, real recovery-slot access, historical residual search, staging, commit or push is authorized by preparation.
+
+## Superseding local launch decision, 2026-10-08
+
+[ADR 0016](0016-local-read-only-explorer-and-title-previews.md) replaces the everyday explorer authorization choreography and optional-title budget. The decisions and measurements above preserve their historical context. Acquisition/recovery protection and unavailable real Projects remain binding.

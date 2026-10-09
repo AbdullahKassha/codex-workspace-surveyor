@@ -11,7 +11,7 @@ import { inspectQualificationAnalysis, type Qualification, type QualificationTes
 import type { AdapterResult } from './thread-cwd-adapter.js';
 import { LocalMapDelivery, LocalMapCapability } from './local-thread-cwd-capability.js';
 import { ExplorerSnapshot, reconcile } from '../../src/explorer/model.js';
-import type { ReaderResult } from '../../src/explorer/readers.js';
+import type { ReaderResult, LimitDetail } from '../../src/explorer/readers.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
@@ -21,6 +21,7 @@ export const explorerScratchLimits = Object.freeze({...canaryLimits, files:9});
 const steps = ['prepared', 'recovery-ready', 'held', 'copied', 'verified'] as const;
 const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'unsupported', 'helper', 'cleanup', 'io'] as const;
 type Reason = typeof reasons[number];
+type CanaryLimit=LimitDetail|'source-file-bytes'|'source-total-bytes'|'scratch-file-bytes'|'scratch-total-bytes'|'scratch-entries'|'recovery-controls'|'recovery-entries';
 export type CanaryFault = 'none' | 'protected' | 'descriptor' | 'partial-copy' | 'diagnostic' |
   'recovery-create' | 'recovery-descriptor' | 'recovery-write' | 'recovery-flush' | 'recovery-readback';
 type Entry = { name: typeof explorerNames[number]; size: number; digest: string };
@@ -38,12 +39,13 @@ export type CanaryResult = Readonly<{ status: 'passed' | 'refused'; reason: Reas
   qualification?: Qualification | null;
   mapping?: AdapterResult['summary'] | null;
   attemptConsumed?: boolean;
+  limit?:CanaryLimit;failureStage?:'source-selection'|'copy-validation'|'analysis'|'source-verification';
   evidence: { stages: readonly string[]; phase: string; fault: string; partialWritten: boolean;
     opened: number; exitConfirmed: boolean; diagnosticsDiscarded: boolean } }>;
 class Refusal extends Error {
-  constructor(readonly reason: Reason) { super('Canary refused'); this.stack = 'CanaryRefusal'; }
+  constructor(readonly reason: Reason,readonly limit?:CanaryLimit) { super('Canary refused'); this.stack = 'CanaryRefusal'; }
 }
-function stop(reason: Reason): never { throw new Refusal(reason); }
+function stop(reason: Reason,limit?:CanaryLimit): never { throw new Refusal(reason,limit); }
 function safeReason(error: unknown): Reason { return error instanceof Refusal ? error.reason : 'io'; }
 export function contains(parent: string, child: string): boolean {
   const part = relative(resolve(parent), resolve(child));
@@ -65,10 +67,10 @@ function checked(path: string, directory: boolean): void {
   }
   if (relative(resolve(path), realpathSync(path)) !== '') stop('containment');
 }
-function metadata(path: string): Stat {
+function metadata(path: string,kind:'source'|'scratch'='source'): Stat {
   checked(path, false);
   const s = lstatSync(path, { bigint: true });
-  if (s.size > BigInt(canaryLimits.file)) stop('limit');
+  if (s.size > BigInt(canaryLimits.file)) stop('limit',kind==='source'?'source-file-bytes':'scratch-file-bytes');
   return { dev: s.dev, ino: s.ino, size: s.size, mtime: s.mtimeNs, ctime: s.ctimeNs };
 }
 function same(a: readonly Stat[], b: readonly Stat[]): boolean {
@@ -90,7 +92,7 @@ export function selectedPaths(source: string): string[] {
   const paths = wal ? [source, source + '-wal', source + '-shm'] : [source];
   let size = 0n;
   for (const path of paths) size += metadata(path).size;
-  if (size > BigInt(canaryLimits.selected)) stop('limit');
+  if (size > BigInt(canaryLimits.selected)) stop('limit','source-total-bytes');
   return paths;
 }
 
@@ -143,11 +145,12 @@ export class CanaryScratch {
       checked(directory, true); directories.push(directory);
       for (const name of readdirSync(directory)) {
         if (!this.copyNames.some(n => n === name)) stop('containment');
-        const path = join(directory, name); const stat = metadata(path);
+        const path = join(directory, name); const stat = metadata(path,'scratch');
         bytes += Number(stat.size); files.push(path);
       }
     }
-    if (files.length > (this.profile==='explorer'?explorerScratchLimits.files:canaryLimits.files) || directories.length + 1 > canaryLimits.directories || bytes > canaryLimits.scratch) stop('limit');
+    if (files.length > (this.profile==='explorer'?explorerScratchLimits.files:canaryLimits.files) || directories.length + 1 > canaryLimits.directories) stop('limit','scratch-entries');
+    if(bytes>canaryLimits.scratch)stop('limit','scratch-total-bytes');
     return { files, directories };
   }
   cleanup(fault?: (phase: 'child' | 'root') => void): 'removed' | 'residual' {
@@ -168,18 +171,18 @@ export class CanaryScratch {
   }
 }
 function digestCopy(path: string): string {
-  const before = metadata(path), handle = openSync(path, 'r');
+  const before = metadata(path,'scratch'), handle = openSync(path, 'r');
   try {
     const actual = fstatSync(handle, { bigint: true });
     if (actual.dev !== before.dev || actual.ino !== before.ino || actual.size !== before.size) stop('unstable');
     const bytes = Buffer.alloc(Number(before.size) + 1); let count = 0;
     while (count < bytes.length) { const n = readSync(handle, bytes, count, bytes.length - count, null); if (!n) break; count += n; }
-    if (BigInt(count) !== before.size || !same([before],[metadata(path)])) stop('unstable');
+    if (BigInt(count) !== before.size || !same([before],[metadata(path,'scratch')])) stop('unstable');
     return createHash('sha256').update(bytes.subarray(0,count)).digest('hex');
   } finally { closeSync(handle); }
 }
 export function inspectCanaryAnalysis(scratch: CanaryScratch, test?: (db: DatabaseSync) => void): boolean {
-  const path = scratch.path('analysis',0); metadata(path);
+  const path = scratch.path('analysis',0); metadata(path,'scratch');
   const db = new DatabaseSync(path,{readOnly:true,allowExtension:false,defensive:true,timeout:0,
     enableDoubleQuotedStringLiterals:false,limits:{length:1024*1024,sqlLength:1024*1024,column:512,attach:0}});
   try {
@@ -313,7 +316,7 @@ export class CanarySession {
 function recoveryEntries(path:string):string[]{
   const directory=opendirSync(path);const entries:string[]=[];
   try{for(let entry=directory.readSync();entry;entry=directory.readSync()){
-    if(entries.length>=10)stop('limit');entries.push(entry.name);
+    if(entries.length>=10)stop('limit','recovery-entries');entries.push(entry.name);
   }}finally{directory.closeSync();}return entries;
 }
 type Identity={dev:string;ino:string};
@@ -340,7 +343,7 @@ function recoveryLocation(store:string,root?:string,source?:string):void {
 function controlInventory(store:string):{directory:Identity;key:Identity;record:Identity} {
   checked(store,true);
   if(recoveryEntries(store).sort().join(',')!=='key,record')stop('cleanup');
-  if(lstatSync(join(store,'key')).size!==32||lstatSync(join(store,'record')).size>8192)stop('limit');
+  if(lstatSync(join(store,'key')).size!==32||lstatSync(join(store,'record')).size>8192)stop('limit','recovery-controls');
   return {directory:identity(store,true),key:identity(join(store,'key'),false),record:identity(join(store,'record'),false)};
 }
 export function recoveryPayload(scratch:CanaryScratch,store:string):string {
@@ -392,12 +395,12 @@ function validateRemaining(p:RecoveryPayload):void {
       for(const child of recoveryEntries(join(p.root.path,n)))actual.push(n+'/'+child);
     }
   }
-  if(actual.length>(p.version===2?11:9))stop('limit');let total=0;
+  if(actual.length>(p.version===2?11:9))stop('limit','recovery-entries');let total=0;
   for(const name of actual){const entry=p.entries.find(e=>e.name===name);if(!entry)stop('cleanup');
     const path=join(p.root.path,name);identified(path,entry.kind==='directory',entry);
-    if(entry.kind==='file'){const size=lstatSync(path).size;if(size>canaryLimits.file)stop('limit');total+=size;}
+    if(entry.kind==='file'){const size=lstatSync(path).size;if(size>canaryLimits.file)stop('limit','scratch-file-bytes');total+=size;}
   }
-  if(total>canaryLimits.scratch)stop('limit');
+  if(total>canaryLimits.scratch)stop('limit','scratch-total-bytes');
   const marker=join(p.root.path,'owner');
   if(missing(marker)){if(actual.length)stop('cleanup');}
   else if(lstatSync(marker).size!==36||readFileSync(marker,'utf8')!==p.nonce)stop('cleanup');
@@ -432,8 +435,8 @@ async function removeRecoveredScratch(p:RecoveryPayload,session:CanarySession,or
 export async function resolvePersonalRecoveryStore(executable:string):Promise<string> {
   return locatePersonalRecoveryStore(executable);
 }
-async function locatePersonalRecoveryStore(executable:string,attempt?:{consumed:boolean}):Promise<string> {
-  if(process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1')stop('selection');
+async function locatePersonalRecoveryStore(executable:string,attempt?:{consumed:boolean},localExplorer=false):Promise<string> {
+  if(!localExplorer&&process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1')stop('selection');
   const nonce=randomUUID(),session=new CanarySession({operation:'locate',nonce},executable,nonce,undefined,['location']);
   try{
     if(attempt)attempt.consumed=true; // Request construction succeeded; helper startup begins now.
@@ -442,7 +445,7 @@ async function locatePersonalRecoveryStore(executable:string,attempt?:{consumed:
     recoveryLocation(frame.store);return frame.store;
   }finally{await session.finish();}
 }
-type RecoveryOptions={executable:string;store:string;synthetic:boolean;
+type RecoveryOptions={executable:string;store:string;synthetic:boolean;localExplorer?:true;
   fault?:(phase:CleanupPhase)=>void;locked?:()=>void|Promise<void>;
   probe?:'slow'|'short';step?:(event:{stage:'before'|'paused'|'deleted';count:number},session:CanarySession)=>void|Promise<void>};
 export async function recoverCanary(options:RecoveryOptions):Promise<RecoveryStatus>{
@@ -450,7 +453,7 @@ export async function recoverCanary(options:RecoveryOptions):Promise<RecoverySta
   try{
     if(process.platform!=='win32'||!isAbsolute(options.executable)||!lstatSync(options.executable).isFile())stop('selection');
     if(options.synthetic){if(process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1')stop('selection');}
-    else{if(options.fault||options.locked||options.probe||options.step||options.store!==await resolvePersonalRecoveryStore(options.executable))stop('selection');}
+    else{if(options.fault||options.locked||options.probe||options.step||options.store!==await locatePersonalRecoveryStore(options.executable,undefined,options.localExplorer===true))stop('selection');}
     if(options.probe!==undefined&&!['slow','short'].includes(options.probe))stop('selection');
     recoveryLocation(options.store);if(missing(options.store))return 'unavailable';
     const controls=controlInventory(options.store);const nonce=randomUUID();
@@ -556,7 +559,8 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   const synthetic=options.selection.kind==='synthetic';
   const explorer=options.analysis==='explorer';
   const explorerJson=explorer&&options.explorer!==undefined;
-  let explorerResult:ReaderResult|undefined;
+  let explorerResult:ReaderResult|undefined,limit:CanaryLimit|undefined;
+  let failureStage:NonNullable<CanaryResult['failureStage']>='source-selection';
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
   let qualification:Qualification|undefined;
@@ -569,8 +573,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(options.explorer&&!explorer)stop('selection');
     if(explorer&&(!explorerDelivery||options.inspectHook||options.qualificationHook))stop('selection');
     if(explorer&&synthetic&&process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1')stop('selection');
-    if(explorer&&!synthetic&&(options.explorer||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
-      process.env.WORKSPACE_SURVEYOR_PERSONAL_EXPLORER!=='1'||options.selection.kind!=='personal'||
+    if(explorer&&!synthetic&&(options.explorer||options.selection.kind!=='personal'||
       options.selection.private.consent!==true||options.selection.private.actualValueConsent!==true||
       options.selection.private.titleConsent!==true||options.selection.private.browserConsent!==true||
       options.fault||options.closure||options.hook||options.cleanupFault||options.corruptFrame||
@@ -600,7 +603,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
         if(options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
       }
     }else{
-      if(options.selection.kind!=='personal'||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'||
+      if(options.selection.kind!=='personal'||(!explorer&&process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1')||
           options.selection.private.consent!==true||options.fault||options.closure||options.hook||options.inspectHook||
           options.cleanupFault||options.corruptFrame||options.simulateExitUncertainty||options.afterSpawn||options.qualificationHook)stop('selection');
       if(attempt&&(!validPersonalMapSource(source)||options.selection.private.writers.join(',')!=='ChatGPT,Codex'))stop('selection');
@@ -608,7 +611,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
           options.selection.private.writers.length<1||options.selection.private.writers.length>12||
           options.selection.private.writers.some(n=>!/^[A-Za-z0-9_.-]{1,64}$/.test(n)))stop('selection');
     }
-    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await locatePersonalRecoveryStore(options.executable,attempt);
+    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await locatePersonalRecoveryStore(options.executable,attempt,explorer);
     recoveryLocation(store,undefined,source);if(!missing(store)){cleanup='residual';recovery='unavailable';stop('selection');}
     const select=():string[]=>{
       const paths=selectedPaths(source);
@@ -617,11 +620,11 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
         if(options.selection.kind!=='synthetic'||!contains(join(options.selection.fixture.ownerRoot,'sources'),globalState)||
           paths.some(p=>overlap(p,globalState)))stop('selection');
         paths.push(globalState);
-        if(paths.reduce((size,p)=>size+metadata(p).size,0n)>BigInt(canaryLimits.selected))stop('limit');
+        if(paths.reduce((size,p)=>size+metadata(p).size,0n)>BigInt(canaryLimits.selected))stop('limit','source-total-bytes');
       }
       return paths;
     };
-    const paths=select();const before=paths.map(metadata);count=paths.length;
+    const paths=select();const before=paths.map(p=>metadata(p));count=paths.length;
     if(explorerJson)scratch=new CanaryScratch([...names.slice(0,count-1),'global-state.json'],'explorer');
     cleanup='residual';scratch.initialize();await options.hook?.('initialized',scratch);
     if(overlap(dirname(source),scratch.root!)||overlap(source,scratch.root!))stop('containment');
@@ -634,7 +637,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     session.start(options.afterSpawn);
     await session.expect('prepared',0);await options.hook?.('prepared',scratch);
     identified(store,true,storeId);scratch.owned();
-    if(!same(before,select().map(metadata)))stop('unstable');
+    if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     const payload=recoveryPayload(scratch,store);
     session.send({command:'persist',payload});await session.expect('recovery-ready',0);
     if(JSON.stringify(readAuthenticatedRecord(store))!==JSON.stringify(JSON.parse(payload)))stop('cleanup');
@@ -648,12 +651,13 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(manifest.some((e,i)=>BigInt(e.size)!==before[i]?.size))stop('unstable');
     await options.hook?.('held',scratch);
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
-    if(!same(before,select().map(metadata)))stop('unstable');
+    if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     session.send({command:'copy'});await session.expect('copied',count);
-    scratch.entries();
+    failureStage='copy-validation';scratch.entries();
     for(let i=0;i<count;i++)for(const area of ['acquisition','analysis'] as const)
       if(digestCopy(scratch.path(area,i))!==manifest[i]?.digest)stop('unstable');
     await options.hook?.('copied',scratch);
+    failureStage='analysis';
     try{
       if(explorer){
         const reader=await import('../../src/explorer/readers.js');
@@ -668,21 +672,21 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
         qualification=inspectQualificationAnalysis(scratch,options.qualificationHook);readable=true;
       }else{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}
     }catch{stop('analysis');}
-    await options.hook?.('analyzed',scratch);
-    if(!same(before,select().map(metadata)))stop('unstable');
+    await options.hook?.('analyzed',scratch);failureStage='source-verification';
+    if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     for(let i=0;i<count;i++)if(digestCopy(scratch.path('acquisition',i))!==manifest[i]?.digest)stop('unstable');
     session.send({command:'verify'});await session.expect('verified',count);
     await options.hook?.('verified',scratch);
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
-    if(!same(before,select().map(metadata)))stop('unstable');
+    if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     session.send({command:'release'});candidate=true;
     exit=await session.finish();
     if(!exit||session.unsafe||session.final?.outcome!=='ok'||session.final.phase!=='release'||
         session.final.opened!==count||!session.final.copied||session.final.fault!=='none')stop('helper');
-    if(!same(before,select().map(metadata)))stop('unstable');
+    if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
     stable=true;reason='none';
-  }catch(error){reason=safeReason(error);candidate=false;}
+  }catch(error){reason=safeReason(error);limit=error instanceof Refusal?error.limit:undefined;candidate=false;}
   finally{
     if(session){exit=await session.finish();if(!session.processExited){blocked=true;reason='helper';candidate=false;}}
     if(session?.unsafe||!exit&&session?.spawned){reason='helper';candidate=false;}
@@ -693,7 +697,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       try{await options.hook?.('exited',scratch);}catch{candidate=false;reason='io';}
       if(lease!==undefined){closeSync(lease);lease=undefined;}
       if(persisted&&store){
-        if(exit&&!session?.unsafe){const result=await recoverCanary({store,executable:options.executable,synthetic,
+        if(exit&&!session?.unsafe){const result=await recoverCanary({store,executable:options.executable,synthetic,...(explorer&&!synthetic?{localExplorer:true as const}:{}),
           ...(options.cleanupFault?{fault:options.cleanupFault}:{})});cleanup=result==='removed'?'removed':'residual';}
       }else{
         cleanup=scratch.cleanup(options.cleanupFault);
@@ -732,12 +736,15 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       explorerResult.snapshot=new ExplorerSnapshot(reconcile({...data.provenance,through:new Date().toISOString()},
         data.coverage,data.threads,data.projects,data.assignments));
       explorerDelivery!.result=explorerResult;
-    }else{explorerResult.snapshot?.discard();candidate=false;if(reason==='none')reason=explorerResult.reason==='limit'?'limit':explorerResult.reason==='schema'?'unsupported':'analysis';}
+    }else{explorerResult.snapshot?.discard();candidate=false;if(reason==='none'){
+      reason=explorerResult.reason==='limit'?'limit':explorerResult.reason==='schema'?'unsupported':'analysis';
+      limit=explorerResult.limit;failureStage='analysis';}}
   }
-  return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:candidate?count:0,
+  return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:explorer&&session?.reached.includes('copied')?count:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
     ...(attempt?{...(!explorer?{mapping:mapSummary}:{}),attemptConsumed:attempt.consumed}:{}),
-    schemaReadable:candidate&&readable,sourcesStable:candidate&&stable,
+    ...(explorer&&reason==='limit'&&limit?{limit,failureStage}:{}),
+    schemaReadable:explorer?(explorerResult?.structureAccepted??false):candidate&&readable,sourcesStable:explorer?stable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
       opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};
 }

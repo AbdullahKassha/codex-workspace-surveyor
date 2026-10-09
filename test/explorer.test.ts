@@ -68,9 +68,9 @@ test('malformed copied database refuses without findings',async()=>{
 for(const [name,values,reason] of [
   ['row boundary',Array.from({length:1000},(_,i)=>['id'+i,'cwd','title']),'none'],
   ['row overflow',Array.from({length:1001},(_,i)=>['id'+i,'cwd','title']),'limit'],
-  ['field boundary',[['a','cwd','x'.repeat(16384)]],'none'],
-  ['field overflow',[['a','cwd','x'.repeat(16385)]],'limit'],
-  ['total overflow',Array.from({length:70},(_,i)=>['a'+i,'cwd','x'.repeat(16384)]),'limit'],
+  ['field boundary',[['x'.repeat(16384),'cwd','Title']],'none'],
+  ['field overflow',[['x'.repeat(16385),'cwd','Title']],'limit'],
+  ['total overflow',Array.from({length:70},(_,i)=>['a'+i,'x'.repeat(16384),'Title']),'limit'],
 ] as const)test('named reader '+name,async()=>{await unit(rows(values),r=>{assert.equal(r.reason,reason);if(reason!=='none')assert.equal(r.snapshot,undefined);},null,'unavailable');});
 test('unqualified real JSON cannot enable Projects even when synthetic-looking',async()=>{
   await unit(rows([['a','cwd','Title']]),r=>{assert.equal(r.summary?.projects,'unavailable');const d=r.snapshot!.take()!;
@@ -368,4 +368,94 @@ test('uncertain helper disposal preserves controls and withholds explorer delive
     assert.equal(result.snapshot,undefined);assert.equal(result.safety?.status,'refused');assert.equal(result.safety?.cleanup,'residual');
     assert.equal(fs.existsSync(join(f.run.root,'recovery','record')),true);sanitized(result);
   }finally{assert.equal(await f.teardown(),true);}
+});
+
+for(const [name,value,shortened] of [['normal','Normal label',false],['large','x'.repeat(2*1024*1024),true],
+  ['unicode','😀'.repeat(1025),true],['NUL','a\0b',false],['UTF8 boundary','a'.repeat(4095)+'😀tail',true],['BOM','\ufeffTitle',false]] as const)
+test('optional title preview '+name+' preserves relationships and marks shortening',async()=>{
+  await unit(rows([['a','cwd',value]]),r=>{assert.equal(r.status,'ready');assert.equal(r.summary?.claims,1);
+    const t=r.snapshot!.take()!.threads[0]!;assert.equal(t.titleState,shortened?'shortened':'complete');
+    assert.ok(Buffer.byteLength(t.title!)<=explorerLimits.titleBytes);
+    if(!shortened)assert.equal(t.title,value);else assert.ok(value.startsWith(t.title!));
+    assert.equal(r.summary?.shortenedTitles,shortened?1:0);
+  },null,'unavailable');
+});
+test('optional cumulative title budget keeps every valid relationship with explicit fallbacks',async()=>{
+  await unit(rows(Array.from({length:100},(_,i)=>['a'+i,'cwd','x'.repeat(4096)])),r=>{
+    assert.equal(r.status,'ready');assert.equal(r.summary?.claims,100);assert.equal(r.summary?.unavailableTitles,36);
+    const ts=r.snapshot!.take()!.threads;assert.equal(ts.filter(t=>t.titleState==='unavailable').length,36);
+    assert.equal(ts.reduce((n,t)=>n+Buffer.byteLength(t.title??''),0),explorerLimits.titleTextBytes);
+  },null,'unavailable');
+});
+for(const [values,detail] of [[['x'.repeat(16385),'cwd','Title'],'reader-id-bytes'],[['id','x'.repeat(16385),'Title'],'reader-cwd-bytes']] as const)
+test('required field diagnostic '+detail+' withholds the dataset',async()=>{
+  await unit(rows([values]),r=>{assert.equal(r.reason,'limit');assert.equal(r.limit,detail);assert.equal(r.structureAccepted,true);
+    assert.equal(r.snapshot,undefined);},null,'unavailable');
+});
+test('row and required cumulative diagnostics stay precise and sanitized',async()=>{
+  await unit(rows(Array.from({length:1001},(_,i)=>['id'+i,'cwd',secret])),r=>{assert.equal(r.limit,'reader-rows');},null,'unavailable');
+  await unit(rows(Array.from({length:65},(_,i)=>['id'+i,'x'.repeat(16384),secret])),r=>{assert.equal(r.limit,'reader-required-text');},null,'unavailable');
+});
+
+test('browser marks title previews and unavailable fallbacks visibly',async()=>{
+  const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
+  const d=reconcile(provenance,{rowsRead:2,omittedRows:0,ambiguousIds:0,titles:'accepted',shortenedTitles:1,unavailableTitles:1,
+    projects:'unavailable',unconsumedColumns:false,correspondence:'unknown'},
+    [{id:'a',cwd:'cwd',title:'Preview',titleState:'shortened',ambiguous:false},
+     {id:'b',cwd:'cwd',title:null,titleState:'unavailable',ambiguous:false}],[],[]);
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+    location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
+  const group=get('relationships').children[0]!;
+  assert.equal(group.children.some(e=>e.textContent==='Preview … [shortened]'),true);
+  assert.equal(group.children.some(e=>e.textContent==='Untitled record [title unavailable]'),true);
+  assert.match(get('coverage').textContent,/1 shortened titles · 1 unavailable titles/);
+});
+
+for(const encoding of ['UTF-8','UTF-16le','UTF-16be'] as const)
+for(const long of [false,true])test('qualified title encoding '+encoding+' '+(long?'bounded':'complete'),async()=>{
+  const value=long?'文😀'.repeat(1500):'Synthetic é 文 😀\0\ufeff title';
+  await unit(db=>{
+    db.exec(`PRAGMA encoding='${encoding}'`);rows([['opaque','exact-cwd',value]])(db);
+    const raw=db.prepare('SELECT CAST(title AS BLOB) AS bytes FROM threads').get()!.bytes as Uint8Array;
+    const expected=Buffer.from(value,encoding==='UTF-8'?'utf8':'utf16le');if(encoding==='UTF-16be')expected.swap16();
+    assert.equal(Buffer.from(raw).equals(expected),true); // Observed SQLite conversion, builder only.
+  },r=>{
+    assert.equal(r.status,'ready');assert.equal(r.summary?.claims,1);
+    const t=r.snapshot!.take()!.threads[0]!;
+    assert.equal(t.id,'opaque');assert.equal(t.cwd,'exact-cwd');assert.equal(t.titleState,long?'shortened':'complete');
+    assert.ok(Buffer.byteLength(t.title!)<=4096);assert.ok(value.startsWith(t.title!));
+    if(!long)assert.equal(t.title,value);
+  },null,'unavailable');
+});
+
+for(const [name,bytes] of [
+  ...[4093,4094,4095,4096,4097].map(n=>['invalid byte '+n,Buffer.concat([Buffer.alloc(n,0x61),Buffer.from([0xff]),Buffer.alloc(8,0x62)])] as const),
+  ['overlong',Buffer.concat([Buffer.alloc(4095,0x61),Buffer.from([0xc0,0xaf]),Buffer.alloc(8,0x62)])],
+  ['surrogate',Buffer.concat([Buffer.alloc(4094,0x61),Buffer.from([0xed,0xa0,0x80]),Buffer.alloc(8,0x62)])],
+  ['invalid continuation',Buffer.concat([Buffer.alloc(4095,0x61),Buffer.from([0xe2,0x28,0xa1]),Buffer.alloc(8,0x62)])],
+  ['truncated before boundary',Buffer.concat([Buffer.alloc(4095,0x61),Buffer.from([0xe2])])],
+  ['truncated overflow byte',Buffer.concat([Buffer.alloc(4096,0x61),Buffer.from([0xf0])])]
+] as const)test('malformed UTF-8 title boundary '+name+' is unavailable without dropping bytes',async()=>{
+  await unit(db=>{
+    db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT)');
+    db.prepare("INSERT INTO threads VALUES('opaque','exact-cwd',CAST(? AS TEXT))").run(bytes);
+  },r=>{
+    assert.equal(r.status,'ready');assert.equal(r.summary?.unavailableTitles,1);assert.equal(r.summary?.shortenedTitles,0);
+    const t=r.snapshot!.take()!.threads[0]!;assert.equal(t.title,null);assert.equal(t.titleState,'unavailable');
+    assert.equal(t.id,'opaque');assert.equal(t.cwd,'exact-cwd');
+  },null,'unavailable');
+});
+
+for(const character of ['é','€','😀'])test('valid UTF-8 crossing preview boundary '+character,async()=>{
+  const value='a'.repeat(4095)+character+'tail';
+  await unit(rows([['opaque','exact-cwd',value]]),r=>{
+    const t=r.snapshot!.take()!.threads[0]!;assert.equal(t.title,'a'.repeat(4095));assert.equal(t.titleState,'shortened');
+    assert.equal(r.summary?.unavailableTitles,0);
+  },null,'unavailable');
+});
+
+for(const encoding of ['UTF-16le','UTF-16be'])test('qualified title encoding '+encoding+' excludes raw lookahead from display',async()=>{
+  await unit(db=>{db.exec(`PRAGMA encoding='${encoding}'`);rows([['opaque','exact-cwd','a'.repeat(2047)+'😀tail']])(db);},r=>{
+    const t=r.snapshot!.take()!.threads[0]!;assert.equal(t.title,'a'.repeat(2047));assert.equal(t.titleState,'shortened');
+  },null,'unavailable');
 });

@@ -9,16 +9,15 @@ import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { explorerFixture } from './support/explorer-fixture.js';
 import { runExplorerEntry } from './support/explorer-entry.js';
-import { preparePersonalExplorer, visibleExplorerInput } from './support/personal-explorer-entry.js';
+import { preparePersonalExplorer } from './support/personal-explorer-entry.js';
 import { runPersonalExplorer, runTitledExplorerPreparation, explorerPreflightSafety, CanarySession,
   type CanaryOptions, type CanaryResult } from './support/personal-canary.js';
 import { ExplorerSnapshot, reconcile } from '../src/explorer/model.js';
 import { escapeStored } from '../src/explorer/view.js';
 
 const secret='SYNTHETIC_TITLED_PRIVATE';
-const context={enabled:true,nodeVersion:'24.18.1',executable:'C:\\Synthetic\\PowerShell\\pwsh.exe',scratchParent:'C:\\Synthetic\\Temp'};
+const context={home:'C:\\Synthetic\\Home with spaces Ω',enabled:true,nodeVersion:'24.18.1',executable:'C:\\Synthetic\\PowerShell\\pwsh.exe',scratchParent:'C:\\Synthetic\\Temp'};
 const source='C:\\Synthetic\\selected.sqlite';
-const consent='AUTHORIZE ONE TITLED BROWSER RUN';
 const empirical={skip:process.platform!=='win32'||process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1'||
   process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1',concurrency:false};
 const provenance={namespace:'synthetic-browser',from:'2026-10-08T00:00:00.000Z',through:'2026-10-08T00:00:01.000Z'};
@@ -33,13 +32,13 @@ function options(f:ReturnType<typeof explorerFixture>,extra:Partial<CanaryOption
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(value:unknown)=>void;
   const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};}
 
-for(const missing of ['base','explorer','consent','actual','title','browser','json','hook','phase-hook','closure-hook','cleanup-hook',
+for(const missing of ['consent','actual','title','browser','json','hook','phase-hook','closure-hook','cleanup-hook',
   'frame-hook','spawn-hook','qualification-hook','exit-uncertainty','fault'] as const)
 test('personal browser '+missing+' refuses before filesystem access or helper startup',async()=>{
   const keys=['WORKSPACE_SURVEYOR_PERSONAL_CANARY','WORKSPACE_SURVEYOR_PERSONAL_EXPLORER'];
   const saved=keys.map(k=>process.env[k]),stat=fs.lstatSync,start=CanarySession.prototype.start;let touched=0;
   try{
-    process.env[keys[0]!]=missing==='base'?'0':'1';process.env[keys[1]!]=missing==='explorer'?'0':'1';
+    delete process.env[keys[0]!];delete process.env[keys[1]!];
     Reflect.set(fs,'lstatSync',()=>{touched++;throw new Error(secret);});syncBuiltinESMExports();
     CanarySession.prototype.start=function(){touched++;throw new Error(secret);};
     const o=personal();if(o.selection.kind!=='personal')throw 0;const p=o.selection.private;
@@ -56,28 +55,42 @@ test('personal browser '+missing+' refuses before filesystem access or helper st
     keys.forEach((key,i)=>{if(saved[i]===undefined)delete process.env[key];else process.env[key]=saved[i];});}
 });
 
-for(const fault of ['disabled','runtime','host','source','confirmation','cancel'] as const)
-test('titled browser input '+fault+' stays outside the operation boundary',async()=>{
-  const abort=new AbortController(),output:string[]=[];let asked=0;
-  const input=async()=>{asked++;if(fault==='cancel'){abort.abort();throw new Error(secret);}
-    return asked===1?(fault==='source'?'relative.sqlite':source):fault==='confirmation'?'NO':consent;};
-  await assert.rejects(preparePersonalExplorer(input,s=>output.push(s),{...context,enabled:fault!=='disabled',
-    nodeVersion:fault==='runtime'?'0':context.nodeVersion,executable:fault==='host'?'pwsh.exe':context.executable},abort.signal),
-    e=>e instanceof Error&&!e.message.includes(secret));
-  assert.equal(output.join('').includes(secret),false);assert.equal(explorerPreflightSafety.attemptConsumed,false);
+for(const fault of ['disabled','runtime','host','home','cancel'] as const)
+test('source selection '+fault+' stays outside the operation boundary',async()=>{
+  const abort=new AbortController();if(fault==='cancel')abort.abort();
+  await assert.rejects(preparePersonalExplorer([],()=>{}, {...context,enabled:fault!=='disabled',
+    home:fault==='home'?'relative':context.home,nodeVersion:fault==='runtime'?'0':context.nodeVersion,
+    executable:fault==='host'?'pwsh.exe':context.executable},abort.signal),e=>e instanceof Error&&e.message==='Preflight refused');
+  assert.equal(explorerPreflightSafety.attemptConsumed,false);
 });
-test('titled browser derives fixed input policy and confirmation alone performs no operation',async()=>{
-  const answers=[source,consent],prompts:string[]=[],output:string[]=[];
-  const o=await preparePersonalExplorer(async p=>{prompts.push(p);return answers.shift()!;},s=>output.push(s),context,new AbortController().signal);
-  assert.equal(prompts.length,2);assert.match(output.join(''),/ChatGPT,Codex/);assert.ok(output.join('').includes(escapeStored(context.scratchParent)));
-  assert.equal(o.explorer,undefined);assert.equal(o.analysis,'explorer');
-  if(o.selection.kind!=='personal')throw 0;
-  assert.equal(o.selection.private.titleConsent,true);assert.equal(o.selection.private.browserConsent,true);
+for(const args of [['--source'],['--source',''],['--source','relative.sqlite'],['--source','\\\\host\\share\\db.sqlite'],
+  ['--source',source,'--source',source],['--change-source'],['--unknown'],['--source='+source]])
+test('source selection rejects argument shape '+JSON.stringify(args.map((_,i)=>i))+': '+args[0]+': '+args.length,async()=>{
+  let displayed=0;
+  await assert.rejects(preparePersonalExplorer(args,()=>{displayed++;},context,new AbortController().signal));
+  assert.equal(displayed,0);
 });
-test('titled browser cancellation after accepted confirmation still prevents operation startup',async()=>{
-  const abort=new AbortController();let calls=0;
-  await assert.rejects(preparePersonalExplorer(async()=>{if(++calls===2){abort.abort();return consent;}return source;},()=>{},context,abort.signal));
-  assert.equal(calls,2);
+test('source selection derives a default and preserves an invocation-only override without IO',async()=>{
+  const stat=fs.lstatSync,read=fs.readFileSync,write=fs.writeFileSync,start=CanarySession.prototype.start;
+  let touched=0;const denied=()=>{touched++;throw new Error(secret);};const output:string[]=[];
+  try{
+    Reflect.set(fs,'lstatSync',denied);Reflect.set(fs,'readFileSync',denied);Reflect.set(fs,'writeFileSync',denied);
+    syncBuiltinESMExports();CanarySession.prototype.start=denied;
+    for(const [args,expected] of [[[],join(context.home,'.codex','state_5.sqlite')],[['--source',source],source],
+      [[],join(context.home,'.codex','state_5.sqlite')]] as const){
+      const o=await preparePersonalExplorer(args,s=>output.push(s),context,new AbortController().signal);
+      if(o.selection.kind!=='personal')throw 0;
+      assert.equal(o.selection.private.source,expected);assert.equal(o.selection.private.titleConsent,true);
+      assert.equal(o.selection.private.browserConsent,true);assert.equal(o.explorer,undefined);
+    }
+    assert.equal(touched,0);assert.match(output.join(''),/ChatGPT,Codex/);assert.match(output.join(''),/--source/);
+    assert.ok(output.join('').includes(escapeStored(context.scratchParent)));
+  }finally{Reflect.set(fs,'lstatSync',stat);Reflect.set(fs,'readFileSync',read);Reflect.set(fs,'writeFileSync',write);
+    syncBuiltinESMExports();CanarySession.prototype.start=start;}
+});
+test('source selection cancellation during local display prevents operation startup',async()=>{
+  const abort=new AbortController();
+  await assert.rejects(preparePersonalExplorer([],()=>abort.abort(),context,abort.signal));
 });
 test('private browser entry rejects arguments/nonterminal invocation without personal access',()=>{
   const r=spawnSync(process.execPath,['dist/test/support/personal-explorer-entry.js',secret],{encoding:'utf8',env:{...process.env,
@@ -94,32 +107,6 @@ test('structural Project acceptance alone cannot establish correspondence or mem
   assert.equal(d.relations.some(r=>r.kind==='matches-exact-root'),true);
 });
 
-class Input extends EventEmitter {
-  isTTY=true;isRaw=false;readable=true;readableEnded=false;destroyed=false;raw:boolean[]=[];paused=false;
-  setRawMode(value:boolean){this.isRaw=value;this.raw.push(value);return this;}
-  setEncoding(){return this;}resume(){return this;}pause(){this.paused=true;return this;}
-}
-for(const end of ['already-ended','abort','end','close','ctrl-c','oversized','success'] as const)
-test('visible browser prompts handle '+end+' and restore terminal',async()=>{
-  const input=new Input(),abort=new AbortController(),out:string[]=[];
-  if(end==='already-ended')input.readableEnded=true;
-  const p=visibleExplorerInput('Selected source',abort.signal,input,{isTTY:true,write:s=>{out.push(String(s));return true;}});
-  if(end==='success')input.emit('data',source+'\r');
-  else if(end==='abort')abort.abort();else if(end==='end'||end==='close')input.emit(end);
-  else if(end==='ctrl-c')input.emit('data','\x03');else if(end==='oversized')input.emit('data','a'.repeat(2049));
-  if(end==='success')assert.equal(await p,source);else await assert.rejects(p);
-  assert.equal(input.isRaw,false);assert.equal(input.listenerCount('data'),0);assert.equal(input.listenerCount('end'),0);
-  assert.equal(input.listenerCount('error'),0);assert.equal(input.listenerCount('close'),0);
-  if(end!=='already-ended')assert.equal(input.paused,true);
-});
-test('cancellation while printing the visible prompt cannot reenable raw mode',async()=>{
-  const input=new Input(),abort=new AbortController();let calls=0;
-  await assert.rejects(visibleExplorerInput('Selected source',abort.signal,input,{isTTY:true,write:()=>{
-    if(++calls===1)abort.abort();return true;
-  }}));
-  assert.equal(input.isRaw,false);assert.deepEqual(input.raw,[false]);assert.equal(input.listenerCount('data'),0);
-});
-
 for(const phase of ['construction','startup'] as const)test('titled browser personal boundary '+phase+' fault without real-slot access',empirical,async()=>{
   const f=explorerFixture(),start=CanarySession.prototype.start,stringify=JSON.stringify;
   const keys=['WORKSPACE_SURVEYOR_PERSONAL_CANARY','WORKSPACE_SURVEYOR_PERSONAL_EXPLORER'],saved=keys.map(k=>process.env[k]);
@@ -131,7 +118,7 @@ for(const phase of ['construction','startup'] as const)test('titled browser pers
         constructed=true;if(phase==='construction')throw new Error(secret);
       }return Reflect.apply(stringify,JSON,[value,...rest]);
     } as typeof JSON.stringify;
-    keys.forEach(key=>{process.env[key]='1';});
+    keys.forEach(key=>{delete process.env[key];});
     const o=personal();o.executable=options(f).executable;if(o.selection.kind!=='personal')throw 0;
     o.selection.private.source=f.source;o.selection.private.scratchParent=fs.realpathSync(tmpdir());
     const r=await runPersonalExplorer(o);assert.equal(constructed,true);assert.equal(started,phase==='startup');
@@ -171,7 +158,9 @@ test('protected titled browser '+shape+' capability outcome',empirical,async()=>
     const r=await runTitledExplorerPreparation(options(f));assert.equal(r.safety.attemptConsumed,true);
     assert.equal(r.safety.cleanup,'removed');assert.equal(r.safety.recovery,'removed');sanitized(r);
     if(['empty','incompatible','overflow'].includes(shape)){assert.equal(r.snapshot,undefined);assert.equal(r.summary,undefined);
-      assert.equal(r.safety.status,'refused');assert.equal(r.safety.reason,shape==='overflow'?'limit':shape==='incompatible'?'unsupported':'analysis');}
+      assert.equal(r.safety.status,'refused');assert.equal(r.safety.reason,shape==='overflow'?'limit':shape==='incompatible'?'unsupported':'analysis');
+      if(shape==='overflow'){assert.equal(r.safety.limit,'reader-rows');assert.equal(r.safety.failureStage,'analysis');
+        assert.equal(r.safety.files,1);assert.equal(r.safety.sourcesStable,true);assert.equal(r.safety.schemaReadable,true);}}
     else{assert.equal(r.safety.status,'passed');assert.equal(r.summary?.omittedRows,shape==='partial'?1:0);
       assert.equal(r.summary?.titles,shape==='missing-title'?'unavailable':'accepted');
       if(shape==='title-fallback')assert.equal(r.snapshot!.take()!.threads.every(t=>t.title===null),true);else r.snapshot!.discard();}
@@ -235,4 +224,33 @@ test('personal browser lifecycle '+phase+' preserves safety, summary privacy and
   assert.equal(report.explorer!==undefined,phase==='normal');
   assert.equal(output.includes(server.url),phase==='normal'||phase==='final-close');assert.equal(starts,phase==='acquisition'?0:1);
   assert.equal(closes,phase==='acquisition'?0:1);
+});
+
+for(const shape of ['file','total'] as const)test('source byte limit '+shape+' reports precise sanitized subtype before copying',empirical,async()=>{
+  const f=explorerFixture(undefined,true),stat=fs.lstatSync;let measured=false;
+  try{
+    Reflect.set(fs,'lstatSync',(path:fs.PathLike,...rest:unknown[])=>{
+      const value=Reflect.apply(stat,fs,[path,...rest]);
+      if([f.source,f.source+'-wal',f.source+'-shm'].includes(String(path))){measured=true;
+        value.size=typeof value.size==='bigint'?BigInt((shape==='file'?17:11)*1024*1024):(shape==='file'?17:11)*1024*1024;}
+      return value;
+    });syncBuiltinESMExports();
+    const r=await runTitledExplorerPreparation(options(f));assert.equal(measured,true);assert.equal(r.snapshot,undefined);
+    assert.equal(r.safety.reason,'limit');assert.equal(r.safety.limit,shape==='file'?'source-file-bytes':'source-total-bytes');
+    assert.equal(r.safety.failureStage,'source-selection');assert.equal(r.safety.files,0);assert.equal(r.safety.cleanup,'removed');
+    assert.deepEqual(r.safety.evidence.stages,[]);sanitized(r);
+  }finally{Reflect.set(fs,'lstatSync',stat);syncBuiltinESMExports();assert.equal(await f.teardown(),true);}
+});
+
+test('missing synthetic default refuses without alternative search or retry',empirical,async()=>{
+  const f=explorerFixture(),o=options(f);let starts=0;const start=CanarySession.prototype.start;
+  try{
+    const missing=join(f.run.sources,'.codex','state_5.sqlite');
+    if(o.selection.kind!=='synthetic')throw 0;
+    o.selection.fixture.source=missing;
+    CanarySession.prototype.start=function(){starts++;return start.call(this);};
+    const r=await runTitledExplorerPreparation(o);
+    assert.equal(r.safety.status,'refused');assert.equal(r.snapshot,undefined);assert.equal(starts,0);
+    assert.equal(fs.existsSync(f.source),true);sanitized(r);
+  }finally{CanarySession.prototype.start=start;assert.equal(await f.teardown(),true);}
 });
