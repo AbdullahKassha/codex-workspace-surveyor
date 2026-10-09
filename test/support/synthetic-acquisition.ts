@@ -389,7 +389,7 @@ export class SyntheticRun {
       // Verify ALL entries before deleting ANY. No recursive rm or foreign sweep.
       const files: string[] = [];
       const directories: string[] = [];
-      const knownNames = [...fixtureNames,
+      const knownNames = [...fixtureNames, 'session_index.jsonl',
         'wal.sqlite-wal', 'wal.sqlite-shm', 'standalone.sqlite-wal', 'standalone.sqlite-shm',
         'standalone.sqlite-journal', 'wal.sqlite-journal'];
       const allowedFiles = new Set<string>(['owner', ...['builder', 'sources', 'scratch/acquisition', 'scratch/analysis']

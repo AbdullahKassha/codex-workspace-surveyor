@@ -20,6 +20,8 @@ $nonce = ''
 $lease = $null
 $keyLease = $null
 $operation = ''
+$globalState = $null
+$sessionIndex = $null
 function Send-Frame($value) {
     [Console]::Out.WriteLine(($value | ConvertTo-Json -Compress -Depth 8))
     [Console]::Out.Flush()
@@ -120,11 +122,13 @@ function Source-Set {
     if ($wal -ne $shm -or [System.IO.Directory]::Exists("$source-wal") -or [System.IO.Directory]::Exists("$source-shm")) { throw 'companions' }
     $names = @('database.sqlite')
     if ($wal) { $names += @('database.sqlite-wal','database.sqlite-shm') }
-    if($script:explorer){[void](Check-Object $globalState $false);$names+=@('global-state.json')}
+    if($globalState){[void](Check-Object $globalState $false);$names+=@('global-state.json')}
+    if($sessionIndex){[void](Check-Object $sessionIndex $false);$names+=@('session-index.jsonl')}
     return ,$names
 }
 function Source-Path([int]$index) {
-    if($script:explorer -and $index -eq $names.Count-1){return $globalState}
+    if($names[$index] -eq 'global-state.json'){return $globalState}
+    if($names[$index] -eq 'session-index.jsonl'){return $sessionIndex}
     return $(if ($index -eq 0) { $source } elseif ($index -eq 1) { "$source-wal" } else { "$source-shm" })
 }
 function Read-Stream($stream, $entry, [bool]$verify) {
@@ -207,7 +211,7 @@ function Recovery-Exists([string]$path) {
     }
 }
 function Verify-RecoveryScratch($inventory) {
-    $entryLimit=if($inventory.version -eq 2){11}else{9}
+    $entryLimit=if($inventory.version -eq 2){13}else{9}
     if(-not (Recovery-Exists $root)){return}
     Verify-Security $root $true
     $actual=[Collections.Generic.List[string]]::new()
@@ -310,15 +314,18 @@ try {
         Command 'release';$outcome='ok';return
     }
     $script:explorer=(@($request.PSObject.Properties.Name) -contains 'profile')
-    $expected=if($explorer){'count,fault,globalState,mode,nonce,operation,profile,root,source,store,writers'}else{'count,fault,mode,nonce,operation,root,source,store,writers'}
-    $counts=if($explorer){@(2,4)}else{@(1,3)}
+    $extra=@()
+    if($explorer){foreach($key in @('globalState','sessionIndex')){if(@($request.PSObject.Properties.Name) -contains $key){$extra+=@($key)}};if($extra.Count -eq 0){throw 'protocol'}}
+    $expected=(@(@('count','fault','mode','nonce','operation','root','source','store','writers')+$(if($explorer){@('profile')+$extra}else{@()}) | Sort-Object) -join ',')
+    $counts=@((1+$extra.Count),(3+$extra.Count))
     if ($operation -ne 'acquire' -or (@($request.PSObject.Properties.Name | Sort-Object) -join ',') -cne $expected -or
         $request.mode -notin @('synthetic','personal') -or $request.count -notin $counts -or
         $request.fault -notin @('none','protected','descriptor','partial-copy','diagnostic','recovery-create','recovery-descriptor','recovery-write','recovery-flush','recovery-readback') -or
         ($request.mode -eq 'personal' -and $request.fault -ne 'none')) { throw 'protocol' }
     if($explorer){
-        if($request.profile -cne 'explorer' -or $request.mode -ne 'synthetic' -or $env:WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION -ne '1'){throw 'protocol'}
-        $globalState=[IO.Path]::GetFullPath($request.globalState)
+        if($request.profile -cne 'explorer' -or ($request.mode -eq 'synthetic' -and $env:WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION -ne '1')){throw 'protocol'}
+        if($extra -contains 'globalState'){$globalState=[IO.Path]::GetFullPath($request.globalState)}
+        if($extra -contains 'sessionIndex'){$sessionIndex=[IO.Path]::GetFullPath($request.sessionIndex)}
     }
     $root=[System.IO.Path]::GetFullPath($request.root)
     $source=[System.IO.Path]::GetFullPath($request.source)
@@ -332,8 +339,9 @@ try {
         $root -eq $source -or $source.StartsWith("$root\",[StringComparison]::OrdinalIgnoreCase) -or
         $root.StartsWith("$source\",[StringComparison]::OrdinalIgnoreCase)) { throw 'scope' }
     $owner=[System.IO.Path]::Combine($root,'owner')
-    if($explorer -and ($globalState -eq $root -or $globalState.StartsWith("$root\",[StringComparison]::OrdinalIgnoreCase) -or
-        $root.StartsWith("$globalState\",[StringComparison]::OrdinalIgnoreCase) -or $globalState -in @($source,"$source-wal","$source-shm"))){throw 'scope'}
+    foreach($metadataPath in @($globalState,$sessionIndex)){if($metadataPath -and ($metadataPath -eq $root -or $metadataPath.StartsWith("$root\",[StringComparison]::OrdinalIgnoreCase) -or
+        $root.StartsWith("$metadataPath\",[StringComparison]::OrdinalIgnoreCase) -or $metadataPath -in @($source,"$source-wal","$source-shm"))){throw 'scope'}}
+    if($globalState -and $sessionIndex -and $globalState -eq $sessionIndex){throw 'scope'}
     $rootItem=Check-Object $root $true
     [void](Check-Object $owner $false)
     $entries=@([System.IO.Directory]::EnumerateFileSystemEntries($root))

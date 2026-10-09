@@ -11,9 +11,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { explorerFixture, inventedProjects } from './support/explorer-fixture.js';
 import { CanaryScratch, runSyntheticExplorer, type CanaryOptions, type CanaryResult } from './support/personal-canary.js';
 import { readExplorerCopies, explorerLimits } from '../src/explorer/readers.js';
-import { reconcile, ExplorerSnapshot, type ExplorerData } from '../src/explorer/model.js';
+import { reconcile, ExplorerSnapshot, windowsPathKey, type ExplorerData } from '../src/explorer/model.js';
 import { serveLocalExplorer } from '../src/explorer/server.js';
-import { clientCode, explorerHtml, escapeStored } from '../src/explorer/view.js';
+import { clientCode, explorerHtml, escapeStored, threadLink, displayTitle } from '../src/explorer/view.js';
 import { runExplorerEntry } from './support/explorer-entry.js';
 
 const provenance={namespace:'synthetic-a',from:'2026-10-07T00:00:00.000Z',through:'2026-10-07T00:00:01.000Z'};
@@ -23,21 +23,22 @@ type Build=(db:DatabaseSync)=>void;
 const rows=(values:readonly (readonly unknown[])[]):Build=>db=>{db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT)');
   const insert=db.prepare('INSERT INTO threads VALUES(?,?,?)');for(const row of values)insert.run(...row as [string,string,string]);};
 function sanitized(x:unknown){assert.equal(JSON.stringify(x).includes(secret),false);assert.equal(inspect(x).includes(secret),false);}
-async function unit(build:Build,check:(result:ReturnType<typeof readExplorerCopies>,scratch:CanaryScratch)=>void,json:unknown=inventedProjects,policy:'invented-v1'|'unavailable'='invented-v1'){
-  const f=explorerFixture(build,false,json),scratch=new CanaryScratch(['database.sqlite','global-state.json'],'explorer');f.scratches.push(scratch);
+async function unit(build:Build,check:(result:ReturnType<typeof readExplorerCopies>,scratch:CanaryScratch)=>void,json:unknown=inventedProjects,policy:'desktop-v1'|'unavailable'='desktop-v1',indexContent?:string){
+  const f=explorerFixture(build,false,json,indexContent),scratch=new CanaryScratch(['database.sqlite','global-state.json',...(indexContent!==undefined?['session-index.jsonl']:[])],'explorer');f.scratches.push(scratch);
   try{
     scratch.initialize();for(const area of ['acquisition','analysis'] as const){fs.mkdirSync(join(scratch.root!,area));
-      fs.copyFileSync(f.source,scratch.path(area,0));fs.copyFileSync(f.globalState,scratch.path(area,1));}
+      fs.copyFileSync(f.source,scratch.path(area,0));fs.copyFileSync(f.globalState,scratch.path(area,1));if(indexContent!==undefined)fs.copyFileSync(f.sessionIndex,scratch.path(area,2));}
     const before=[fs.readFileSync(f.source),fs.readFileSync(f.globalState),fs.readFileSync(scratch.path('acquisition',0)),fs.readFileSync(scratch.path('acquisition',1))];
-    const result=readExplorerCopies(scratch,provenance,1,policy);sanitized(result);check(result,scratch);
+    const result=readExplorerCopies(scratch,provenance,1,policy,indexContent!==undefined?2:undefined);sanitized(result);check(result,scratch);
+    if(indexContent!==undefined){assert.equal(fs.readFileSync(f.sessionIndex,'utf8'),indexContent);assert.equal(fs.readFileSync(scratch.path('acquisition',2),'utf8'),indexContent);}
     for(const [i,p] of [f.source,f.globalState,scratch.path('acquisition',0),scratch.path('acquisition',1)].entries())assert.equal(fs.readFileSync(p).equals(before[i]!),true);
   }finally{assert.equal(await f.teardown(),true);}
 }
 
 test('named records retain exact strings, duplicate titles, omissions and opaque-ID ambiguity',async()=>{
   await unit(rows([['a','C:\\Synthetic\\X','Same'],['b','C:\\Synthetic\\X','Same'],['a','c:\\synthetic\\x',secret],['a',null,'Omitted'],['c','é',''],['d','e\u0301',null]]),r=>{
-    assert.equal(r.status,'ready');assert.equal(r.summary?.omittedRows,1);assert.equal(r.summary?.ambiguousIds,1);
-    const d=r.snapshot!.take()!;assert.equal(d.threads.length,5);assert.equal(d.threads[4]?.title,null);assert.equal(d.locations.includes('é'),true);
+    assert.equal(r.status,'ready');assert.equal(r.summary?.omittedRows,0);assert.equal(r.summary?.ambiguousIds,1);
+    const d=r.snapshot!.take()!;assert.equal(d.threads.length,6);assert.equal(d.threads[5]?.title,null);assert.equal(d.threads[3]?.cwd,null);assert.equal(d.locations.includes('é'),true);
     assert.equal(d.locations.includes('e\u0301'),true);assert.equal(d.threads[2]?.ambiguous,true);assert.equal(r.snapshot!.take(),undefined);
   });
 });
@@ -80,23 +81,23 @@ for(const json of [{ 'electron-saved-workspace-roots':['C:\\Synthetic\\folder'] 
   await unit(rows([['a','cwd','Title']]),r=>{assert.equal(r.status,'ready');assert.equal(r.summary?.projects,'unavailable');assert.equal(r.snapshot!.take()!.memberships[0],'unknown');},json);
 });
 test('reconciliation preserves multiple/nested roots, duplicate labels, dangling/conflicting and shared location claims',async()=>{
-  const json={format:'workspace-surveyor-invented-projects-v1',projects:[{id:'p',label:'Same',roots:['cwd','cwd/child']},{id:'q',label:'Same',roots:['cwd']}],
-    assignments:[{threadId:'a',projectId:'p'},{threadId:'b',projectId:'q'},{threadId:'c',projectId:'p'},{threadId:'c',projectId:'q'},{threadId:'d',projectId:'gone'},{threadId:'gone',projectId:'p'}]};
+  const json={'local-projects':{p:{id:'p',name:'Same',rootPaths:['cwd','cwd/child']},q:{id:'q',name:'Same',rootPaths:['cwd']}},
+    'thread-project-assignments':Object.fromEntries([['a','p'],['b','q'],['c','p'],['d','gone'],['gone','p']].map(([id,p])=>[id,{projectKind:'local',projectId:p}])), 'projectless-thread-ids':['c']};
   await unit(rows([['a','cwd','A'],['b','cwd','B'],['c','cwd','C'],['d','cwd','D'],['e','cwd','E']]),r=>{
     const d=r.snapshot!.take()!;assert.deepEqual(d.memberships,['stored-assignment','stored-assignment','conflicting','dangling','no-assignment-observed']);
     assert.equal(d.danglingAssignments,2);assert.equal(d.relations.filter(r=>r.kind==='matches-exact-root').length,10);
     assert.equal(d.relations.filter(r=>r.kind==='shares-exact-cwd').length,5);assert.notEqual(d.projectNamespace,d.provenance.namespace);
   },json);
 });
-test('duplicate Project IDs do not silently resolve membership',async()=>{
-  await unit(rows([['a','cwd','A']]),r=>assert.equal(r.snapshot!.take()!.memberships[0],'conflicting'),
-    {format:'workspace-surveyor-invented-projects-v1',projects:[{id:'p',label:'X',roots:[]},{id:'p',label:'Y',roots:[]}],assignments:[{threadId:'a',projectId:'p'}]});
+test('mismatched embedded Project IDs disable Projects without guessing identity',async()=>{
+  await unit(rows([['a','cwd','A']]),r=>assert.equal(r.snapshot!.take()!.memberships[0],'unknown'),
+    {'local-projects':{p:{id:'p',name:'X',rootPaths:[]},q:{id:'p',name:'Y',rootPaths:[]}},'thread-project-assignments':{a:{projectKind:'local',projectId:'p'}},'projectless-thread-ids':[]});
 });
 test('Project values share the field/text budgets and overflow withholds the entire dataset',async()=>{
   await unit(rows([]),r=>{assert.equal(r.reason,'limit');assert.equal(r.snapshot,undefined);},
-    {format:'workspace-surveyor-invented-projects-v1',projects:[{id:'p',label:'x'.repeat(explorerLimits.fieldBytes+1),roots:[]}],assignments:[]});
+    {'local-projects':{p:{id:'p',name:'x'.repeat(explorerLimits.fieldBytes+1),rootPaths:[]}},'thread-project-assignments':{},'projectless-thread-ids':[]});
 });
-test('stored roots and CWD strings are never used for filesystem access or normalization',async()=>{
+test('stored roots and CWD strings are preserved and never used for filesystem access',async()=>{
   const strings=['C:\\Synthetic\\case','c:\\synthetic\\case','\\\\?\\C:\\Synthetic\\case','\\\\synthetic-host\\share\\cwd','../synthetic'];
   await unit(rows(strings.map((p,i)=>['id'+i,p,'Title'])),(r,scratch)=>{
     r.snapshot?.discard();const originals=new Map<string,unknown>();let touched=false;
@@ -106,7 +107,7 @@ test('stored roots and CWD strings are never used for filesystem access or norma
       object[key]=(...args:unknown[])=>{if(typeof args[0]==='string'&&strings.includes(args[0])){touched=true;throw new Error(secret);}return Reflect.apply(original,fs,args);};
     }
     syncBuiltinESMExports();
-    try{const result=readExplorerCopies(scratch,provenance,1,'invented-v1');assert.equal(result.status,'ready');
+    try{const result=readExplorerCopies(scratch,provenance,1,'desktop-v1');assert.equal(result.status,'ready');
       assert.equal(result.snapshot!.take()!.threads.every((t,i)=>t.cwd===strings[i]),true);assert.equal(touched,false);
     }finally{for(const [key,value] of originals)object[key]=value;syncBuiltinESMExports();}
   });
@@ -114,6 +115,86 @@ test('stored roots and CWD strings are never used for filesystem access or norma
 
 function data():ExplorerData{return reconcile(provenance,{rowsRead:1,omittedRows:0,ambiguousIds:0,titles:'accepted',projects:'unavailable',unconsumedColumns:true,correspondence:'unknown'},
   [{id:secret,cwd:'C:\\Synthetic\\<img onerror=alert(1)>\u202e',title:'<script>'+secret+'</script>\u001b',ambiguous:false}],[],[]);}
+
+test('Desktop metadata classifies internal/history, corroborated user Threads, conflicts and stale references',async()=>{
+  const ids=['assigned','free','guardian','archived','unassigned','conflict','dangling','remote','malformed','oversize','no-cwd','unknown-archive'];
+  const json={'local-projects':{p:{id:'p',name:'Synthetic Project',rootPaths:['C:\\Synthetic\\atlas']},empty:{id:'empty',name:'Empty',rootPaths:[]}},
+    'thread-project-assignments':Object.fromEntries(['assigned','guardian','archived','conflict','malformed','oversize','no-cwd','unknown-archive','deleted'].map(id=>[id,{projectKind:'local',projectId:'p'}]).concat([
+      ['dangling',{projectKind:'local',projectId:'removed'}],['remote',{projectKind:'remote',projectId:'p'}]])),
+    'projectless-thread-ids':['free','conflict','deleted-free']};
+  await unit(db=>{
+    db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,source TEXT,archived INTEGER,project_id TEXT,body TEXT)');
+    const insert=db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?)');
+    for(const id of ids)insert.run(id,id==='no-cwd'?null:'\\\\?\\C:\\Synthetic\\atlas','Same title',
+      id==='guardian'?JSON.stringify({subagent:{other:'guardian'}}):id==='malformed'?'{broken':id==='oversize'?'x'.repeat(10000):'vscode',
+      id==='archived'?1:id==='unknown-archive'?null:0,null,secret);
+  },r=>{
+    const d=r.snapshot!.take()!;
+    assert.equal(r.summary?.projects,'desktop-registry');assert.equal(r.summary?.omittedRows,0);
+    assert.deepEqual(d.visibility,['inferred','inferred','internal','archived','unknown','unknown','unknown','unknown','unknown','unknown','inferred','unknown']);
+    assert.deepEqual(d.memberships,['stored-assignment','projectless','stored-assignment','stored-assignment','no-assignment-observed','conflicting','dangling','unknown','stored-assignment','stored-assignment','stored-assignment','stored-assignment']);
+    assert.equal(d.danglingAssignments,2);assert.equal(d.staleProjectless,1);
+    assert.equal(d.threads.some(t=>t.id==='deleted'),false);assert.equal(d.projects.length,2);
+    assert.equal(d.threads[10]!.cwd,null);assert.equal(d.relations.filter(x=>x.kind==='matches-normalized-root').length,11);
+    assert.deepEqual(d.components.map(c=>[...c.threads]),[[0,1,10],[]]);
+    assert.equal(JSON.stringify(d).includes(secret),false);assert.equal(JSON.stringify(d).includes('guardian"}'),false);
+  },json);
+});
+
+test('Windows lexical comparison preserves ambiguous namespaces and avoids proximity or Unicode alias guesses',()=>{
+  assert.equal(windowsPathKey('C:\\Synthetic\\Atlas\\'),windowsPathKey('\\\\?\\c:\\synthetic\\ATLAS'));
+  assert.equal(windowsPathKey('\\\\Host\\Share\\Folder'),windowsPathKey('\\\\?\\UNC\\host\\share\\folder'));
+  assert.equal(windowsPathKey('C:/Synthetic/Atlas'),windowsPathKey('C:\\Synthetic\\Atlas'));
+  for(const p of ['C:atlas','C:\\Synthetic\\..\\atlas','C:\\Synthetic\\name.','C:\\Synthetic\\name ',
+    '\\\\?\\C:\\Synthetic/atlas','\\\\.\\C:\\atlas','\\\\?\\GLOBALROOT\\Device','C:\\a:stream','C:\\CON\\x','\\\\host'])assert.equal(windowsPathKey(p),null,p);
+  assert.notEqual(windowsPathKey('C:\\atlas'),windowsPathKey('C:\\atlas-two'));
+  assert.notEqual(windowsPathKey('C:\\é'),windowsPathKey('C:\\e\u0301'));
+});
+
+test('Windows Unicode sequences remain distinct in root matches and Workspace connectivity',()=>{
+  const coverage={...data().coverage,projects:'desktop-registry' as const,correspondence:'qualified' as const};
+  for(const [ordinary,extended] of [['C:\\Synthetic\\','\\\\?\\c:\\synthetic\\'],
+    ['\\\\Host\\Share\\','\\\\?\\UNC\\host\\share\\']] as const){
+    const roots=[ordinary+'\u0130',ordinary+'i\u0307'];
+    const cwds=[extended+'\u0130',extended+'i\u0307'];
+    const projects=roots.map((root,i)=>({id:'p'+i,label:'Synthetic '+i,roots:[root]}));
+    const threads=cwds.map((cwd,i)=>({id:'t'+i,cwd,title:'Synthetic '+i,ambiguous:false,sourceState:'ordinary' as const,archived:false}));
+    const d=reconcile(provenance,coverage,threads,projects,[],['t0','t1']);
+    assert.deepEqual(d.relations.filter(r=>r.kind==='matches-normalized-root').map(r=>[r.subject,r.target]),[[0,0],[1,1]]);
+    assert.deepEqual(d.components,[{projects:[0],threads:[0]},{projects:[1],threads:[1]}]);
+    assert.notEqual(windowsPathKey(roots[0]!),windowsPathKey(roots[1]!));
+    assert.ok(windowsPathKey(roots[0]!)!.endsWith('\u0130'));
+    assert.ok(windowsPathKey(roots[1]!)!.endsWith('i\u0307'));
+    assert.deepEqual(d.projects.map(p=>p.roots[0]),roots);
+    assert.deepEqual(d.threads.map(t=>t.cwd),cwds);
+    const unassociated=reconcile(provenance,coverage,threads,[],[],['t0','t1']);
+    assert.deepEqual(unassociated.components,[{projects:[],threads:[0]},{projects:[],threads:[1]}]);
+  }
+});
+
+test('CWD changes preserve Thread identity and unknown/internal records cannot bridge ordinary components',()=>{
+  const coverage={...data().coverage,projects:'desktop-registry' as const,correspondence:'qualified' as const};
+  const projects=[{id:'p',label:'Same',roots:['C:\\Synthetic\\a']},{id:'q',label:'Same',roots:['C:\\Synthetic\\b']}];
+  const original={id:'a',cwd:'C:\\Synthetic\\a',title:'Same',ambiguous:false,sourceState:'ordinary' as const,archived:false};
+  const before=reconcile(provenance,coverage,[original],projects,[],['a']);
+  const after=reconcile(provenance,coverage,[{...original,cwd:'C:\\Synthetic\\b'},
+    {...original,id:'internal',sourceState:'subagent',cwd:'C:\\Synthetic\\a'}],projects,[{threadId:'internal',projectId:'q',projectKind:'local'}],['a']);
+  assert.equal(before.threads[0]!.id,after.threads[0]!.id);assert.equal(after.components.length,2);
+  assert.deepEqual(before.components[0]!.threads,[0]);assert.deepEqual(after.components[1]!.threads,[0]);
+  assert.equal(after.memberships[0],'projectless');
+});
+
+test('duplicate source IDs stay unclassified and duplicate Project identities stay conflicting',()=>{
+  const coverage={...data().coverage,projects:'desktop-registry' as const,correspondence:'qualified' as const};
+  const t={id:'a',cwd:null,title:null,ambiguous:true,sourceState:'ordinary' as const,archived:false};
+  const d=reconcile(provenance,coverage,[t,t],[{id:'p',label:'A',roots:[]},{id:'p',label:'B',roots:[]}],[{threadId:'a',projectId:'p',projectKind:'local'}]);
+  assert.deepEqual(d.visibility,['unknown','unknown']);assert.deepEqual(d.memberships,['conflicting','conflicting']);
+});
+
+test('deeplinks accept opaque UUIDs only and cannot introduce another scheme or navigation path',()=>{
+  const id='00000000-0000-0000-0000-000000000001';assert.equal(threadLink(id),'codex://threads/'+id);
+  for(const id of ['javascript:alert(1)','a/../settings','id?x=1','id#x','<svg>','\u0000',''])assert.equal(threadLink(id),null);
+});
 test('stored rendering is reversible, controls/bidi are visible and HTML stays text',()=>{
   assert.equal(escapeStored('a\u001b\u202e\\b'),'a\\u{1b}\\u{202e}\\\\b');
   assert.equal(clientCode.includes('innerHTML'),false);assert.equal(clientCode.includes('textContent'),true);
@@ -123,6 +204,29 @@ class Element {
   children:Element[]=[];textContent='';className='';ariaPressed='';type='';value='';onclick:(()=>void)|undefined;oninput:((event:{target:{value:string}})=>void)|undefined;
   get childElementCount(){return this.children.length;}append(...children:Element[]){this.children.push(...children);}replaceChildren(...children:Element[]){this.children=children;}
 }
+test('Workspace DOM shows connected real-shaped entities, empty Projects and projectless Threads with diagnostics collapsed',async()=>{
+  const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
+  const id='00000000-0000-0000-0000-000000000001';
+  const ordinary={cwd:'C:\\Synthetic\\atlas',title:'Visible title',ambiguous:false,sourceState:'ordinary' as const,archived:false};
+  const d=reconcile(provenance,{...data().coverage,projects:'desktop-registry',correspondence:'qualified'},
+    [{...ordinary,id},{...ordinary,id:'free',cwd:'\\\\?\\C:\\Synthetic\\ATLAS',title:'Free title'},
+     {...ordinary,id:'unknown',title:'Unclassified title'},{...ordinary,id:'internal',title:'Internal title',sourceState:'subagent'}],
+    [{id:'p',label:'Atlas',roots:['C:\\Synthetic\\atlas']},{id:'empty',label:'Empty Project',roots:[]}],
+    [{threadId:id,projectId:'p',projectKind:'local'}],['free']);
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+    location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
+  const texts=(e:Element):string[]=>[e.textContent,...e.children.flatMap(texts)];
+  const primary=get('relationships').children.slice(0,2).flatMap(texts);
+  assert.ok(primary.includes('Atlas'));assert.ok(primary.includes('Empty Project'));assert.ok(primary.includes('Visible title'));assert.ok(primary.includes('Free title'));
+  assert.equal(primary.includes('Internal title'),false);assert.equal(primary.includes('Unclassified title'),false);
+  assert.ok(primary.some(x=>x.includes('projectless')));assert.ok(primary.some(x=>x.includes('not proof of emptiness')));
+  assert.match(get('relationships').children[2]!.children[0]!.textContent,/Unclassified/);
+  const find=(e:Element,title:string):Element|undefined=>e.textContent===title?e:e.children.map(x=>find(x,title)).find(Boolean);
+  find(get('relationships'),'Visible title')!.onclick!();
+  const link=find(get('details'),'Open Thread in Codex');assert.ok(link);assert.equal(Reflect.get(link,'href'),'codex://threads/'+id);
+  get('search').oninput!({target:{value:'Free title'}});assert.ok(texts(get('relationships')).includes('Free title'));
+  assert.equal(texts(get('relationships')).includes('Visible title'),false);
+});
 test('browser DOM renders hostile strings as text, unknown membership, details and unavailable Projects',async()=>{
   const elements=new Map<string,Element>();let resolveDone!:()=>void;const done=new Promise<void>(resolve=>{resolveDone=resolve;});
   const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
@@ -130,7 +234,8 @@ test('browser DOM renders hostile strings as text, unknown membership, details a
   const context={document:{getElementById:get,createElement:()=>new Element()},location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},
     AbortController,addEventListener(){},fetch:async()=>({ok:true,json:async()=>data()})};
   runInNewContext(clientCode,context);await done;
-  const list=get('relationships');assert.equal(list.children.length,1);const group=list.children[0]!;
+  const list=get('relationships');assert.match(list.children[0]!.textContent,/unavailable/);const unclassified=list.children[1]!;
+  assert.match(unclassified.children[0]!.textContent,/Unclassified/);const group=unclassified.children[1]!;
   assert.equal(group.children[1]!.textContent.includes('\\u{202e}'),true);group.children.at(-1)!.onclick!();
   assert.equal(get('details').children.some(e=>e.textContent===secret),true);
   get('projects').onclick!();assert.equal(get('relationships').children[0]!.textContent.includes('unavailable'),true);
@@ -405,10 +510,42 @@ test('browser marks title previews and unavailable fallbacks visibly',async()=>{
      {id:'b',cwd:'cwd',title:null,titleState:'unavailable',ambiguous:false}],[],[]);
   await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
-  const group=get('relationships').children[0]!;
+  const group=get('relationships').children[1]!.children[1]!;
   assert.equal(group.children.some(e=>e.textContent==='Preview … [shortened]'),true);
   assert.equal(group.children.some(e=>e.textContent==='Untitled record [title unavailable]'),true);
   assert.match(get('coverage').textContent,/1 shortened titles · 1 unavailable titles/);
+});
+
+test('open-app compatibility probe: active WAL writer, snapshot reads and reader side effects on owned builder only',async t=>{
+  const f=explorerFixture(),path=join(f.run.root,'builder','standalone.sqlite');
+  let writer:DatabaseSync|undefined,reader:DatabaseSync|undefined;
+  try{
+    writer=new DatabaseSync(path);writer.exec('PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE live_probe(id INTEGER); INSERT INTO live_probe VALUES(1)');
+    const database=fs.readFileSync(path),wal=fs.readFileSync(path+'-wal'),shm=fs.readFileSync(path+'-shm');
+    reader=new DatabaseSync(path,{readOnly:true,allowExtension:false,defensive:true,timeout:0});reader.exec('PRAGMA query_only=ON; BEGIN');
+    assert.equal(reader.prepare('SELECT count(*) AS n FROM live_probe').get()!.n,1);
+    assert.equal(fs.readFileSync(path).equals(database),true);assert.equal(fs.readFileSync(path+'-wal').equals(wal),true);
+    const shmChanged=!fs.readFileSync(path+'-shm').equals(shm);
+    writer.exec('INSERT INTO live_probe VALUES(2)');
+    assert.equal(reader.prepare('SELECT count(*) AS n FROM live_probe').get()!.n,1);
+    reader.exec('COMMIT');assert.equal(reader.prepare('SELECT count(*) AS n FROM live_probe').get()!.n,2);
+    assert.throws(()=>reader!.exec('INSERT INTO live_probe VALUES(3)'));
+    t.diagnostic('Synthetic WAL snapshot read succeeded; shared-memory bytes changed during reader-only interval: '+shmChanged+'. Not evidence of zero source-side effects.');
+  }finally{reader?.close();writer?.close();assert.equal(await f.teardown(),true);}
+});
+
+test('open-app compatibility probe: readOnly can create WAL shared memory on an owned analysis-shaped copy',async t=>{
+  const f=explorerFixture(undefined,true),path=join(f.run.root,'builder','standalone.sqlite');let reader:DatabaseSync|undefined;
+  try{
+    fs.copyFileSync(f.source,path);fs.copyFileSync(f.source+'-wal',path+'-wal');
+    assert.equal(fs.existsSync(path+'-shm'),false);
+    const database=fs.readFileSync(path),wal=fs.readFileSync(path+'-wal');
+    reader=new DatabaseSync(path,{readOnly:true,allowExtension:false,defensive:true,timeout:0});reader.exec('PRAGMA query_only=ON');
+    assert.equal(reader.prepare('SELECT count(*) AS n FROM threads').get()!.n,4);
+    assert.equal(fs.readFileSync(path).equals(database),true);assert.equal(fs.readFileSync(path+'-wal').equals(wal),true);
+    const created=fs.existsSync(path+'-shm');
+    assert.equal(created,true);t.diagnostic('Synthetic readOnly connection created SHM. Direct live SQLite access is not enabled.');
+  }finally{reader?.close();assert.equal(await f.teardown(),true);}
 });
 
 for(const encoding of ['UTF-8','UTF-16le','UTF-16be'] as const)
@@ -458,4 +595,87 @@ for(const encoding of ['UTF-16le','UTF-16be'])test('qualified title encoding '+e
   await unit(db=>{db.exec(`PRAGMA encoding='${encoding}'`);rows([['opaque','exact-cwd','a'.repeat(2047)+'😀tail']])(db);},r=>{
     const t=r.snapshot!.take()!.threads[0]!;assert.equal(t.title,'a'.repeat(2047));assert.equal(t.titleState,'shortened');
   },null,'unavailable');
+});
+
+const indexLine=(id:string,thread_name:unknown,updated_at:unknown='2026-10-09T12:00:00Z')=>JSON.stringify({id,thread_name,updated_at});
+test('title index joins exact IDs, selects newest timestamps independent of line order and never creates Threads',async()=>{
+  const index=[indexLine('a','Friendly atlas'),indexLine('a','Old atlas','2026-10-08T12:00:00Z'),indexLine('a','Friendly atlas'),indexLine('stale','Index-only record'),indexLine('A','Case distinct')].join('\n');
+  for(const content of [index,index.split('\n').reverse().join('\n')])await unit(rows([['a','same','Initial prompt\n'.repeat(100)],['b','same','SQLite fallback']]),r=>{
+    const d=r.snapshot!.take()!;assert.equal(d.threads.length,2);assert.equal(d.threads[0]!.title,'Friendly atlas');assert.equal(d.threads[0]!.titleSource,'session-index');
+    assert.match(d.threads[0]!.storedTitle!,/Initial prompt/);assert.equal(d.threads[0]!.titleUpdatedAt,'2026-10-09T12:00:00Z');
+    assert.equal(d.threads[1]!.title,'SQLite fallback');assert.equal(d.threads[1]!.titleResolution,'missing');
+    assert.equal(d.coverage.sessionIndex!.duplicates,2);assert.equal(d.coverage.sessionIndex!.unmatchedIds,2);
+    assert.equal(d.memberships[0],'no-assignment-observed');assert.equal(d.visibility[0],'unknown');
+  },inventedProjects,'desktop-v1',content);
+});
+for(const [name,content,resolution] of [
+  ['conflict',[indexLine('a','One'),indexLine('a','Two')].join('\n'),'conflict'],
+  ['newer resolves older conflict',[indexLine('a','One','2026-10-08T00:00:00Z'),indexLine('a','Two','2026-10-08T00:00:00Z'),indexLine('a','Latest')].join('\n'),'latest'],
+  ['invalid time',indexLine('a','Unknown order','nonsense'),'invalid'],
+  ['empty latest',[indexLine('a','Old','2026-10-08T00:00:00Z'),indexLine('a','  ')].join('\n'),'missing'],
+  ['oversized title',indexLine('a','x'.repeat(4097)),'invalid'],
+  ['invalid unicode',indexLine('a','\ud800'),'invalid'],
+  ['record bound','x'.repeat(65537),'limit'],
+  ['row bound','\n'.repeat(10001),'limit'],
+  ['empty index','','missing'],
+] as const)test('title index fallback: '+name,async()=>{
+  await unit(rows([['a','cwd','Fallback']]),r=>{const d=r.snapshot!.take()!,t=d.threads[0]!;assert.equal(t.titleResolution,resolution);
+    assert.equal(t.title,resolution==='latest'?'Latest':'Fallback');assert.equal(t.cwd,'cwd');},inventedProjects,'desktop-v1',content);
+});
+test('malformed index lines remain visible as diagnostics without dropping unrelated valid enrichment',async()=>{
+  await unit(rows([['a','cwd','Fallback']]),r=>{const d=r.snapshot!.take()!;assert.equal(d.threads[0]!.title,'Friendly');
+    assert.equal(d.coverage.sessionIndex!.status,'partial');assert.equal(d.coverage.sessionIndex!.invalidRecords,2);},inventedProjects,'desktop-v1','{bad\n'+JSON.stringify({unrelated:true})+'\n'+indexLine('a','Friendly'));
+});
+
+test('index timestamps retain submillisecond ordering and reject impossible calendar dates',async()=>{
+  await unit(rows([['a','cwd','Fallback'],['b','cwd','Fallback']]),r=>{
+    const d=r.snapshot!.take()!;assert.equal(d.threads[0]!.title,'New');assert.equal(d.threads[1]!.titleResolution,'invalid');
+  },inventedProjects,'desktop-v1',[indexLine('a','New','2026-10-09T12:00:00.000002Z'),indexLine('a','Old','2026-10-09T12:00:00.000001Z'),indexLine('b','Impossible','2026-02-30T12:00:00Z')].join('\n'));
+});
+test('resolved title is prominent and searchable, with bounded fallback headings and collapsed stored metadata',async()=>{
+  const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
+  const prompt='Initial prompt paragraph\n'.repeat(100);
+  const d=reconcile(provenance,{...data().coverage,projects:'desktop-registry',correspondence:'qualified'},[
+    {id:'a',cwd:'cwd',title:'Friendly atlas',storedTitle:prompt,titleSource:'session-index',titleResolution:'latest',titleUpdatedAt:'2026-10-09T12:00:00Z',sourceState:'ordinary',archived:false,ambiguous:false},
+    {id:'b',cwd:'elsewhere',title:prompt,titleSource:'sqlite',titleResolution:'missing',sourceState:'ordinary',archived:false,ambiguous:false}],[],[],['a','b']);
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},location:{hash:'#synthetic',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
+  const all=(e:Element):Element[]=>[e,...e.children.flatMap(all)];
+  const button=all(get('relationships')).find(e=>e.textContent==='Friendly atlas')!;assert.ok(button);button.onclick!();
+  assert.equal(get('details').children[0]!.textContent,'Friendly atlas');assert.ok(all(get('details')).some(e=>e.textContent==='session-index'));
+  assert.equal(get('details').children.some(e=>e.textContent===prompt),false);assert.ok(all(get('details')).some(e=>e.textContent===escapeStored(prompt)));
+  const fallback=all(get('relationships')).find(e=>e.textContent.startsWith('Initial prompt'))!;assert.ok(fallback.textContent.length<150);assert.equal(fallback.textContent.includes('\n'),false);
+  get('search').oninput!({target:{value:'Friendly atlas'}});assert.ok(all(get('relationships')).some(e=>e.textContent==='Friendly atlas'));assert.equal(all(get('relationships')).some(e=>e.textContent.startsWith('Initial prompt')),false);
+});
+
+for(const fault of ['writer','acquisition-change'] as const)test('protected final title-index member refuses '+fault,empirical,async()=>{
+  const f=explorerFixture(undefined,true,undefined,indexLine('record-a','Friendly synthetic'));let writer:number|undefined,reached=false;
+  try{
+    const result=await runSyntheticExplorer(options(f,{explorer:{globalState:f.globalState,sessionIndex:f.sessionIndex},hook:(phase,scratch)=>{
+      if(fault==='writer'&&phase==='prepared'){reached=true;writer=fs.openSync(f.sessionIndex,'r+');}
+      if(fault==='acquisition-change'&&phase==='analyzed'){reached=true;fs.appendFileSync(scratch.path('acquisition',4),' ');}
+    }}));
+    assert.equal(reached,true);assert.equal(result.snapshot,undefined);assert.equal(result.safety!.status,'refused');assert.equal(result.safety!.cleanup,'removed');
+    if(fault==='writer'){assert.equal(result.safety!.evidence.opened,4);assert.equal(result.safety!.evidence.phase,'open');}
+    sanitized(result);
+  }finally{if(writer!==undefined)fs.closeSync(writer);assert.equal(await f.teardown(),true);}
+});
+
+test('three observed title counterexamples use invented IDs and values without changing relationships',async()=>{
+  const ids=['00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000012','00000000-0000-0000-0000-000000000013'];
+  const linked='[$synthetic-skill](C:\\Synthetic\\skill\\SKILL.md) hatch creature';
+  const registry={'local-projects':{p:{id:'p',name:'Synthetic studio',rootPaths:['cwd']}},'thread-project-assignments':Object.fromEntries(ids.map(id=>[id,{projectKind:'local',projectId:'p'}])),'projectless-thread-ids':[]};
+  const index=[indexLine(ids[0]!,'Earlier studio','2026-01-02T12:00:00.1111111Z'),indexLine(ids[0]!,'Studio','2026-01-02T12:00:00.1111112Z'),indexLine(ids[2]!,'Earlier queue','2026-01-03T12:00:00.2222221Z'),indexLine(ids[2]!,'Queue','2026-01-03T12:00:00.2222222Z')].join('\n');
+  await unit(db=>{db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,source TEXT,archived INTEGER)');const insert=db.prepare("INSERT INTO threads VALUES(?,? ,?,'vscode',0)");
+    ids.forEach((id,i)=>insert.run(id,'cwd',i===1?linked:'Synthetic initial prompt\n'.repeat(100)));},r=>{
+      const d=r.snapshot!.take()!;assert.deepEqual(d.threads.map(t=>t.titleSource),['session-index','sqlite','session-index']);
+      assert.deepEqual(d.threads.map(displayTitle),['Studio','$synthetic-skill hatch creature','Queue']);
+      assert.equal(d.threads[1]!.titleResolution,'missing');assert.equal(d.threads[1]!.title,linked);
+      assert.ok(d.memberships.every(m=>m==='stored-assignment'));assert.ok(d.visibility.every(v=>v==='inferred'));assert.equal(d.components.length,1);
+    },registry,'desktop-v1',index);
+});
+test('fallback inline links display labels only without interpreting HTML or changing index names',()=>{
+  assert.equal(displayTitle({title:'[Synthetic](javascript:bad) title',titleSource:'sqlite'}),'Synthetic title');
+  assert.equal(displayTitle({title:'[Synthetic](x) title',titleSource:'session-index'}),'[Synthetic](x) title');
+  assert.equal(displayTitle({title:'<script>synthetic</script>',titleSource:'sqlite'}),'<script>synthetic</script>');
+  assert.equal(displayTitle({title:'[Incomplete](path(with)parens)',titleSource:'sqlite'}),'[Incomplete](path(with)parens)');
 });

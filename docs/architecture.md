@@ -1,5 +1,7 @@
 # Conceptual architecture
 
+**Current slice, 2026-10-09:** the approved Project–Thread explorer reuses the existing DB+JSON profile for the personal entry. Fixed observed Desktop registry shapes replace the invented Project wire format; fixtures still contain invented values. Bounded `source`/`archived` evidence separates inferred, unknown, internal and archived records. Pure lexical Windows comparison and resolved assignments form Workspace components without filesystem access. Missing Project metadata degrades to unknown membership; valid empty/Project-only snapshots render. See [current usage and validation](research/explorer-local-read-only-validation.md#real-projectthread-slice-2026-10-09). Earlier preparation descriptions below retain their historical scope.
+
 ## M3a concrete browser preparation
 
 Under [ADR 0014](decisions/0014-named-threads-and-local-projects.md), the private synthetic acquisition bridge supplies owned analysis copies → fixed source-specific readers → evidence-bearing snapshot → pure exact-string reconciliation → short-lived loopback browser. Core `src/explorer` modules import no fixtures, helper protocols, opt-ins or canary entries. Product CLI remains the M1 demonstration. Historical architecture below retains its milestone context.

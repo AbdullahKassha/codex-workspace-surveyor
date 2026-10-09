@@ -81,7 +81,7 @@ test('source selection derives a default and preserves an invocation-only overri
       const o=await preparePersonalExplorer(args,s=>output.push(s),context,new AbortController().signal);
       if(o.selection.kind!=='personal')throw 0;
       assert.equal(o.selection.private.source,expected);assert.equal(o.selection.private.titleConsent,true);
-      assert.equal(o.selection.private.browserConsent,true);assert.equal(o.explorer,undefined);
+      assert.equal(o.selection.private.browserConsent,true);assert.equal(o.explorer?.globalState,join(context.home,'.codex','.codex-global-state.json'));
     }
     assert.equal(touched,0);assert.match(output.join(''),/ChatGPT,Codex/);assert.match(output.join(''),/--source/);
     assert.ok(output.join('').includes(escapeStored(context.scratchParent)));
@@ -91,6 +91,36 @@ test('source selection derives a default and preserves an invocation-only overri
 test('source selection cancellation during local display prevents operation startup',async()=>{
   const abort=new AbortController();
   await assert.rejects(preparePersonalExplorer([],()=>abort.abort(),context,abort.signal));
+});
+
+test('database and registry overrides are independent, nonpersistent and strictly parsed',async()=>{
+  const json='C:\\Synthetic\\chosen.json';
+  for(const args of [['--global-state',json],['--global-state',json,'--source',source],['--source',source,'--global-state',json]]){
+    const o=await preparePersonalExplorer(args,()=>{},context,new AbortController().signal);
+    assert.equal(o.explorer?.globalState,json);if(o.selection.kind!=='personal')throw 0;
+    assert.equal(o.selection.private.source,args.includes('--source')?source:join(context.home,'.codex','state_5.sqlite'));
+  }
+  for(const args of [['--global-state'],['--global-state','relative'],['--global-state',json,'--global-state',json]])
+    await assert.rejects(preparePersonalExplorer(args,()=>{},context,new AbortController().signal));
+});
+
+for(const shape of ['populated','missing-json','incompatible-json','projects-only','empty'] as const)
+test('attempt-tracked real-shaped DB plus JSON profile '+shape,empirical,async()=>{
+  const f=explorerFixture(['projects-only','empty'].includes(shape)?db=>db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,source TEXT,archived INTEGER)'):undefined);
+  const before=fs.readFileSync(f.source);let profile='';
+  try{
+    if(shape==='missing-json')fs.unlinkSync(f.globalState);
+    if(shape==='incompatible-json')fs.writeFileSync(f.globalState,'{"unrelated":true}');
+    if(shape==='empty')fs.writeFileSync(f.globalState,JSON.stringify({'local-projects':{},'thread-project-assignments':{},'projectless-thread-ids':[]}));
+    const r=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},hook:(phase,scratch)=>{if(phase==='copied')profile=scratch.profile;}}));
+    assert.equal(r.safety.status,'passed');assert.equal(r.safety.attemptConsumed,true);assert.equal(r.safety.cleanup,'removed');assert.equal(r.safety.recovery,'removed');
+    assert.equal(profile,shape==='missing-json'?'canary':'explorer');assert.equal(fs.readFileSync(f.source).equals(before),true);
+    const d=r.snapshot!.take()!;
+    assert.equal(d.projects.length,['missing-json','incompatible-json','empty'].includes(shape)?0:2);
+    if(shape==='populated'){assert.equal(d.memberships[3],'projectless');assert.ok(d.visibility.every(v=>v==='inferred'));}
+    if(['projects-only','empty'].includes(shape))assert.equal(d.threads.length,0);
+    if(['missing-json','incompatible-json'].includes(shape))assert.ok(d.memberships.every(m=>m==='unknown'));
+  }finally{assert.equal(await f.teardown(),true);}
 });
 test('private browser entry rejects arguments/nonterminal invocation without personal access',()=>{
   const r=spawnSync(process.execPath,['dist/test/support/personal-explorer-entry.js',secret],{encoding:'utf8',env:{...process.env,
@@ -157,11 +187,11 @@ test('protected titled browser '+shape+' capability outcome',empirical,async()=>
   try{
     const r=await runTitledExplorerPreparation(options(f));assert.equal(r.safety.attemptConsumed,true);
     assert.equal(r.safety.cleanup,'removed');assert.equal(r.safety.recovery,'removed');sanitized(r);
-    if(['empty','incompatible','overflow'].includes(shape)){assert.equal(r.snapshot,undefined);assert.equal(r.summary,undefined);
+    if(['incompatible','overflow'].includes(shape)){assert.equal(r.snapshot,undefined);assert.equal(r.summary,undefined);
       assert.equal(r.safety.status,'refused');assert.equal(r.safety.reason,shape==='overflow'?'limit':shape==='incompatible'?'unsupported':'analysis');
       if(shape==='overflow'){assert.equal(r.safety.limit,'reader-rows');assert.equal(r.safety.failureStage,'analysis');
         assert.equal(r.safety.files,1);assert.equal(r.safety.sourcesStable,true);assert.equal(r.safety.schemaReadable,true);}}
-    else{assert.equal(r.safety.status,'passed');assert.equal(r.summary?.omittedRows,shape==='partial'?1:0);
+    else{assert.equal(r.safety.status,'passed');assert.equal(r.summary?.omittedRows,0);
       assert.equal(r.summary?.titles,shape==='missing-title'?'unavailable':'accepted');
       if(shape==='title-fallback')assert.equal(r.snapshot!.take()!.threads.every(t=>t.title===null),true);else r.snapshot!.discard();}
   }finally{assert.equal(await f.teardown(),true);}
@@ -253,4 +283,35 @@ test('missing synthetic default refuses without alternative search or retry',emp
     assert.equal(r.safety.status,'refused');assert.equal(r.snapshot,undefined);assert.equal(starts,0);
     assert.equal(fs.existsSync(f.source),true);sanitized(r);
   }finally{CanarySession.prototype.start=start;assert.equal(await f.teardown(),true);}
+});
+
+for(const shape of ['complete','missing-index','bad-index','missing-registry','cleanup-recovery'] as const)
+test('protected title-index profile '+shape,empirical,async()=>{
+  const content=JSON.stringify({id:'record-a',thread_name:'Friendly synthetic atlas',updated_at:'2026-10-09T12:00:00Z'})+'\n';
+  const f=explorerFixture(undefined,true,undefined,content);
+  try{
+    if(shape==='missing-index')fs.unlinkSync(f.sessionIndex);
+    if(shape==='missing-registry')fs.unlinkSync(f.globalState);
+    if(shape==='bad-index')fs.writeFileSync(f.sessionIndex,Buffer.from([0xff]));
+    const original=shape==='missing-index'?undefined:fs.readFileSync(f.sessionIndex);
+    const r=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState,sessionIndex:f.sessionIndex},
+      ...(shape==='cleanup-recovery'?{cleanupFault:()=>{throw new Error('Synthetic cleanup refusal');}}:{})}));
+    if(shape==='cleanup-recovery'){assert.equal(r.snapshot,undefined);assert.equal(r.safety.cleanup,'residual');}
+    else{assert.equal(r.safety.status,'passed');assert.equal(r.safety.cleanup,'removed');assert.equal(r.safety.recovery,'removed');
+      assert.equal(r.safety.files,['missing-index','missing-registry'].includes(shape)?4:5);
+      const d=r.snapshot!.take()!;assert.equal(d.threads.length,4);
+      assert.equal(d.threads[0]!.title,['missing-index','bad-index'].includes(shape)?'Fix parser boundaries':'Friendly synthetic atlas');
+      assert.equal(d.threads[0]!.titleSource,['missing-index','bad-index'].includes(shape)?'sqlite':'session-index');
+      assert.equal(d.projects.length,shape==='missing-registry'?0:2);
+    }
+    if(original)assert.equal(fs.readFileSync(f.sessionIndex).equals(original),true);
+  }finally{assert.equal(await f.teardown(),true);}
+});
+test('title index selection defaults and explicit overrides are invocation-only',async()=>{
+  const index='C:\\Synthetic\\chosen.jsonl';
+  for(const args of [[],['--session-index',index],['--session-index',index,'--global-state','C:\\Synthetic\\global.json','--source',source]]){
+    const o=await preparePersonalExplorer(args,()=>{},context,new AbortController().signal);
+    assert.equal(o.explorer!.sessionIndex,args.length?index:join(context.home,'.codex','session_index.jsonl'));
+  }
+  for(const args of [['--session-index'],['--session-index','relative'],['--session-index',index,'--session-index',index]])await assert.rejects(preparePersonalExplorer(args,()=>{},context,new AbortController().signal));
 });

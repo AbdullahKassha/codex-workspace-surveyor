@@ -5,14 +5,15 @@ import { DatabaseSync } from 'node:sqlite';
 import { SyntheticRun } from './synthetic-acquisition.js';
 import { CanaryScratch, recoverCanary, forgetRecoveredSyntheticResidual } from './personal-canary.js';
 
-export const inventedProjects={format:'workspace-surveyor-invented-projects-v1',projects:[
-  {id:'project-atlas',label:'Atlas',roots:['C:\\Synthetic\\atlas','C:\\Synthetic\\atlas\\docs']},
-  {id:'project-notes',label:'Notes',roots:['C:\\Synthetic\\notes']}],assignments:[
-  {threadId:'record-a',projectId:'project-atlas'},{threadId:'record-b',projectId:'project-atlas'},
-  {threadId:'record-c',projectId:'project-notes'}]};
-export function explorerFixture(build?:(db:DatabaseSync)=>void,wal=false,json:unknown=inventedProjects){
+export const inventedProjects={'local-projects':{
+  'project-atlas':{id:'project-atlas',name:'Atlas',rootPaths:['C:\\Synthetic\\atlas','C:\\Synthetic\\atlas\\docs']},
+  'project-notes':{id:'project-notes',name:'Notes',rootPaths:['C:\\Synthetic\\notes']}},'thread-project-assignments':{
+  'record-a':{projectKind:'local',projectId:'project-atlas'},'record-b':{projectKind:'local',projectId:'project-atlas'},
+  'record-c':{projectKind:'local',projectId:'project-notes'}},'projectless-thread-ids':['record-d']};
+export function explorerFixture(build?:(db:DatabaseSync)=>void,wal=false,json:unknown=inventedProjects,indexContent?:string){
   const run=new SyntheticRun('simulated-owner-restricted');const scratches:CanaryScratch[]=[];
   const source=join(run.sources,'standalone.sqlite'),globalState=join(run.sources,'metadata.json');
+  const sessionIndex=join(run.sources,'session_index.jsonl');
   const builder=join(run.root,'builder','standalone.sqlite');
   const selection={kind:'synthetic' as const,fixture:{source,ownerRoot:run.root,ownerNonce:fs.readFileSync(join(run.root,'owner'),'utf8')}};
   const teardown=async(confirmedExitedDescriptorFault=false)=>{
@@ -44,17 +45,18 @@ export function explorerFixture(build?:(db:DatabaseSync)=>void,wal=false,json:un
     try{
       if(wal)db.exec('PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0');
       if(build)build(db);else{
-        db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,ignored TEXT)');
-        const insert=db.prepare('INSERT INTO threads VALUES(?,?,?,?)');
+        db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,ignored TEXT,source TEXT,archived INTEGER)');
+        const insert=db.prepare("INSERT INTO threads VALUES(?,?,?,?,'vscode',0)");
         for(const row of [['record-a','C:\\Synthetic\\atlas','Fix parser boundaries'],['record-b','C:\\Synthetic\\atlas','Document acquisition'],
           ['record-c','C:\\Synthetic\\atlas\\docs','Review notes'],['record-d','C:\\Synthetic\\2026-10-01\\workspace','Untangle workspace naming']])insert.run(...row,'SYNTHETIC_UNCONSUMED');
       }
       for(const suffix of wal?['','-wal','-shm']:[''])fs.copyFileSync(builder+suffix,source+suffix);
     }finally{db.close();}
     fs.writeFileSync(globalState,JSON.stringify(json));
+    if(indexContent!==undefined)fs.writeFileSync(sessionIndex,indexContent);
   }catch{
     // No protected scratch exists during fixture construction.
     run.cleanup();throw new Error('Invented fixture construction refused');
   }
-  return {run,source,globalState,scratches,selection,teardown};
+  return {run,source,globalState,sessionIndex,scratches,selection,teardown};
 }

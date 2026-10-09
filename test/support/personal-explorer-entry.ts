@@ -17,20 +17,28 @@ export async function preparePersonalExplorer(args:readonly string[],display:(te
     active(signal);
     if(!context.enabled||context.nodeVersion.split('.')[0]!=='24'||!validPersonalMapSource(context.executable)||
       !/\\pwsh\.exe$/i.test(context.executable.replaceAll('/','\\'))||!validPersonalMapSource(context.scratchParent))throw new Error('Preflight refused');
-    if(args.length!==0&&(args.length!==2||args[0]!=='--source'))throw new Error('Preflight refused');
-    if(args.length===0&&!validPersonalMapSource(context.home))throw new Error('Preflight refused');
-    const source=args.length===0?join(context.home,'.codex','state_5.sqlite'):args[1]!;
-    if(!validPersonalMapSource(source))throw new Error('Preflight refused');
+    if(args.length%2!==0||args.length>6)throw new Error('Preflight refused');
+    const selected=new Map<string,string>();
+    for(let i=0;i<args.length;i+=2){const key=args[i]!,value=args[i+1]!;
+      if(!['--source','--global-state','--session-index'].includes(key)||selected.has(key)||!validPersonalMapSource(value))throw new Error('Preflight refused');
+      selected.set(key,value);}
+    if(selected.size<3&&!validPersonalMapSource(context.home))throw new Error('Preflight refused');
+    const source=selected.get('--source')??join(context.home,'.codex','state_5.sqlite');
+    const globalState=selected.get('--global-state')??join(context.home,'.codex','.codex-global-state.json');
+    const sessionIndex=selected.get('--session-index')??join(context.home,'.codex','session_index.jsonl');
+    if(!validPersonalMapSource(source)||!validPersonalMapSource(globalState)||!validPersonalMapSource(sessionIndex))throw new Error('Preflight refused');
     display('Local read-only titled-thread browser. Launching requests inspection; no background inspection or automatic retry.\n'+
       'Close local ChatGPT Desktop and Codex normally. Browser chatgpt.com may remain open.\n'+
       'Full copies expose unselected data. IDs, exact CWDs and stored titles may appear in the local browser.\n'+
-      'Projects remain unavailable. No saved selection, JSON source or dataset export/persistence.\n'+
+      'Local Projects, titles, CWDs and inferred user-facing Threads. No saved selection or dataset export/persistence.\n'+
       'Selected database: '+escapeStored(source)+'\n'+
+      'Selected Project metadata: '+escapeStored(globalState)+' (override with --global-state)\n'+
+      'Selected title metadata: '+escapeStored(sessionIndex)+' (override with --session-index)\n'+
       'The default is a convention, not discovered storage. If missing or incompatible, select an exact path with --source; no alternative search occurs.\n'+
       'Temporary parent: '+escapeStored(context.scratchParent)+'\nClosure names: ChatGPT,Codex\n'+
       'Recovery policy: Windows Local Application Data / WorkspaceSurveyor-Canary-Recovery.\n');
     active(signal);
-    return {executable:context.executable,analysis:'explorer',selection:{kind:'personal',private:{source,
+    return {executable:context.executable,analysis:'explorer',explorer:{globalState,sessionIndex},selection:{kind:'personal',private:{source,
       scratchParent:context.scratchParent,writers:['ChatGPT','Codex'],consent:true,actualValueConsent:true,
       titleConsent:true,browserConsent:true}}};
   }catch{throw new Error('Preflight refused');}

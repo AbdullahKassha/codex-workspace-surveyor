@@ -51,7 +51,7 @@ export async function runExplorerEntry(deps:EntryDependencies):Promise<number>{
       server=await deps.start(snapshot);
       // Startup owns the consumed snapshot until it returns or refuses.
       if(cancelled)return;
-      deps.write(deps.personal?'Authorized local snapshot. Open this temporary local session; close it in the page:':
+      deps.write(deps.personal?'Verified local snapshot; helper exited and protected copies removed. You may reopen Desktop for comparison. Open this temporary session; close it in the page:':
         'Invented demonstration only. Open this temporary local session; close it in the page:');
       if(cancelled)return;
       deps.write(server.url);await server.closed;
