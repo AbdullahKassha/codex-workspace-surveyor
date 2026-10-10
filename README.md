@@ -4,7 +4,7 @@
 
 Workspace Surveyor is a Windows-first, read-only explorer of Codex relationships. It helps explain shared working locations, stored Project assignments and uncertainty in the available evidence.
 
-**Current status:** real Project/Thread/title relationships and bounded filesystem/Git discovery have been founder-validated. The compact Workspace redesign presents numbered relationship groups, one row per meaningful location, selection details and discreet Diagnostics. Visual acceptance of this redesign and independent review of the complete uncommitted diff remain pending.
+**Current status:** the Filesystem/Git Discovery and Workspace Relationship Explorer milestone was founder-accepted and independently reviewed at `d15c78b121074c78a3b3492e369c3e89c85ca93e`, reported 2026-10-10. The light vertical browser presents numbered relationship groups, meaningful locations, selection details and discreet Diagnostics. The next priority is Evidence & Compatibility; see [tested scenarios and limits](docs/compatibility.md).
 
 ## Why it exists
 
@@ -28,7 +28,7 @@ A **stored CWD** is the working-directory string recorded for a thread. It does 
 | Named-thread reader and relationship model | Exact-ID session-index title enrichment, narrowly qualified friendly title presentation, source/archive classification and conservative Windows location grouping; UI visibility is inferred |
 | Local browser explorer | Compact Workspace, global/local Thread expansion, browser Find, selection details, Diagnostics and explicit Thread deeplinks |
 | Real Project decoding | Fixed observed `local-projects`, `thread-project-assignments`, `projectless-thread-ids` shapes; actual-shaped fixtures use invented values |
-| Personal browser workflow | Founder-validated discovery/relationships and approved light UI; final refinements await acceptance and review |
+| Personal browser workflow | Accepted bounded Windows workflow at the milestone above; not certification of every Desktop release, source schema or Git layout |
 
 The earlier synthetic CLI remains available for bundled text explanations. There is no published package, globally installed command or public API.
 

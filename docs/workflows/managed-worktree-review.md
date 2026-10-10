@@ -2,6 +2,8 @@
 
 ## Evidence and status
 
+**Later bounded counterexample, reported 2026-10-10:** [WIN-021](../research/explorer-local-read-only-validation.md#win-021) found two marker-only directories, absent former working trees, stale saved references and only main registrations in three nominated repositories. A six-ID query had no matching spawn edges. The separately approved reversible quarantine and continued Desktop operation establish that reported outcome only; ownership, lifecycle and universal removal safety remain unknown. This is not WIN-010’s supported-UI removal experiment or authorization to repeat quarantine. Current discovery verifies Git metadata at eligible roots; it does not scan historical `.codex` remnants.
+
 **Founder evidence:** [WIN-010](../research/windows-2026-10-04.md#win-010) reports that removing a managed worktree through Codex's UI removed both the directory and Git registration. [WIN-009](../research/windows-2026-10-04.md#win-009) reports internal rows surviving visible cleanup; that is not a failed-cleanup proof.
 
 **Official documentation:** [DOC-002](../research/evidence-catalog.md#doc-002-worktree-roots-and-lifecycle) supplies separate root/lifecycle context, not reproduction of the founder's experiment.

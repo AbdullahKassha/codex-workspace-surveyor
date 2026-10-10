@@ -2,7 +2,9 @@
 
 ## Current stage
 
-This repository contains M0/Foundation documentation, the M1 synthetic CLI and the separately authorized M2a.1 synthetic acquisition-safety kernel. Contributions within the current slice may improve invented fixtures, bounded copying/refusal/cleanup tests, conservative explanations, evidence traceability and documentation. Private acquisition and real diagnostics remain excluded.
+The Filesystem/Git Discovery and Workspace Relationship Explorer milestone is accepted at `d15c78b121074c78a3b3492e369c3e89c85ca93e`, reported 2026-10-10. The next priority is Evidence & Compatibility. Preserve the accepted engine/UI and use the existing catalog, matrix and detailed records; source/schema and Desktop lifecycle claims need explicit evidence. The separate protected closed-app browser entry is distinct from the bundled synthetic CLI.
+
+## Retained synthetic-kernel boundary
 
 Later implementation is separately scoped. Do not add acquisition, scanner code, dependencies beyond the approved tooling, or release automation as an incidental change.
 
@@ -34,7 +36,7 @@ Do not run experiments involving someone else's state. Obtain explicit, specific
 
 Use Node 24/npm 11. Run `npm ci --ignore-scripts --no-audit --no-fund`, `npm run typecheck`, and `npm test` (which builds first). The lockfile pins the toolchain; there are no runtime dependencies. See [README](README.md#run-the-synthetic-demonstration) for commands and [ADR 0007](docs/decisions/0007-synthetic-cli-foundation.md) for scope.
 
-Fixtures are authored in the scenario module, with fixed illustrative timestamps, `synthetic-` identifiers and invented paths under `C:\Synthetic\`. Keep observations distinct from interpretation. Add semantic counterexamples for changed reasoning; review the three text goldens before deliberately updating them. Never automatically bless changed output. Tests may read repository files and launch the bundled CLI; application runtime code may only use bundled modules and terminal I/O. Import checks supplement manual review and are not a sandbox proof.
+Fixtures are authored in the scenario module, with fixed illustrative timestamps, `synthetic-` identifiers and invented paths under `C:\Synthetic\`. Keep observations distinct from interpretation. Add semantic counterexamples for changed reasoning; review the three text goldens before deliberately updating them. Never automatically bless changed output. Tests may read repository files and launch the bundled CLI; the bundled CLI may only use its bundled modules and terminal I/O. Explorer tests exercise the accepted reader/discovery/browser boundary with invented sources and exact owned fixtures; ordinary runs may skip explicitly gated helper cases. Full synthetic validation uses the existing opt-ins, never personal sources. Import checks supplement manual review and are not a sandbox proof.
 
 Check relative documentation links/anchors with existing shell tools. Synthetic fixture checks do not replace review of every proposed repository file. The [documentation index](docs/index.md) provides navigation.
 

@@ -141,6 +141,33 @@ test('Desktop metadata classifies internal/history, corroborated user Threads, c
   },json);
 });
 
+test('unconsumed writable roots and descriptions cannot change entities, relationships or rendered titles',async()=>{
+  const id='00000000-0000-0000-0000-000000000001',absent='00000000-0000-0000-0000-000000000002';
+  const json={'local-projects':{p:{id:'p',name:'Synthetic Project',rootPaths:['C:\\Synthetic\\source']}},
+    'thread-project-assignments':{[id]:{projectKind:'local',projectId:'p'}},'projectless-thread-ids':[]};
+  const build:Build=db=>{db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,source TEXT,archived INTEGER)');
+    db.prepare('INSERT INTO threads VALUES(?,?,?,?,?)').run(id,'C:\\Synthetic\\working','Unqualified fallback','vscode',0);};
+  const index=JSON.stringify({id,thread_name:'Friendly synthetic Thread',updated_at:'2026-10-09T12:00:00Z'});
+  let baseline:ExplorerData|undefined,observed:ExplorerData|undefined;
+  await unit(build,r=>{baseline=r.snapshot!.take()!;},json,'desktop-v1',index);
+  await unit(build,r=>{
+    const d=r.snapshot!.take()!;assert.deepEqual(d,baseline);
+    assert.equal(d.threads.length,1);assert.equal(d.threads[0]!.cwd,'C:\\Synthetic\\working');
+    assert.equal(d.threads[0]!.titleSource,'session-index');assert.deepEqual(d.memberships,['stored-assignment']);
+    observed=d;
+  },{...json,'thread-writable-roots':{[id]:[secret],[absent]:['C:\\Synthetic\\invented']},
+    'thread-descriptions-v1':{[id]:secret,[absent]:secret}},'desktop-v1',index);
+  const elements=new Map<string,Element>();
+  const get=(name:string)=>{let e=elements.get(name);if(!e){e=new Element();elements.set(name,e);}return e;};
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
+    location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>observed})});
+  const find=(e:Element):Element|undefined=>e.onclick&&e.children.some(c=>c.textContent==='Friendly synthetic Thread')?e:e.children.map(find).find(Boolean);
+  find(get('relationships'))!.onclick!();
+  assert.equal(JSON.stringify([...elements.values()]).includes(secret),false);
+  get('diagnostics').onclick!();
+  assert.equal(JSON.stringify([...elements.values()]).includes(secret),false);
+});
+
 test('Windows lexical comparison preserves ambiguous namespaces and avoids proximity or Unicode alias guesses',()=>{
   assert.equal(windowsPathKey('C:\\Synthetic\\Atlas\\'),windowsPathKey('\\\\?\\c:\\synthetic\\ATLAS'));
   assert.equal(windowsPathKey('\\\\Host\\Share\\Folder'),windowsPathKey('\\\\?\\UNC\\host\\share\\folder'));

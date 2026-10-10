@@ -1,6 +1,19 @@
 # Safety and privacy
 
-## Current M2a.1 boundary: design decisions
+## Current accepted explorer boundary, 2026-10-10
+
+Explicit local launch requests one bounded read-only acquisition and memory-only browser display, with invocation-only source/discovery selection and no automatic retry. Protected retained source handles, separate analysis copies, source-set/hash verification, helper disposal and authenticated owned cleanup gate delivery. No original SQLite analysis connection is opened. Normal Desktop closure and reviewed closure checks remain required; passing source verification does not prove exhaustive filesystem coverage, complete writer discovery or atomic cross-source acquisition.
+
+Discovery reads only selected directory metadata and bounded qualified Git pointer/HEAD syntax, with ancestor/reparse protections, finite work limits and conservative errors. It does not invoke Git, read configuration/remotes/objects/ordinary contents, inspect conversation bodies or scan all of `.codex`. Expected bounds are disclosed without implying exhaustive discovery. Point-in-time metadata checks do not eliminate namespace races.
+
+The shared title resolver permits the latest valid exact-ID index name or a narrowly qualified complete skill-link label; other titles receive a generic Thread label. Raw SQLite fallback text and `storedTitle` must not enter DOM, tooltips, native Find, ARIA or copy actions. Diagnostics exposes resolution states, not raw prompts. Stored paths/IDs are copied only on explicit clicks; clipboard contents are never read. Browser origin/token/no-store controls and shutdown remain binding.
+
+Read-only SQLite can create SHM in an owned fixture; removing WAL from an analysis copy can lose committed data. These tests justify retaining protected copying and companions. `immutable=1` skips locking/change detection and is not a safe live snapshot contract or a general WAL-ignoring guarantee; see [DOC-018](research/evidence-catalog.md#doc-018-analysis-copy-sqlite-controls).
+
+[WIN-021](research/explorer-local-read-only-validation.md#win-021) reports a separately approved historical quarantine, not cleanup guidance. No remnant detection, folder removal, migration executor or source-state repair is implemented. Preserve historical residual disclosures; cleanup and normal operation do not prove secure erasure, crash durability or universal recoverability.
+
+<a id="current-m2a1-boundary-design-decisions"></a>
+## Historical M2a.1 boundary: design decisions
 
 The founder separately authorized the narrowed synthetic acquisition kernel, tests, supporting docs and exact current-run synthetic artifact cleanup on 2026-10-04. [ADR 0008](decisions/0008-synthetic-acquisition-kernel.md) records this scope. The kernel exists only under `test/support`; CLI imports and bundled-demo behavior remain unchanged. Real sources and disposable Codex experiments are excluded.
 

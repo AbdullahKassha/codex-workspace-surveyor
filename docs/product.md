@@ -15,7 +15,7 @@
 | Before/after inspection | Before/After Audits |
 | Visual browsing | Workspace Explorer |
 
-These are descriptive names, not runtime modules, schemas, APIs, subcommands, or implementation authorization. Boundary diagnostics remains beyond M1; real Git/worktree and instruction discovery remain subject to later research and implementation gates.
+These are descriptive capability names, not public APIs or authorization. The accepted relationship explorer implements bounded folder/Git/worktree observation; Codex boundary interpretation, instruction discovery and action capabilities remain deferred.
 
 ## Problem: founder-observed evidence
 
@@ -39,7 +39,11 @@ Principles:
 - Keep diagnosis local, deterministic, and usable without an LLM or account integration.
 - Make visual understanding an early deliverable.
 
-## Initial CLI scope: design decisions
+## Current delivered experience and deferred outcomes
+
+**Accepted scope, reported 2026-10-10:** the local browser presents light vertical, numbered Workspace groups, assigned Threads, group-level Source folders, projectless Threads, deduplicated working locations, standalone folder context and verified Git/worktree relationships. Details and Diagnostics preserve useful uncertainty; native browser Find works with Thread expansion. Folder inventory, raw prompt titles and cleanup actions are absent. [Validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) and [compatibility](compatibility.md) qualify this bounded Windows experience. Evidence & Compatibility is the next priority.
+
+## Retained initial CLI scope: design decisions
 
 M1 now demonstrates bundled synthetic observations → retained relationships → conservative interpretation → text explanation. It implements only the `overview`, `disagreement`, and `coverage` scenarios through `npm run cli -- demo`; see [README](../README.md#run-the-synthetic-demonstration). This is a working product skeleton, not a real inventory, public API, boundary diagnostic, or validation of metadata sufficiency. All broader capabilities below remain prospective.
 
@@ -67,7 +71,7 @@ This is not Git repair, marker cleanup or management, AGENTS rewriting, configur
 
 ## Visual outcome: design decision
 
-[M3](roadmap.md#m3) should make project, chat, directory, worktree, and repository relationships obvious, with selectable evidence, conflicts, and coverage. A focused relationship view with searchable tables/tree navigation is preferable to a graph of every record. A separately approved synthetic prototype can begin earlier.
+[M3](roadmap.md#m3) should make project, chat, directory, worktree, and repository relationships obvious, with selectable evidence, conflicts, and coverage. The accepted slice uses a compact relationship tree, selection details and native browser Find. Before/after inspection and boundary-specific visualization remain future outcomes.
 
 M3 may also visualize boundary relationships that later authorized research has validated. Boundary-specific UI remains outside M1.
 

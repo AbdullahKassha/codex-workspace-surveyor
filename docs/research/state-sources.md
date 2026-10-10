@@ -1,5 +1,22 @@
 # Candidate state sources
 
+## Implemented inputs and remaining limits, 2026-10-10
+
+The [accepted explorer](explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) reads protected analysis copies of explicitly selected sources. Default filenames are conventions with invocation-only overrides; they do not prove effective Desktop configuration. A compatible shape is not universal authority or freshness.
+
+| Input / role | Current consumption | Evidence and limit |
+| --- | --- | --- |
+| `main.threads` | Bounded ID/CWD, optional title/source/archive projection | Observed structure and fixtures; SQLite `project_id` is not consulted. Structured subagent classification is distinct from `archived=0`; UI visibility remains inferred. |
+| Global-state JSON | `local-projects` ID/name/rootPaths; `thread-project-assignments` projectKind/projectId; `projectless-thread-ids` | Nominated observed shapes, not every release’s contract. Missing/incompatible optional Project metadata leaves membership unknown; integrity/protection failures still refuse. |
+| `session_index.jsonl` | Exact existing SQLite IDs, `thread_name`, `updated_at`; bounded timestamp/conflict resolution | Founder comparisons and fixtures; no index-only Thread creation or visibility inference. Missing/conflicting entries retain qualified skill-link or generic presentation fallback. |
+| Physical directories / Git metadata | Explicit discovery scope, exact eligible declared paths, bounded qualified Git administrative/worktree references | Read-only metadata and pointer/HEAD syntax only; ordinary contents/config/remotes are not read. No Git subprocess. Containment is not membership. |
+| Observed but unconsumed | `thread-writable-roots`, `thread-descriptions-v1`, `thread_spawn_edges` | Founder contextual observations, especially [WIN-021](explorer-local-read-only-validation.md#win-021). Writable roots are not CWD/membership evidence, descriptions are not resolved UI titles, scoped edge absence proves no global absence. |
+| Deferred | Conversation bodies, `sessions/`, `archived_sessions/`, logs/auth/configuration, App Server integration, remnant inventory | No new adapters or reads are implied. Boundary/instruction diagnostics and effective-source discovery remain separate future work. |
+
+## Dated qualification history
+
+The paragraphs below preserve what was known at each preparation date. Their unavailable/deferred claims are historical where the implemented-input table supersedes them.
+
 **Title correction, 2026-10-09:** the founder reported a successful personal relationship display but a concrete SQLite-title/Desktop-name mismatch. Two bounded retained-handle, in-memory index inspections confirmed that the supplied exact Thread ID has two index records and its newest name matches the founder-observed Desktop name, with no latest-time conflict. A second name-selected candidate also has two records and a matching latest name, but its exact Desktop identity is not yet confirmed; an older third candidate ID is absent. The founder subsequently confirmed both matching names by exact Desktop IDs and confirmed that the absent third ID remains visible in Desktop. Exact-ID app title metadata for that third record contains a Markdown skill link whose visible label matches the supplied name; this informs inert fallback-title presentation, not a new reader/source adapter. No private values were saved. The reader now prefers exact-ID session-index names solely for existing SQLite claims, with timestamp reconciliation and bounded visible fallbacks. This supersedes the index deferral below without claiming universal authority or visibility. See [validation](explorer-local-read-only-validation.md#title-correction-2026-10-09).
 
 **Current bounded observation, 2026-10-09:** the founder supplied additional version-specific Project, classification, migration and open-app-read evidence and authorized routine bounded read-only metadata inspection. An in-memory structural inspection of only the nominated global-state branches confirmed `local-projects` as an ID-keyed object with matching `id`, string `name`, and string-array `rootPaths`; `thread-project-assignments` as Thread-ID-keyed objects with string `projectKind`/`projectId` (observed kind `local`); and `projectless-thread-ids` as a string array. A bounded session-index sample exposed `id`, `thread_name`, `updated_at` string fields. No personal values were retained. This establishes observed serialization, not universal freshness or UI visibility. The new reader consumes only the nominated JSON branches; session-index integration remains deferred. Source/archive representation and title/UI correspondence await the protected real-browser comparison. Historical statements below predate this observation.
@@ -8,7 +25,8 @@
 
 **M3a mapping supplement, 2026-10-07:** [PLD-001](personal-local-display-observation.md) completes bounded ID/CWD display validation, not title/Project semantics. [M3a preparation](m3a-explorer-preparation.md) adds a fixed public-source `threads.title` hypothesis and explicitly invented Project fixtures. Current global registry keys/types/location remain unknown; historical `thread-project-assignments` does not identify a current Project decoder. An unavailable Project capability never turns saved folders into Projects. No new personal source is inspected; the smallest later qualification is a finite allowlist on one explicitly selected copied global-state JSON file, with no broad key discovery.
 
-## Status and boundary
+<a id="status-and-boundary"></a>
+## Historical M0 and M2a.1 boundary
 
 **Design decision:** M0 names potential sources without inspecting them. This is an assessment, not a validated schema inventory. No real database, JSON state, session, title, identifier, or private configuration was read.
 
@@ -16,7 +34,8 @@ Generic paths such as `CODEX_HOME` refer to source locations, not personal repos
 
 **M2a.1 addition — design decision:** the [synthetic kernel](synthetic-acquisition-validation.md) selects only generated invented fixtures under [ADR 0008](../decisions/0008-synthetic-acquisition-kernel.md). It does not discover or acquire any candidate real source below. Native protection remains unverified and refuses copying. Personal source discovery, schemas and field semantics remain unknown and separately authorized.
 
-## Source assessment
+<a id="source-assessment"></a>
+## Original source assessment (historical)
 
 | Candidate | Evidence category and basis | Intended first real-data scope | Unknown / reason for restraint |
 | --- | --- | --- | --- |
@@ -31,7 +50,7 @@ Generic paths such as `CODEX_HOME` refer to source locations, not personal repos
 | App Server | Official DOC-001 | Separate research, no scanner dependency | Startup/listing side effects and UI coverage |
 | Plugin/integration APIs | Unknown | Later investigation | Host permissions and local-state reach are not established |
 
-Design decisions in the scope column are prospective; no adapter exists.
+These were prospective M0 assessments, not the current implemented-input inventory. Keep their original evidence and unknowns; current consumption is listed above.
 
 **Founder-reported supporting note — added 2026-10-04:** supplied by the founder in the Founding Knowledge Gap Audit corrections. Archived UI chats were observed to correspond to `archived_sessions` entries. Exact observation timing/build is unknown, and lifecycle semantics were not investigated deeply enough to establish a rule. This note is not an independent reproduction or a source-coverage guarantee. Research into `sessions/` and `archived_sessions/`, including enumeration/parsing, remains deferred.
 

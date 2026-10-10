@@ -1,5 +1,9 @@
 # Open questions and research gates
 
+## Current answers and retained research gates
+
+**2026-10-10:** the [accepted explorer](explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) partially answers the questions below within nominated Windows sources and disposable fixtures. Dated answers narrow particular questions; they do not authorize another personal read or resolve broader lifecycle behavior. Original question text retains its planning context.
+
 ## Boundary
 
 **Category: unknown** for the questions below. Outcomes and gates are design decisions. Listing a question does not authorize investigation. M0 uses public official sources, supplied observations, and synthetic examples only.
@@ -11,20 +15,28 @@ Private reads require specific authorization for target, purpose, data scope, an
 <a id="q-01"></a>
 ## Q-01: Actual source shapes
 
+**Dated answer, 2026-10-10:** Partially answered: ordinary selected threads and three nominated registry/assignment branches plus the exact-ID index shape are implemented and fixture-tested. Full schema fingerprints, future releases and effective source discovery remain unknown; see [source inventory](state-sources.md).
+
 Which project/root/assignment and thread fields exist on the eventual target build? At M2, specifically authorized metadata-only inspection should produce a schema inventory, fingerprint, required-field list, and synthetic equivalent. Do not dump rows or conversation content. No source schema is validated by M0.
 
 <a id="q-02"></a>
 ## Q-02: Record classification and UI coverage
+
+**Dated answer, 2026-10-10:** Partially answered: qualified structured subagent/archive evidence and corroborated ordinary assignment/projectless metadata separate current versus internal/history. Visibility remains inferred; archived=0, index absence or missing edges are insufficient.
 
 Which explicit discriminators identify user-visible, archived, internal, historical, and unknown records? Authorized limited comparisons should establish coverage and counterexamples. If no reliable discriminator exists, retain unknown classification. Null IDs, titles, missing CWDs, and absent spawn edges are insufficient.
 
 <a id="q-03"></a>
 ## Q-03: Cross-source project correspondence
 
+**Dated answer, 2026-10-10:** Narrowed by design: the current explorer consumes the observed global registry and its local assignments, not a join to SQLite Project IDs. It preserves disagreement/unknown states. General correspondence between distinct Project namespaces remains unestablished.
+
 Which evidence connects global and SQLite project identities, especially duplicate/nested roots? Begin with synthetic ambiguity cases at M1; any real comparison needs M2 research authorization. Expected outcome: validated correspondence rules with explicit unresolved matches, not a join by ID alone.
 
 <a id="q-04"></a>
 ## Q-04: Windows path comparison and physical identity
+
+**Dated answer, 2026-10-10:** Partially answered: conservative lexical ASCII/qualified extended-prefix comparisons, Unicode distinctions, root-only lstat correction and reparse protections are covered by [discovery tests](../../test/discovery.test.ts). Physical aliases, 8.3 names, directory-specific case behavior and broader hosts remain unknown.
 
 What supported primitives preserve extended namespace, case behavior, junctions, Unicode, 8.3 aliases, long paths, and accessible absence? Use disposable synthetic paths when path implementation is authorized. Expected outcome: bounded comparison policy and counterexamples; no whole-disk probing.
 
@@ -36,10 +48,14 @@ What Windows-native, WSL, UNC, remote, and macOS assumptions must remain separat
 <a id="q-06"></a>
 ## Q-06: Quiescent SQLite acquisition
 
+**Dated answer, 2026-10-10:** Partially answered: protected closed-app copying, companions and source verification passed recorded fixtures and supplied personal runs. Read-only SHM creation and omitted-WAL tests demonstrate limits. No live/atomic or complete-writer guarantee follows.
+
 Can isolated acquisition preserve committed WAL state and reject instability without touching original files or sidecars? Start with synthetic databases at the authorized implementation stage. Expected outcome: no-source-write tests, companion-file policy, instability behavior, and recovery refusal conditions. Reading a real database is separately authorized; opening it read-only is not sufficient proof of zero writes.
 
 <a id="q-07"></a>
 ## Q-07: Private scratch storage
+
+**Dated answer, 2026-10-10:** Partially answered by managed descriptor readback, retained sharing, authenticated exact-run cleanup and controlled recovery tests. Hostile races, alternate-account effective access, secure erasure and arbitrary crash/power-loss durability remain unproven; residual disclosures remain intact.
 
 Can owner-restricted storage and verified Workspace Surveyor-only cleanup be established on supported Windows environments? Test only disposable Workspace Surveyor-owned synthetic storage when authorized. Expected outcome: permission verification, failure behavior, interruption/residual reporting, and cleanup containment. Do not promise secure erasure.
 
@@ -51,10 +67,14 @@ Which Desktop settings determine effective homes, SQLite location, and worktree 
 <a id="q-09"></a>
 ## Q-09: Migration bridge applicability
 
+**Dated answer, 2026-10-10:** The handoff migration is the already recorded WIN-017, as explicitly confirmed by the founder. No additional independent success is counted. WIN-016 alone includes verified bridge removal; trigger, interruption and wider build applicability remain unknown.
+
 Does the bridge still work on a documented target build, and what happens if verification fails or is interrupted? A specifically authorized disposable experiment should record assignment, runtime, persisted/copied CWD, removal, and re-audit separately. Stop on wrong runtime location. Do not test on existing personal threads by default.
 
 <a id="q-10"></a>
 ## Q-10: Worktree ownership and lifecycle
+
+**Dated answer, 2026-10-10:** Partially answered only for Git relationships in authentic fixtures. [WIN-021](explorer-local-read-only-validation.md#win-021) supplies bounded historical remnant/quarantine observations, not ownership or cleanup safety. Marker lifecycle, retention and restoration remain unknown.
 
 Which evidence establishes Codex management and thread linkage? What do supported lifecycle operations retain, including ignored/untracked files? Begin with documentation and synthetic Git cases; real worktree reads/actions need appropriate authorization. Expected outcome: no inferred abandonment from absent chats and no generic folder-move advice for managed worktrees.
 
@@ -66,12 +86,16 @@ Can supported APIs expose required membership and CWD information without starti
 <a id="q-12"></a>
 ## Q-12: Runtime and public contracts
 
+**Dated answer, 2026-10-10:** Node 24 and built-in SQLite/TypeScript tests now support the private explorer path; no public API, stable serialization or published package is established. Earlier runtime measurements retain their dates, not universal compatibility.
+
 Which Node version, SQLite driver, test tools, CLI conventions, and serialization are actually needed? Resolve only when M1/M2 needs them; prefer one small package. No version/driver/public API is established in M0. Driver selection must satisfy acquisition and resource constraints.
 
 **M1 design resolution — 2026-10-04:** [ADR 0007](../decisions/0007-synthetic-cli-foundation.md) selects Node 24/npm 11, strict TypeScript, Node's built-in test runner, bundled scenarios, and text-only CLI conventions. This resolves the synthetic slice's tooling choices only. SQLite drivers, real acquisition, public APIs, and serialization remain deferred; no Codex schema or behavioral question is resolved by synthetic tests.
 
 <a id="q-13"></a>
 ## Q-13: Visual comprehension
+
+**Dated answer, 2026-10-10:** The founder accepted the light vertical relationship UI at the current milestone; disposable browser regressions cover desktop/narrow selection and Diagnostics. This qualifies the tested experience, not general usability across all datasets/users.
 
 Can users understand assignment versus CWD, shared roots, nested projects, internal records, and coverage uncertainty in a focused visual view? Use a separately authorized synthetic prototype or M3 usability check. Expected outcome: inspectable evidence and useful navigation without a graph of every record.
 
@@ -115,6 +139,8 @@ How do junctions, symlinks, drive aliases, extended paths, case differences, and
 
 <a id="q-20"></a>
 ### Q-20: Git-query interpretation
+
+**Dated answer, 2026-10-10:** Standard reciprocal Git administrative relationships and conservative unresolved-marker boundaries are fixture-tested without runtime Git commands. Unsupported layouts and Codex boundary/instruction interpretation remain separate unknowns; see [DOC-025](evidence-catalog.md#doc-025-standard-git-administrative-relationships).
 
 Which query/context establishes repository and worktree roots, repository association, and metadata location? How should bare repositories, worktree pointer files, inherited ancestor repositories, environment overrides, access failures, and other errors be qualified? Expected outcome: evidence requirements that separate absence of recognition from invalidity; no repair or script execution.
 

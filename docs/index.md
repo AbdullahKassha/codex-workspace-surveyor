@@ -1,20 +1,8 @@
 # Documentation index
 
-**Local-read-only supplement, 2026-10-09:** [ADR 0016](decisions/0016-local-read-only-explorer-and-title-previews.md) and [current usage/validation](research/explorer-local-read-only-validation.md) define explicit launch, a derived default source with an explicit `--source` override, optional title previews and precise limit diagnostics. Historical one-attempt run sheets below are superseded only for everyday explorer launch behavior.
+**Current accepted milestone, reported 2026-10-10:** Filesystem/Git Discovery and the Workspace Relationship Explorer were founder-accepted and independently reviewed at `d15c78b121074c78a3b3492e369c3e89c85ca93e`. [Current usage and validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) distinguishes supplied personal observations from disposable-fixture results. The CLI remains a synthetic demonstration; the separate local browser entry uses protected closed-app acquisition.
 
-**Current activation preparation, 2026-10-08:** [ADR 0015](decisions/0015-personal-titled-browser-preparation.md) and the [personal browser validation/run sheet](research/personal-explorer-preparation-validation.md) prepare one private titled-location operation with independent attempt tracking and cleanup-gated delivery. Real Projects remain unavailable; exact keys/types and correspondence must be qualified before a real decoder is enabled. No personal execution is authorized.
-
-**Current M3a supplement, 2026-10-07:** [PLD-001](research/personal-local-display-observation.md) completes M2's private validation milestone. [ADR 0014](decisions/0014-named-threads-and-local-projects.md) and [M3a preparation](research/m3a-explorer-preparation.md) deliver synthetic titled-location/Project views in a bounded local browser. Real Project decoding remains explicitly unavailable pending exact key/type qualification. No fresh personal access is authorized. The following dated statements describe historical gates.
-
-**Current local-display preparation supplement, 2026-10-07:** [PMAP-001](research/personal-thread-cwd-observation.md) records the founder-reported private map of 139 claims / 15 exact CWD groups and consumed authorization. [ADR 0013](decisions/0013-local-thread-cwd-display-preparation.md) and [display validation/procedure](research/local-thread-cwd-display-preparation-validation.md) prepare a private terminal viewer on invented sources only. Personal display needs fresh read-and-display consent after independent review; no retained personal map or renewed execution permission exists. Earlier summaries below retain their historical context.
-
-**Current MAP preparation supplement, 2026-10-07:** the [private MAP entry and fixed coordinator mode](research/personal-thread-cwd-preparation-validation.md) are authorized for synthetic preparation under [ADR 0012](decisions/0012-personal-thread-cwd-map-preparation.md). A later personal run requires new actual-value consent and returns summary counts/coverage only. Attempt consumption begins with consented state access or helper startup, not confirmation alone. No personal execution or value display is authorized by this preparation.
-
-**Current supplement, 2026-10-07:** [PSQ-001](research/personal-qualification-observation.md) records founder-reported candidate-structure and one-row type/nullness qualification. No actual record strings were returned. The next authorized implementation is the [synthetic two-field adapter](research/thread-cwd-adapter-validation.md) under ADR 0011; personal value reads require new consent after independent review. Earlier stage summaries retain their historical context.
-
-**Current supplement, 2026-10-06:** [PCAN-001](research/personal-canary-observation.md) records a founder-reported successful personal closed-app canary and separately attributed patch-runtime synthetic qualification. The original personal authorization is consumed. Bounded schema/metadata qualification is now authorized for synthetic preparation only, with independent review and a new personal authorization required. The following preparation-stage summary is historical; the product CLI remains synthetic and native acquisition remains fail-closed.
-
-**Stage: personal closed-app canary preparation; CLI remains the M1 demonstration.** M2a.1–M2a.4 preserve native refusal. The committed isolation-feasibility record reports a readiness gap. A separate private canary runner is prepared and tested only on invented sources; personal execution requires independent review and exact later consent. No real Codex state or processes were inspected. These documents distinguish synthetic measurements from future intent and historical evidence; no real audit or visual UI exists.
+The next priority is **Evidence & Compatibility**. Start with the [catalog](research/evidence-catalog.md) for provenance and the [compatibility matrix](compatibility.md) for tested scenarios and limits. Preparation run sheets retain their dated scope; they do not describe current explorer launch requirements. Historical evidence and residual disclosures remain in their original records.
 
 ## Product and design
 
@@ -39,7 +27,8 @@
 - [Evidence catalog](research/evidence-catalog.md): category definitions, observation index, and official-source records.
 - [Windows observations, 2026-10-04](research/windows-2026-10-04.md): original investigation, WIN-001–WIN-017.
 - [Project Boundary observations](research/project-boundary-observations.md): separate article-derived founder research, WIN-018–WIN-020; historical versions uncertain.
-- [State sources](research/state-sources.md): candidate sources, scope, and unresolved semantics.
+- [State sources](research/state-sources.md): implemented inputs, observed-but-unconsumed fields, deferred sources and unresolved semantics.
+- [Current explorer validation and WIN-021](research/explorer-local-read-only-validation.md): accepted milestone, disposable regressions, founder observations and bounded remnant investigation.
 - [CWD migration experiment](research/cwd-migration.md): synthetic reconstruction of the causal sequence.
 - [Open questions](research/open-questions.md): investigations, prerequisites, and expected outcomes.
 - [Compatibility revalidation template](research/compatibility-revalidation-template.md): lightweight future comparison and retirement record.
@@ -67,6 +56,9 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0011: private two-field adapter preparation](decisions/0011-thread-cwd-adapter-preparation.md).
 - [ADR 0012: summary-only personal thread/CWD map preparation](decisions/0012-personal-thread-cwd-map-preparation.md).
 - [ADR 0013: private local terminal map display preparation](decisions/0013-local-thread-cwd-display-preparation.md).
+- [ADR 0014: named Threads and Local Projects](decisions/0014-named-threads-and-local-projects.md).
+- [ADR 0015: personal titled browser preparation](decisions/0015-personal-titled-browser-preparation.md).
+- [ADR 0016: explicit local launch](decisions/0016-local-read-only-explorer-and-title-previews.md).
 
 ## Qualified manual workflows
 
@@ -77,7 +69,7 @@ These workflows preserve experimental guidance. M0 does not authorize running th
 
 ## Reading claims
 
-The five categories are **founder-observed experiment**, **official documentation**, **design decision**, **assumption**, and **unknown**. Section labels apply to claims within that section unless a paragraph says otherwise. Mixed tables label each row. See the [definitions](research/evidence-catalog.md#claim-categories).
+Claim categories distinguish **founder-observed experiment**, **fixture-tested observation**, **official documentation**, **implementation-derived claim**, **design decision**, **assumption/inference**, and **unknown**. Contradicted or superseded describes a claim’s relationship to later evidence, not its source. Section labels apply to claims within that section unless a paragraph says otherwise. Mixed tables label each row. See the [definitions](research/evidence-catalog.md#claim-categories).
 
 Founder evidence was supplied during planning or reported in the referenced founder article, not independently reproduced by Workspace Surveyor. Missing historical versions remain unknown. Documentation access dates indicate when a source was reviewed, not when a product behavior began. The original baseline contains 17 observations; the three boundary records are a separate research group.
 

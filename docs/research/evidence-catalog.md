@@ -1,10 +1,8 @@
 # Evidence catalog
 
-**Local-read-only correction, 2026-10-08 (design/synthetic evidence):** [ADR 0016](../decisions/0016-local-read-only-explorer-and-title-previews.md) and [validation](explorer-local-read-only-validation.md) record the founder-reported consumed browser limit refusal without assuming its cause, and synthetic tests for bounded optional titles, required-limit diagnostics and explicit local launch. No new personal inspection or real title/Project qualification is recorded.
+**Accepted explorer milestone, reported 2026-10-10:** the founder reports acceptance and independent review at `d15c78b121074c78a3b3492e369c3e89c85ca93e`. The local commit was independently confirmed during the audit; remote push and personal acceptance are supplied outcomes. [Current validation](explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) retains the preceding 545/545 fixture result, later integration validation, failed attempts and residual disclosures. [Compatibility](../compatibility.md) summarizes applicability; this catalog remains the evidence index.
 
-**M3a activation preparation, 2026-10-08 (design/synthetic evidence):** [ADR 0015](../decisions/0015-personal-titled-browser-preparation.md) and [validation/proposed procedure](personal-explorer-preparation-validation.md) prepare the private titled-location browser against invented copies. Fixed title structure can be checked during one useful future authorized display; label semantics remain unqualified pending founder comparison. Real Project targets/correspondence remain unknown, and no personal JSON is selected. No new personal observation or research access follows from this preparation.
-
-**Current M3a supplement, 2026-10-07:** [PLD-001](personal-local-display-observation.md) is separate founder-reported evidence: 146 claims, 15 exact groups, no omissions/ambiguities and reported successful verification/cleanup/display closure, exit 0. No complete JSON was supplied or reconstructed. M2 validation is complete; [M3a preparation](m3a-explorer-preparation.md) is synthetic-only, with real Project shape explicitly unknown. All earlier personal observations and residual disclosures remain intact.
+Preparation history is recorded in [ADR 0014](../decisions/0014-named-threads-and-local-projects.md), [ADR 0015](../decisions/0015-personal-titled-browser-preparation.md), [ADR 0016](../decisions/0016-local-read-only-explorer-and-title-previews.md), and their linked validation records. Older unavailable/pending statements retain their original dates. No new personal inspection follows from documentation integration.
 
 ### SRC-001: Public title hypothesis
 
@@ -19,19 +17,19 @@
 - Documented claim: local Projects may attach multiple folders with a selected primary folder.
 - Limit: no JSON registry/assignment serialization contract or current private source location is established. Historical WIN-006 remains historical comparative evidence, not a guessed current decoder.
 
-**Current local-display supplement, 2026-10-07:** [PMAP-001](personal-thread-cwd-observation.md) is separate founder-reported evidence: the supplied private MAP result reports 139 claims / 15 exact stored-CWD groups, zero omissions/ambiguous IDs, three selected files and successful verification/cleanup. Intended implementation was `b1449d8`; executing runtime/commit and cleanup were not independently re-inspected. Unconsumed columns are presence evidence, not proven drift. Its authorization is consumed and no personal map remains. [ADR 0013](../decisions/0013-local-thread-cwd-display-preparation.md) and [terminal display validation](local-thread-cwd-display-preparation-validation.md) describe synthetic-only preparation and later fresh acquisition/display consent, separately from this personal observation. Historical evidence and residual disclosures remain intact.
-
 ## Claim categories
 
 | Category | Meaning | Recording requirement |
 | --- | --- | --- |
 | Founder-observed experiment | A result reported by the founder from an actual experiment | Observation ID, date/environment, missing context, result, limits |
+| Fixture-tested observation | Measured OS, Git or acquisition behavior on controlled owned fixtures | Test/validation reference, execution context, method, result and limits; not real Codex lifecycle certification |
 | Official documentation | A claim established by a reviewed official source | Source ID, URL, access date, surface, claim, limitations |
+| Implementation-derived claim | Behavior established by inspection of the current code or a regression assertion | Commit/module/test reference; distinguish inspection from an executed result |
 | Design decision | An intentional Workspace Surveyor policy | Decision/ADR reference and reason; not a Codex guarantee |
 | Assumption | Provisional premise needed to progress | Assumption ID and consequence if false |
 | Unknown | Unestablished fact or unresolved choice | Research question, permission requirements, and expected outcome |
 
-Section labels apply to their contents unless a paragraph or row states otherwise. Synthetic examples are illustrative constructions, not a sixth kind of empirical evidence.
+Section labels apply to their contents unless a paragraph or row states otherwise. Illustrative synthetic examples are not empirical observations. Controlled fixtures can measure real filesystem/Git/API behavior, but do not reproduce Desktop lifecycle semantics. Inferred, contradicted, reproduced and superseded qualify a claim or its relationship to later evidence; they do not replace its source category.
 
 **Design decision:** provenance, confidence, severity, and action safety must remain separate. A founder-verified experiment does not make a prediction certain on an unknown release. `VERIFIED`, `OBSERVED`, `INFERRED`, and `UNKNOWN` may later describe evidential status, but cannot replace the source category. Do not assign numeric confidence without a defined basis.
 
@@ -77,6 +75,12 @@ Source: [founder's article](https://kassha.xyz/blog/git-metadata-vs-codex-projec
 
 Article discussions of official documentation, source code, and issue reports are not promoted to official evidence by citation alone. DOC-005 and DOC-006 below were reviewed directly and remain separate from the founder observations.
 
+## Separate founder remnant investigation: WIN-021
+
+[WIN-021](explorer-local-read-only-validation.md#win-021) records the handoff’s bounded marker-only worktree investigation, reported 2026-10-10 with exact experiment dates and app/build context unknown. Three nominated repository registrations, two marker-only directories, three stale path references, six selected IDs with zero spawn edges, and the separately approved reversible quarantine are scoped founder observations. This is distinct from WIN-010 and B1, not universal absence or removal safety. The current explorer consumes neither saved writable-root references nor spawn-edge rows.
+
+**Reconciliation of duplicates:** the founder explicitly confirmed the handoff migration is WIN-017, not a third migration success. Its original [record](windows-2026-10-04.md#win-017), [reconstruction](cwd-migration.md) and limits remain unchanged; only WIN-016 supplies successful bridge removal. Project-removal and internal-record context remains linked to WIN-008/009/014. Later title, existence and Windows failure findings are dated in the current validation record instead of duplicating WIN-012 or the original investigation.
+
 ## Separate personal canary evidence: PCAN-001
 
 [PCAN-001](personal-canary-observation.md) records the founder's report on 2026-10-06 of one separately authorized standalone personal canary: three selected files, successful readability/stability checks, confirmed exit, scratch and recovery controls reported removed, exit code 0 and no recovery required. Exact execution time is unknown; intended commit `44453cd` and preceding runtime/Desktop version observations are not attested by the result JSON. The record separately attributes the PowerShell 7.6.6/.NET 10.0.12 synthetic requalification (179 passed/0 skipped explicit; 79 passed/100 skipped ordinary; no failures). No personal identifiers, paths, hashes or contents are retained. This does not reproduce or retire any WIN observation or establish schema compatibility. New qualification requires separate personal consent after synthetic preparation and review.
@@ -86,6 +90,10 @@ Article discussions of official documentation, source code, and issue reports ar
 [PSQ-001](personal-qualification-observation.md) records the founder's 2026-10-07 report of a successful separately authorized standalone qualification: accepted candidate structure, one sample with non-null TEXT ID/CWD values by type only, three files, successful reported verification/disposal/cleanup, exit 0. Actual record strings were not returned. Executing commit/runtime are not attested by the JSON. The record separately attributes preceding package/process checks, founder handle/version observations and synthetic validation, plus the SDK-preflight and background-process observations. It neither validates all records nor establishes classification or CWD semantics. No source or recovery slot was re-inspected to record it; no WIN evidence is retired.
 
 The [two-field adapter validation](thread-cwd-adapter-validation.md) is synthetic implementation evidence under [ADR 0011](../decisions/0011-thread-cwd-adapter-preparation.md), not another personal experiment. Later actual-value reads require fresh consent. Existing DOC-018/DOC-022 support the API/query mechanics; schema acceptance policy and bounds are design decisions.
+
+## Separate personal map/display observations: PMAP-001 and PLD-001
+
+[PMAP-001](personal-thread-cwd-observation.md), reported 2026-10-07, retains 139 claims / 15 exact stored-CWD groups, zero omissions/ambiguities, three selected files and reported verification/cleanup. Intended implementation was `b1449d8`; executing context and cleanup were not independently re-inspected. [PLD-001](personal-local-display-observation.md), also reported 2026-10-07, retains 146 claims / 15 groups, no omissions/ambiguities and successful reported verification, cleanup, display closure and exit 0. Neither supplied a complete reconstructable dataset or establishes universal UI visibility, runtime CWD or physical identity. Authorizations were consumed; preparation and legacy consent gates remain separately dated in their linked records.
 
 ## Separate MAP preparation: synthetic implementation evidence
 
@@ -250,6 +258,8 @@ The [disposable Codex isolation-feasibility record](disposable-codex-isolation-f
 - Limit: read-only opening does not certify provenance, safety of an original path, companion consistency or schema compatibility. These APIs do not independently establish a permitted query policy.
 - Design implication: canary preparation opens only analysis copies, fixes two schema probes and denies application/catalog-column access. Synthetic tests exercise refusals; no personal SQLite source is opened.
 
+**Dated official-source clarification, reviewed 2026-10-10:** SQLite’s [URI documentation](https://www.sqlite.org/uri.html) states that `immutable=1` skips locking and change detection; changing a supposedly immutable file can produce incorrect results or corruption errors. Its [WAL documentation](https://www.sqlite.org/wal.html) explicitly describes immutable read-only WAL access and explains that WAL carries committed persistent state. These sources do not support a universal “immutable ignores WAL” claim or safe live snapshot guarantee. The separate owned-fixture [read-only SHM test](../../test/explorer.test.ts) and [omitted-WAL test](../../test/acquisition.test.ts) establish narrower counterexamples. Preserve companions and open only protected analysis copies; no direct personal database probe is authorized.
+
 ### DOC-019: Finite process-name observation
 
 - Source: Microsoft [.NET Process.GetProcessesByName](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.getprocessesbyname?view=net-10.0), reviewed 2026-10-06.
@@ -294,6 +304,13 @@ The [qualification preparation record](personal-qualification-preparation-valida
 - Documented claim: `SQLITE_TOOBIG` is result code 18 and covers strings/BLOBs exceeding SQLite limits.
 - Limit: the code alone does not identify which adapter budget was exceeded or provide a hard time/memory bound.
 - Design implication: the private adapter maps the recognized Node SQLite oversized-value error to a sanitized limit refusal and withholds its map. Synthetic tests cover a value rejected by SQLite before JavaScript string materialization, separately from the adapter's tighter UTF-8 budgets.
+
+### DOC-025: Standard Git administrative relationships
+
+- Sources: official [repository layout](https://git-scm.com/docs/gitrepository-layout) and [worktree details](https://git-scm.com/docs/git-worktree#_details), directly reviewed 2026-10-10.
+- Documented claim: linked working trees have private administrative directories, a common Git directory, `commondir` metadata and a `worktrees/<id>/gitdir` backlink to the working tree’s `.git` file.
+- Limit: the documentation does not certify the explorer’s subset against all Git layouts, formats or installations, nor establish Codex ownership. The observer does not read repository configuration or invoke Git.
+- Implementation evidence: [discovery regressions](../../test/discovery.test.ts) create authentic main/linked and separate-git-dir fixtures. Reciprocal supported metadata establishes common identity; a nearer unresolved/unsupported marker blocks ancestor fallback. That conservative boundary policy is a design decision, not an official Git validity judgment.
 
 ## Recording future evidence: design decision
 

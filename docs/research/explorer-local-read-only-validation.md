@@ -1,5 +1,76 @@
 # Local read-only explorer and optional title previews
 
+<a id="accepted-milestone-2026-10-10"></a>
+## Accepted milestone and evidence integration, 2026-10-10
+
+**Founder-reported acceptance:** Filesystem/Git Discovery and the Workspace Relationship Explorer passed founder acceptance and independent review at `d15c78b121074c78a3b3492e369c3e89c85ca93e`; the supplied handoff reports commit/push verification. The documentation audit independently confirmed the local commit and clean checkout, without checking the remote or reopening personal state. The preceding implementation validation below records 545/545 fixture tests. Acceptance, recorded fixture results and this documentation integration are separate observations.
+
+**Source:** the founder's Empirical Evidence Handoff prepared 2026-10-10, plus the founder's clarification that its dated-folder migration is the existing WIN-017 experiment. The handoff is not retained verbatim or treated as a new specification. Earlier pending statements, UI layouts, raw-title details and launch instructions below retain their preparation dates; the accepted presentation and the current procedure in [Standalone real acceptance](#standalone-real-acceptance-for-the-light-tree-ui) supersede those instructions. Acquisition, source limits, legacy entry gates and residual disclosures remain binding.
+
+**Reconciled founder observations:** the two registry Projects with zero stored assignment references and confirmed missing roots were subsequently removed through the Codex UI. This is a supplied later outcome, not an agent action or proof that every empty Project is unwanted. The standalone dated folder and its empty output/work children had no demonstrated current user-facing association; origin and deletion safety remain unknown. The handoff confirms the missing-index skill-link SQLite title matched the sampled Desktop name; this refines the earlier app-metadata comparison, not a universal title contract. It reports that sampled Thread was later deleted; no historical record or personal identifier is recreated. WIN-017 is not counted again, and only WIN-016 includes a verified bridge-removal outcome.
+
+The namespaced drive-root EISDIR reproduction used Node 24.18.1 and Windows PowerShell 5.1 in the founder's checks. The separate managed-reader Unicode/ibm437 correction was fixture-tested, not its root cause. Earlier Desktop About/package and Windows version observations remain in their dated records; none establish the versions of these later investigations. The handoff supplies no active personal linked worktree at acceptance: standard linked-worktree coverage comes from authentic disposable Git fixtures.
+
+### Evidence integration validation, 2026-10-10
+
+This documentation/test integration changes sixteen existing Markdown files and one regression file, without changing the accepted engine, UI, acquisition, package or dependencies. All 49 existing catalog IDs remain, with WIN-021 and DOC-025 added. The original WIN-001–020 records, migration reconstruction/workflow, AGENTS.md and acquisition/helper observation records remain unchanged; existing residual disclosures are retained. No handoff snapshot or identifying example values were copied into the repository.
+
+Node 24.18.1 typecheck and build passed. The focused unconsumed-branch regression passed 1/1: adding contradictory `thread-writable-roots` and `thread-descriptions-v1` values leaves the resolved dataset unchanged and exposes no canary text in Workspace, Details or Diagnostics. The full suite with all existing synthetic helper/acquisition opt-ins passed **546/546**, with zero failures, cancellations or skips. Source-preservation, WAL/SHM, Windows/reparse, authentic Git, title qualification, browser security, keyboard/Diagnostics, cancellation and cleanup regressions remain green. This is a fixture result, not another personal observation or a new real-browser acceptance run.
+
+Relative documentation links/anchors, evidence-ID retention, protected historical-file comparisons, changed-line privacy and diff whitespace checks passed. No new unconfirmed cleanup residual was reported; earlier disclosures are not retired. No personal Codex state, recovery slot, repository or historical residual was inspected. Nothing is staged, committed or pushed; this integration awaits founder acceptance and independent review.
+
+<a id="win-021"></a>
+## WIN-021: Bounded historical worktree-remnant investigation
+
+**Category: founder-observed experiment, reported in the 2026-10-10 handoff.** Exact execution dates, Desktop/agent/Git versions and Windows build are unknown. This is distinct from WIN-010's supported-UI removal experiment and the WIN-018–020 boundary group; it inherits neither B0 nor B1 environment context. All identifiers, slot names and paths below are synthetic replacements. No original snapshot, backup location or query output is retained.
+
+| Stage / source | Founder-reported observation | Limit |
+| --- | --- | --- |
+| Internal records | Historical Guardian/subagent records referenced three former worktree paths; the working directories were absent. Some rows had `archived=0`. | Internal source classification is distinct from archive state; historical paths do not establish active checkouts. |
+| Desktop and folder metadata | Settings showed “No worktrees yet.” Two remaining slot directories each contained only a zero-byte `.codex-worktree-name` file. | UI absence and marker presence do not establish marker ownership, lifecycle or safe removal. |
+| Git registrations | `worktree list --porcelain` at three specifically nominated repositories listed only their main working trees. | This was not a scan of all repositories or proof of global absence. |
+| Saved references | Global state's `thread-writable-roots` held one reference for each of three former paths. Their owner IDs were absent from the inspected SQLite `threads` table and differed from the Guardian IDs. | These branches are not consumed by the current explorer; stale references do not reconstruct ownership. |
+| Selected spawn-edge query | The table had `parent_thread_id`, `child_thread_id` and `status`; filters for six known historical worktree-associated IDs returned zero matching edges. | Scoped absence does not prove that no broader relationship exists. The explorer does not query this table. |
+| Separately approved action | With Desktop closed, the two marker-only directories were moved into reversible local quarantine, not deleted. The original worktree-storage directory was empty afterward; Desktop functioned normally and the backup remained retained. | No restoration test, long-term retention result or generic cleanup safety was established. The report authorizes no further action. |
+
+**Interpretation:** these observations support distinguishing historical references and marker-only directories from verified Git working trees. They do not establish abandonment, corruption, Codex management or deletion safety. Potential-leftovers discovery remains deferred; no `.codex` scan or cleanup feature is introduced. Link related context to [WIN-009](windows-2026-10-04.md#win-009), [WIN-010](windows-2026-10-04.md#win-010) and [worktree review](../workflows/managed-worktree-review.md), without treating them as reproductions of this experiment.
+
+### Privacy-safe reproduction references
+
+These are sanitized method references, not authority to access personal sources or instructions for CI to do so. Existing [discovery regressions](../../test/discovery.test.ts) create and authenticate exact owned temporary trees, isolate Git configuration/templates/hooks, and clean them. Build, then run `node dist/test/support/folder-explorer-entry.js` for the disposable browser; all fixture files are removed before delivery. The implementation invokes no Git command.
+
+```powershell
+# Only an expressly selected ordinary directory; check for reparse points first.
+Get-ChildItem -LiteralPath 'C:\Synthetic\worktree-storage' -Force |
+  Select-Object Name, Attributes, Length
+# Historical structure observation, not a traversal-safety guarantee:
+tree 'C:\Synthetic\worktree-storage' /F /A
+# One selected repository; no prune, repair or mutation:
+git --no-optional-locks -C 'C:\Synthetic\repository' worktree list --porcelain
+```
+
+```javascript
+// Disposable/known drive only; preserve each result, including errors.
+const { lstat } = await import('node:fs/promises');
+for (const path of ['C:\\', '\\\\?\\C:\\']) {
+  try { console.log({ form: path.startsWith('\\\\?\\') ? 'namespaced' : 'ordinary', directory: (await lstat(path)).isDirectory() }); }
+  catch (error) { console.log({ form: path.startsWith('\\\\?\\') ? 'namespaced' : 'ordinary', code: error.code }); }
+}
+```
+
+An exact-ID query shape may be retained for separately authorized analysis copies, using bound invented IDs. It is not a shipping reader query or a new schema adapter:
+
+```sql
+SELECT id, cwd, source, archived FROM threads WHERE id IN (?, ?, ?, ?, ?, ?);
+SELECT parent_thread_id, child_thread_id, status FROM thread_spawn_edges
+WHERE parent_thread_id IN (?, ?, ?, ?, ?, ?)
+   OR child_thread_id IN (?, ?, ?, ?, ?, ?);
+```
+
+Record the selected-set size and before/after existence, UI and registration outcomes, not raw records. A zero-byte `Get-Content -Raw` result can be null: the early `.Trim()` error was a probe-script bug. An early Python/PowerShell quoting failure occurred before SQL execution; it did not establish database corruption. The founder also reported that literal skill-name tokens in prompts can invoke a skill; use neutral placeholders when constructing experiments. These are procedural caveats, not product regressions.
+
+Do not generalize `immutable=1` as a live snapshot mechanism or as universally ignoring WAL. [DOC-018](evidence-catalog.md#doc-018-analysis-copy-sqlite-controls) records SQLite's actual locking/change-detection guarantees and WAL caveats. Existing fixture tests demonstrate SHM creation through read-only opening and loss of WAL-dependent committed data when WAL is omitted; those are distinct findings.
+
 <a id="filesystem-git-2026-10-10"></a>
 ## Bounded filesystem/Git relationships, 2026-10-10
 
@@ -101,7 +172,7 @@ Diagnostics now records bounded inspection stage (`node-lstat`, `managed-attribu
 
 ### Standalone real acceptance for the light tree UI
 
-After typecheck/build, close Codex/ChatGPT Desktop normally and run from the checkout in standalone PowerShell:
+**Current procedure after accepted milestone:** after typecheck/build, close Codex/ChatGPT Desktop normally and run from the checkout in standalone PowerShell:
 
 ```powershell
 node .\dist\test\support\personal-explorer-entry.js --discovery-root (Join-Path $env:USERPROFILE 'Documents\Codex')
@@ -118,7 +189,7 @@ Open the printed local URL. After the verified-cleanup message, reopen Desktop f
 7. Select a Thread, test Copy ID/Copy path and Escape focus return. Resize below 900 pixels: Details replaces the list; Back restores it. Internal review records remain only in Diagnostics; unresolved current entities remain reachable through Needs review. No empty category or prominent historical counter occupies Workspace.
 8. Inspect incomplete coverage, exclusions and limits in Diagnostics. Routine depth/excluded-tree diagnostics alone have no Workspace banner; meaningful failed checks still have concise entity warnings and an appropriate discovery notice. Close session and confirm page clearing plus the unchanged acquisition/source verification and cleanup report.
 
-Report sanitized counts/mismatches only; no screenshots, datasets or personal paths/titles/IDs are saved in the repository. New real Project/Thread/browser acceptance remains the founder's standalone step, followed by independent complete-diff review. Nothing is staged, committed or pushed by this implementation.
+Report sanitized counts/mismatches only; no screenshots, datasets or personal paths/titles/IDs are saved in the repository. This checklist remains available for future user-initiated compatibility comparisons. The founder subsequently accepted and independently reviewed the milestone at the baseline recorded above; the earlier implementation did not stage, commit or push. A new comparison records its own interval and limitations rather than inheriting old existence or visibility observations.
 
 ## Independent-review Unicode path correction, 2026-10-09
 
@@ -188,7 +259,10 @@ The founder requested this corrective implementation on 2026-10-08, under [ADR 0
 
 The founder reported one real browser attempt refused with top-level `acquisition`, safety `limit`, exit 1, `attemptConsumed: true`, three opened handles, stages prepared/recovery-ready/held/copied/verified, release phase, no injected fault or discarded diagnostics, and reported scratch/recovery removal. No browser was delivered. Exact execution time and exceeded limit are unknown. Do not attribute that refusal to titles, reconstruct a dataset or treat these changes as evidence that personal browser use now succeeds. No recovery or repeat personal acquisition was performed during this correction.
 
-## Current local launch behavior
+<a id="current-local-launch-behavior"></a>
+## Historical local launch behavior, 2026-10-08/09
+
+This records the earlier source/title-only stage. For current registry/index/discovery options and browser interactions, use the single [accepted procedure](#standalone-real-acceptance-for-the-light-tree-ui) above. Do not follow the older Locations/search/Projects-unavailable UI instructions as current guidance.
 
 After focused independent review, use a standalone PowerShell 7 terminal with local ChatGPT Desktop/Codex normally closed, from the built checkout:
 
@@ -210,7 +284,10 @@ The existing recovery slot stays separate. A pre-existing or uncertain recovery 
 
 After protected copying, source/acquisition verification, helper exit and authenticated cleanup, the entry prints one ephemeral loopback URL. Open it locally, use Locations/search/details, then Close local session or Ctrl+C. Projects stay explicitly unavailable. Page-exit closure remains best effort; ten-minute expiry is the fallback. Cancellation awaits safe acquisition cleanup and prevents further delivery. No browser dataset persistence/export/upload is added; browser-memory erasure is not guaranteed.
 
-## Reader policy and diagnostic accuracy
+<a id="reader-policy-and-diagnostic-accuracy"></a>
+## Reader policy and diagnostic accuracy, 2026-10-08 preparation
+
+The projection and counters below describe that historical title-preview preparation. Later source/archive and index readers extend the allowlist; current input roles are in [state sources](state-sources.md#implemented-inputs-and-remaining-limits-2026-10-10). Bounded raw observations remain internal, while current presentation qualifies friendly titles or immediately uses a generic label.
 
 The same ordinary `main.threads` and exact declared-TEXT ID/CWD policy remains. The schema queries remain fixed. Accepted declared-TEXT title enables only this bounded projection:
 

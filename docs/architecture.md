@@ -1,6 +1,12 @@
 # Conceptual architecture
 
-**Current slice, 2026-10-09:** the approved Project–Thread explorer reuses the existing DB+JSON profile for the personal entry. Fixed observed Desktop registry shapes replace the invented Project wire format; fixtures still contain invented values. Bounded `source`/`archived` evidence separates inferred, unknown, internal and archived records. Pure lexical Windows comparison and resolved assignments form Workspace components without filesystem access. Missing Project metadata degrades to unknown membership; valid empty/Project-only snapshots render. See [current usage and validation](research/explorer-local-read-only-validation.md#real-projectthread-slice-2026-10-09). Earlier preparation descriptions below retain their historical scope.
+## Current implementation, 2026-10-10
+
+The accepted path is selected sources → protected acquisition and separate analysis copies → bounded allowlisted readers → evidence-bearing reconciliation → optional bounded filesystem/Git enrichment → pure presentation → short-lived loopback browser. Enrichment and delivery occur after successful coordinator source verification, helper exit and authenticated copy cleanup. The browser snapshot lives in memory; no export, refresh or persistence is implemented.
+
+`src/explorer` contains readers, model, discovery, presentation, view and server. The standalone entry and protected acquisition coordinator remain private under test support; the bundled CLI remains synthetic. Discovery reads metadata with ancestor/reparse protection and finite dispatch limits; it invokes no Git command. Qualified Git references may nominate external exact paths, never whole-disk enumeration. Source/assignment classification, conservative path comparison and unknown evidence remain separate from presentation. The approved browser is a light vertical relationship tree with compact Details and Diagnostics, not a filesystem inventory.
+
+[Current validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) records the accepted scope and its limitations. The sections below retain their named historical stages or describe deferred outcomes; old exact-string-only, unavailable-Project and deferred-Git statements do not describe the current explorer.
 
 ## M3a concrete browser preparation
 

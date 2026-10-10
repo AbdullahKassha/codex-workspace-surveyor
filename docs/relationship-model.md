@@ -1,5 +1,15 @@
 # Conceptual relationship model
 
+## Implemented relationship subset, 2026-10-10
+
+The [accepted explorer](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) keeps Project registry identity, stored assignment, explicit projectlessness, stored CWD, physical existence, containment and Git common identity separate. Project membership requires qualified assignment evidence; matching CWD/root paths can connect a Workspace component without establishing membership. Shared broad ancestors never union components. Source folders are roles of deduplicated locations, not additional physical objects.
+
+Qualified ordinary, nonarchived assigned/projectless records appear in Workspace with inferred visibility. Structured subagent and archived records remain Diagnostics; unresolved ordinary records need review. Titles, absent index entries, null project IDs and missing spawn edges do not determine these roles.
+
+Folder observations retain exact-path state independently of enumeration coverage, including outside-scope roots. Existing folders inside a verified nearest Git tree receive lexical location evidence, not tracked-file or Project-membership claims. Reciprocal standard administrative metadata supports main/linked common identity. A nearer unresolved/unsupported marker blocks fallback to an ancestor repository, including descendant CWDs. Git identity is not inferred from remote URLs, names or proximity. Ordinary directory observations stay internal without inventory UI.
+
+[Regression coverage](../test/discovery.test.ts) and [reconciliation tests](../test/explorer.test.ts) validate this subset. The conceptual relationships below also include future capabilities; runtime CWD observations, spawn edges, effective Codex boundaries and instruction loading are not reconstructed by this implementation.
+
 ## Vocabulary: design decisions
 
 These terms define product language, not runtime classes or a public schema.
@@ -97,9 +107,10 @@ The eligible project instruction ancestry is **tools → src**. Here, applicable
 
 **Design interpretation:** all four roots differ intentionally; divergence alone is not erroneous and calls for no repair. Eligible files may still be empty, displaced by selection precedence, or limited by the guidance size budget; see [DOC-006](research/evidence-catalog.md#doc-006-project-instruction-discovery). This example establishes no loading or compliance claim and does not describe a sandbox, ownership, or access-control boundary. Global guidance remains separate.
 
-## Windows path policy: design decisions requiring implementation validation
+<a id="windows-path-policy-design-decisions-requiring-implementation-validation"></a>
+## Windows path policy: implemented subset and remaining unknowns
 
-Retain the original path, parsed namespace/host context, lexical comparison, optional physical identity evidence, and accessibility status. Handle ordinary drive paths, UNC, and extended drive/UNC paths explicitly. The synthetic paths `C:\Synthetic\atlas` and `\\?\C:\Synthetic\atlas` illustrate a candidate comparison, not a rule to strip every extended prefix.
+Retain the original path, parsed namespace/host context, lexical comparison, optional physical identity evidence, and accessibility status. Handle ordinary drive paths, UNC, and extended drive/UNC paths explicitly. The synthetic paths `C:\Synthetic\atlas` and `\\?\C:\Synthetic\atlas` have a qualified lexical comparison. ASCII case folding and supported extended drive/UNC comparison are tested; Unicode sequences stay conservatively distinct. This is not physical identity or a rule to strip every extended prefix. Filesystem discovery refuses UNC/device forms. Exact namespaced drive-root lstat alone uses an equivalent ordinary drive root; managed attributes and stored paths retain the original form.
 
 Normalize only when semantics are preserved. Do not blindly lowercase paths, discard namespace-sensitive components, expand arbitrary variables, resolve drive-relative paths against the scanner's CWD, or equate different hosts. Use component-aware ancestry, not raw prefix matching. Keep junction/symlink targets distinct from lexical paths; avoid recursive traversal. Case behavior, long paths, Unicode aliases, and 8.3 aliases need synthetic and Windows tests.
 

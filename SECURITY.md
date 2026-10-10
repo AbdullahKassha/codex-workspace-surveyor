@@ -2,7 +2,7 @@
 
 ## Current status
 
-The repository contains an executable M1 synthetic demonstration and an M2a.1 test-only synthetic acquisition kernel, with no supported real audit or published release. The CLI accepts only bundled invented scenarios and produces text. The kernel accepts only its generated invented fixtures; native scratch protection refuses before copying, and passing tests explicitly simulate that prerequisite. Safety and privacy design problems are still relevant, particularly accidental acquisition, disclosure, or advice that exceeds the evidence. No real Codex data is needed to reproduce an issue.
+The accepted Windows relationship explorer uses protected closed-app acquisition, bounded metadata-only folder/Git observation and a short-lived authenticated loopback browser. The bundled CLI remains synthetic; there is no published release or certification of arbitrary builds/schemas. [Compatibility](docs/compatibility.md) states tested scenarios and limits. Source nonmutation, title privacy, session access, cleanup uncertainty and conservative relationship classification remain security-relevant. Reproduce issues with invented sources and owned fixtures; no real Codex data is required.
 
 ## Reporting safely
 
@@ -16,6 +16,6 @@ For accidental disclosure, report the affected location without repeating the da
 
 ## Design boundary
 
-The future tool is local-first, with no user-data telemetry or uploads by default. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. Supported operations require side-effect assessment and re-observation.
+The current explorer is local-first, with no user-data telemetry or uploads. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR. Supported operations require side-effect assessment and re-observation.
 
 See [safety and privacy](docs/safety-and-privacy.md) for the intended boundary and [roadmap](docs/roadmap.md) for implementation gates.
