@@ -198,49 +198,55 @@ test('deeplinks accept opaque UUIDs only and cannot introduce another scheme or 
 test('stored rendering is reversible, controls/bidi are visible and HTML stays text',()=>{
   assert.equal(escapeStored('a\u001b\u202e\\b'),'a\\u{1b}\\u{202e}\\\\b');
   assert.equal(clientCode.includes('innerHTML'),false);assert.equal(clientCode.includes('textContent'),true);
-  assert.equal(explorerHtml.includes(secret),false);assert.equal(/localStorage|sessionStorage|clipboard|WebSocket|sendBeacon/.test(clientCode),false);
+  assert.equal(explorerHtml.includes(secret),false);assert.equal(/localStorage|sessionStorage|readText|WebSocket|sendBeacon/.test(clientCode),false);
 });
 class Element {
+  attributes:Record<string,string>={};setAttribute(name:string,value:string){this.attributes[name]=value;}
   children:Element[]=[];textContent='';className='';ariaPressed='';type='';value='';onclick:(()=>void)|undefined;oninput:((event:{target:{value:string}})=>void)|undefined;
   get childElementCount(){return this.children.length;}append(...children:Element[]){this.children.push(...children);}replaceChildren(...children:Element[]){this.children=children;}
 }
 test('Workspace DOM shows connected real-shaped entities, empty Projects and projectless Threads with diagnostics collapsed',async()=>{
   const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   const id='00000000-0000-0000-0000-000000000001';
-  const ordinary={cwd:'C:\\Synthetic\\atlas',title:'Visible title',ambiguous:false,sourceState:'ordinary' as const,archived:false};
+  const ordinary={cwd:'C:\\Synthetic\\atlas',title:'Visible title',titleSource:'session-index' as const,titleResolution:'latest' as const,ambiguous:false,sourceState:'ordinary' as const,archived:false};
   const d=reconcile(provenance,{...data().coverage,projects:'desktop-registry',correspondence:'qualified'},
     [{...ordinary,id},{...ordinary,id:'free',cwd:'\\\\?\\C:\\Synthetic\\ATLAS',title:'Free title'},
      {...ordinary,id:'unknown',title:'Unclassified title'},{...ordinary,id:'internal',title:'Internal title',sourceState:'subagent'}],
     [{id:'p',label:'Atlas',roots:['C:\\Synthetic\\atlas']},{id:'empty',label:'Empty Project',roots:[]}],
     [{threadId:id,projectId:'p',projectKind:'local'}],['free']);
-  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
   const texts=(e:Element):string[]=>[e.textContent,...e.children.flatMap(texts)];
   const primary=get('relationships').children.slice(0,2).flatMap(texts);
   assert.ok(primary.includes('Atlas'));assert.ok(primary.includes('Empty Project'));assert.ok(primary.includes('Visible title'));assert.ok(primary.includes('Free title'));
   assert.equal(primary.includes('Internal title'),false);assert.equal(primary.includes('Unclassified title'),false);
-  assert.ok(primary.some(x=>x.includes('projectless')));assert.ok(primary.some(x=>x.includes('not proof of emptiness')));
-  assert.match(get('relationships').children[2]!.children[0]!.textContent,/Unclassified/);
-  const find=(e:Element,title:string):Element|undefined=>e.textContent===title?e:e.children.map(x=>find(x,title)).find(Boolean);
+  assert.ok(primary.includes('Projectless'));assert.ok(primary.includes('No current Threads'));
+  assert.equal(primary.some(x=>x.includes('Registry Project')),false);
+  const find=(e:Element,title:string):Element|undefined=>e.onclick&&(e.textContent===title||e.children.some(c=>c.textContent===title))?e:e.children.map(x=>find(x,title)).find(Boolean);
   find(get('relationships'),'Visible title')!.onclick!();
-  const link=find(get('details'),'Open Thread in Codex');assert.ok(link);assert.equal(Reflect.get(link,'href'),'codex://threads/'+id);
-  get('search').oninput!({target:{value:'Free title'}});assert.ok(texts(get('relationships')).includes('Free title'));
-  assert.equal(texts(get('relationships')).includes('Visible title'),false);
+  const link=get('details').children.find(e=>e.textContent==='Open in Codex ↗');assert.ok(link);assert.equal(Reflect.get(link,'href'),'codex://threads/'+id);
+  get('expand-threads').onclick!();assert.ok(texts(get('relationships')).includes('Free title'));
+  assert.ok(texts(get('relationships')).includes('Visible title'));
 });
 test('browser DOM renders hostile strings as text, unknown membership, details and unavailable Projects',async()=>{
   const elements=new Map<string,Element>();let resolveDone!:()=>void;const done=new Promise<void>(resolve=>{resolveDone=resolve;});
   const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   get('relationships').append=(...children:Element[])=>{get('relationships').children.push(...children);resolveDone();};
-  const context={document:{getElementById:get,createElement:()=>new Element()},location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},
+  const context={document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},
     AbortController,addEventListener(){},fetch:async()=>({ok:true,json:async()=>data()})};
   runInNewContext(clientCode,context);await done;
-  const list=get('relationships');assert.match(list.children[0]!.textContent,/unavailable/);const unclassified=list.children[1]!;
-  assert.match(unclassified.children[0]!.textContent,/Unclassified/);const group=unclassified.children[1]!;
-  assert.equal(group.children[1]!.textContent.includes('\\u{202e}'),true);group.children.at(-1)!.onclick!();
-  assert.equal(get('details').children.some(e=>e.textContent===secret),true);
-  get('projects').onclick!();assert.equal(get('relationships').children[0]!.textContent.includes('unavailable'),true);
+  assert.ok(get('notices').children.some(e=>e.textContent.includes('unavailable')));
+  get('diagnostics').onclick!();const unclassified=get('relationships').children.find(e=>e.children[0]?.textContent==='Unresolved records (1)')!;
+  const group=unclassified.children[1]!;
+  const selectRow=(e:Element):Element|undefined=>e.className.includes('entity-select')?e:e.children.map(selectRow).find(Boolean);
+  const record=selectRow(group)!;record.onclick!();
+  const evidence=get('relationships').children.find(e=>e.className==='diagnostic-evidence')!;
+  assert.ok(evidence.children.some(e=>e.textContent.includes('\\u{202e}')));
+  assert.equal(evidence.children.some(e=>e.textContent===secret),true);
+  assert.equal(Reflect.get(get('details'),'hidden'),true);assert.equal(get('layout').className,'layout');
+  get('workspace').onclick!();assert.ok(get('notices').children.some(e=>e.textContent.includes('unavailable')));
   await get('close').onclick!();assert.equal(get('relationships').childElementCount,0);
-  group.children.at(-1)!.onclick!();assert.equal(get('details').childElementCount,0);
+  record.onclick!();assert.equal(get('details').childElementCount,0);
 });
 
 function deferred<T>(){
@@ -253,7 +259,7 @@ test('browser shutdown ignores late snapshot '+phase+' '+outcome,async()=>{
   const body=deferred<ExplorerData>(),bodyStarted=deferred<void>();
   const response={ok:true,json:()=>{bodyStarted.resolve();return body.promise;}};
   const pending=deferred<typeof response>();let signal:AbortSignal|undefined,closes=0;
-  const loading=runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+  const loading=runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},
     fetch:(path:string,options:{signal?:AbortSignal})=>{
       if(path==='/close'){closes++;assert.equal(options.signal,undefined);return Promise.resolve({ok:true});}
@@ -266,7 +272,7 @@ test('browser shutdown ignores late snapshot '+phase+' '+outcome,async()=>{
     if(outcome==='success'){body.resolve(data());pending.resolve(response);}else pending.reject(new Error(secret));
   }else if(outcome==='success')body.resolve(data());else body.reject(new Error(secret));
   await loading;
-  get('locations').onclick!();get('projects').onclick!();get('search').oninput!({target:{value:'query'}});
+  get('workspace').onclick!();get('diagnostics').onclick!();get('expand-threads').onclick!();
   await get('close').onclick!();
   assert.equal(closes,1);assert.equal(get('coverage').textContent,closedText);
   assert.equal(get('relationships').childElementCount,0);assert.equal(get('details').childElementCount,0);
@@ -282,9 +288,9 @@ test('browser shutdown pagehide authenticates close; '+outcome+' delivery preser
   try{
   const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   const response=deferred<{ok:boolean;json:()=>Promise<ExplorerData>}>(),closure=deferred<unknown>();let hide!:()=>void,signal:AbortSignal|undefined,closes=0;
-  const loading=runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+  const loading=runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},
-    addEventListener:(name:string,callback:()=>void)=>{assert.equal(name,'pagehide');hide=callback;},
+    addEventListener:(name:string,callback:()=>void)=>{if(name==='pagehide')hide=callback;},
     fetch:(path:string,options:{signal?:AbortSignal;method?:string;headers:Record<string,string>;keepalive?:boolean;body?:unknown})=>{
       if(path==='/close'){
         closes++;assert.equal(options.method,'POST');assert.equal(options.keepalive,true);
@@ -502,18 +508,19 @@ test('row and required cumulative diagnostics stay precise and sanitized',async(
   await unit(rows(Array.from({length:65},(_,i)=>['id'+i,'x'.repeat(16384),secret])),r=>{assert.equal(r.limit,'reader-required-text');},null,'unavailable');
 });
 
-test('browser marks title previews and unavailable fallbacks visibly',async()=>{
+test('browser uses generic labels for unqualified title previews and retains counters only in Diagnostics',async()=>{
   const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   const d=reconcile(provenance,{rowsRead:2,omittedRows:0,ambiguousIds:0,titles:'accepted',shortenedTitles:1,unavailableTitles:1,
     projects:'unavailable',unconsumedColumns:false,correspondence:'unknown'},
     [{id:'a',cwd:'cwd',title:'Preview',titleState:'shortened',ambiguous:false},
      {id:'b',cwd:'cwd',title:null,titleState:'unavailable',ambiguous:false}],[],[]);
-  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
-  const group=get('relationships').children[1]!.children[1]!;
-  assert.equal(group.children.some(e=>e.textContent==='Preview … [shortened]'),true);
-  assert.equal(group.children.some(e=>e.textContent==='Untitled record [title unavailable]'),true);
-  assert.match(get('coverage').textContent,/1 shortened titles · 1 unavailable titles/);
+  get('diagnostics').onclick!();const all=(e:Element):Element[]=>[e,...e.children.flatMap(all)];
+  assert.ok(all(get('relationships')).some(e=>e.textContent==='Thread a'));assert.ok(all(get('relationships')).some(e=>e.textContent==='Thread b'));
+  assert.equal(all(get('relationships')).some(e=>e.textContent.includes('Preview')),false);
+  assert.ok(all(get('relationships')).some(e=>e.textContent.includes('"shortenedTitles":1')));
+  assert.equal(get('coverage').textContent.includes('shortened'),false);
 });
 
 test('open-app compatibility probe: active WAL writer, snapshot reads and reader side effects on owned builder only',async t=>{
@@ -632,19 +639,21 @@ test('index timestamps retain submillisecond ordering and reject impossible cale
     const d=r.snapshot!.take()!;assert.equal(d.threads[0]!.title,'New');assert.equal(d.threads[1]!.titleResolution,'invalid');
   },inventedProjects,'desktop-v1',[indexLine('a','New','2026-10-09T12:00:00.000002Z'),indexLine('a','Old','2026-10-09T12:00:00.000001Z'),indexLine('b','Impossible','2026-02-30T12:00:00Z')].join('\n'));
 });
-test('resolved title is prominent and searchable, with bounded fallback headings and collapsed stored metadata',async()=>{
+test('resolved title is prominent and native-find-visible while raw prompt fallback never enters rendered surfaces',async()=>{
   const elements=new Map<string,Element>();const get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   const prompt='Initial prompt paragraph\n'.repeat(100);
   const d=reconcile(provenance,{...data().coverage,projects:'desktop-registry',correspondence:'qualified'},[
     {id:'a',cwd:'cwd',title:'Friendly atlas',storedTitle:prompt,titleSource:'session-index',titleResolution:'latest',titleUpdatedAt:'2026-10-09T12:00:00Z',sourceState:'ordinary',archived:false,ambiguous:false},
     {id:'b',cwd:'elsewhere',title:prompt,titleSource:'sqlite',titleResolution:'missing',sourceState:'ordinary',archived:false,ambiguous:false}],[],[],['a','b']);
-  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element()},location:{hash:'#synthetic',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
+  await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},location:{hash:'#synthetic',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
   const all=(e:Element):Element[]=>[e,...e.children.flatMap(all)];
-  const button=all(get('relationships')).find(e=>e.textContent==='Friendly atlas')!;assert.ok(button);button.onclick!();
-  assert.equal(get('details').children[0]!.textContent,'Friendly atlas');assert.ok(all(get('details')).some(e=>e.textContent==='session-index'));
-  assert.equal(get('details').children.some(e=>e.textContent===prompt),false);assert.ok(all(get('details')).some(e=>e.textContent===escapeStored(prompt)));
-  const fallback=all(get('relationships')).find(e=>e.textContent.startsWith('Initial prompt'))!;assert.ok(fallback.textContent.length<150);assert.equal(fallback.textContent.includes('\n'),false);
-  get('search').oninput!({target:{value:'Friendly atlas'}});assert.ok(all(get('relationships')).some(e=>e.textContent==='Friendly atlas'));assert.equal(all(get('relationships')).some(e=>e.textContent.startsWith('Initial prompt')),false);
+  const button=all(get('relationships')).find(e=>e.onclick&&e.children.some(c=>c.textContent==='Friendly atlas'))!;assert.ok(button);button.onclick!();
+  assert.ok(get('details').children.some(e=>e.textContent==='Friendly atlas'));assert.equal(all(get('details')).some(e=>e.textContent==='session-index'),false);
+  assert.equal(all(get('details')).some(e=>e.textContent.includes('Initial prompt')),false);
+  assert.ok(all(get('relationships')).some(e=>e.textContent==='Thread b'));
+  get('expand-threads').onclick!();assert.ok(all(get('relationships')).some(e=>e.textContent==='Friendly atlas'));assert.equal(all(get('relationships')).some(e=>e.textContent.startsWith('Initial prompt')),false);
+  get('diagnostics').onclick!();assert.equal(JSON.stringify([...elements.values()]).includes('Initial prompt'),false);
+  get('workspace').onclick!();assert.equal(JSON.stringify([...elements.values()]).includes('Initial prompt'),false);
 });
 
 for(const fault of ['writer','acquisition-change'] as const)test('protected final title-index member refuses '+fault,empirical,async()=>{

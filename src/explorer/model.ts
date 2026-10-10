@@ -10,6 +10,19 @@ export type ProjectClaim = Readonly<{ id: string; label: string | null; roots: r
 export type AssignmentClaim = Readonly<{ threadId: string; projectId: string; projectKind?:string }>;
 export type Membership = 'stored-assignment' | 'projectless' | 'no-assignment-observed' | 'unknown' | 'conflicting' | 'dangling';
 export type Visibility = 'inferred'|'unknown'|'internal'|'archived';
+export type FolderObservation = Readonly<{path:string; aliases:readonly string[]; origin:'discovery'|'declared'|'git-metadata';
+  state:'exists'|'missing'|'inaccessible'|'inspection-error'|'reparse'|'not-directory'|'uninspected';
+  inspection:'enumerated'|'exact-only'|'excluded'|'depth-limit'|'entry-limit'|'contents-unavailable'|'uninspected'; parent?:number;}>;
+export type GitObservation = Readonly<{folder:number; kind:'main'|'linked'|'unsupported'; state:'verified'|'missing'|'inaccessible'|'unsupported';
+  admin?:string; common?:string; commonIdentity?:string; detail:string}>;
+export type PhysicalRelation = Readonly<{kind:'physical-location'|'inside-git-tree'|'same-git-repository'|'directory-containment';
+  subject:Readonly<{kind:'project'|'thread'|'folder'|'git';index:number}>;
+  target:Readonly<{kind:'folder'|'git';index:number}>; evidence:'observed-path'|'observed-directory'|'lexical-containment'|'verified-git-metadata'}>;
+export type DiscoveryDiagnostic=Readonly<{path:string;reason:string;
+  stage?:'node-lstat'|'managed-attributes'|'directory-open'|'directory-read'|'directory-entry'|'directory-identity';at?:'target'|'ancestor'}>;
+export type DiscoveryObservation = Readonly<{root:string; from:string;through:string;folders:readonly FolderObservation[]; git:readonly GitObservation[];
+  relations:readonly PhysicalRelation[]; diagnostics:readonly DiscoveryDiagnostic[];
+  status:'complete'|'limited'|'cancelled'; operations:number; entries:number; limits:Readonly<{depth:number;folders:number;entries:number;operations:number;milliseconds:number;git:number}>}>;
 export type Coverage = Readonly<{ rowsRead: number; omittedRows: number; ambiguousIds: number;
   sessionIndex?:Readonly<{status:'accepted'|'partial'|'unavailable'|'limit';records:number;invalidRecords:number;duplicates:number;unmatchedIds:number;conflicts:number;enriched:number}>;
   titles: 'accepted' | 'unavailable'; shortenedTitles?:number;unavailableTitles?:number; projects: 'synthetic-qualified' | 'structure-qualified' | 'desktop-registry' | 'unavailable';
@@ -20,7 +33,8 @@ export type ExplorerData = Readonly<{ provenance: Provenance; projectNamespace: 
   threads: readonly ThreadClaim[]; projects: readonly ProjectClaim[]; assignments: readonly AssignmentClaim[];
   locations: readonly string[]; memberships: readonly Membership[]; relations: readonly Relation[];
   projectlessIds:readonly string[]; visibility:readonly Visibility[]; staleProjectless:number;
-  components:readonly Readonly<{projects:readonly number[];threads:readonly number[]}>[];
+  components:readonly Readonly<{projects:readonly number[];threads:readonly number[];folders?:readonly number[];git?:readonly number[]}>[];
+  discovery?:DiscoveryObservation;
   danglingAssignments: number; limitations: readonly string[] }>;
 
 // Lexical comparison only. Refuse ambiguous Win32/device components; never touch paths.

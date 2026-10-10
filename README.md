@@ -1,10 +1,10 @@
 # Workspace Surveyor for Codex
 
-**Understand the relationships between Codex threads, Local Projects and stored working locations.**
+**Understand the relationships between Codex Threads, Local Projects, working folders and Git worktrees.**
 
 Workspace Surveyor is a Windows-first, read-only explorer of Codex relationships. It helps explain shared working locations, stored Project assignments and uncertainty in the available evidence.
 
-**Current status:** the browser now decodes the observed Desktop Project registry and reconciles it with copied Thread metadata. It groups inferred user-facing Threads, Projects and comparable stored locations, with unclassified and historical/internal records separated. The founder reported a successful real-data browser run for relationships and diagnostics, but found SQLite titles did not match Desktop. The correction now prefers matching session-index names; corrected real-browser acceptance and independent review remain pending.
+**Current status:** real Project/Thread/title relationships and bounded filesystem/Git discovery have been founder-validated. The compact Workspace redesign presents numbered relationship groups, one row per meaningful location, selection details and discreet Diagnostics. Visual acceptance of this redesign and independent review of the complete uncommitted diff remain pending.
 
 ## Why it exists
 
@@ -14,10 +14,10 @@ A **stored CWD** is the working-directory string recorded for a thread. It does 
 
 ## What the explorer shows
 
-- **Workspace:** connected groups of registry Projects, inferred user-facing Threads and comparable stored locations; empty/possibly-empty Projects remain visible.
-- **Locations and Projects:** titles, declared roots, assignments and explicit projectless markers, with search and record details.
-- **Unclassified and Diagnostics:** unknown/conflicting membership, unsupported classification, archived/internal records and stale references remain separately inspectable.
-- **Details:** record IDs, assignments, ambiguity, provenance (where a claim came from) and coverage (what was inspected).
+- **Workspace:** a light, vertical relationship tree in numbered groups. Assigned Threads nest beneath their actual Projects; declared roots and unique Thread working folders have explicit connections. Shared locations appear once with references. Verified linked worktrees nest beneath their main repository.
+- **Standalone entities:** projectless Threads, unassociated folder roots, empty Projects and missing roots remain visible. Ordinary subdirectories have no browsing UI.
+- **Needs review and Diagnostics:** unresolved current relationships remain reachable; internal, archived and stale records stay in Diagnostics.
+- **Details:** friendly names, related entities, relevant paths/status, explicit Copy ID/Copy path and validated Thread deeplinks. Technical provenance and coverage stay in Diagnostics.
 - **Uncertainty:** missing observations, conflicts and unresolved references remain visible. Matching path strings do not establish Project membership or filesystem identity.
 
 ## Current implementation
@@ -25,10 +25,10 @@ A **stored CWD** is the working-directory string recorded for a thread. It does 
 | Area | Status |
 | --- | --- |
 | Protected acquisition and thread ID/CWD mapping | Demonstrated in bounded, separately authorized, closed-app personal Windows runs, including local terminal display |
-| Named-thread reader and relationship model | Exact-ID session-index title enrichment with bounded SQLite fallback, source/archive classification, normalized Windows location grouping; UI visibility is inferred |
-| Local browser explorer | Workspace/Projects/Locations, search, evidence details and explicit Thread deeplinks |
+| Named-thread reader and relationship model | Exact-ID session-index title enrichment, narrowly qualified friendly title presentation, source/archive classification and conservative Windows location grouping; UI visibility is inferred |
+| Local browser explorer | Compact Workspace, global/local Thread expansion, browser Find, selection details, Diagnostics and explicit Thread deeplinks |
 | Real Project decoding | Fixed observed `local-projects`, `thread-project-assignments`, `projectless-thread-ids` shapes; actual-shaped fixtures use invented values |
-| Personal browser workflow | Founder-reported relationship display succeeded; corrected title/UI acceptance remains pending |
+| Personal browser workflow | Founder-validated discovery/relationships and approved light UI; final refinements await acceptance and review |
 
 The earlier synthetic CLI remains available for bundled text explanations. There is no published package, globally installed command or public API.
 
@@ -51,7 +51,7 @@ node dist/test/support/explorer-entry.js
 
 The demo uses invented SQLite/JSON files and verified protected copies. Its temporary artifacts are removed before browser delivery. It does not read personal Codex state or use the real recovery slot.
 
-Open the printed local URL. Browse **Locations** and **Projects**, search titles or locations, and select a record for details. Use **Close local session** or Ctrl+C to finish. The server expires after ten minutes if page-exit closure is not delivered.
+Open the printed local URL. Browse **Workspace** and select a row for Details. Use your browser's Ctrl+F to find a visible name. When a Project has more than five ordinary Threads, **Show all Threads** exposes every Thread and **Collapse all Threads** resets Projects to five; individual **Show more / Show fewer Threads** controls also work. The global control is hidden when unnecessary. Use **Diagnostics** for technical observations. Use **Close session** or Ctrl+C to finish. The server expires after ten minutes if page-exit closure is not delivered. For an authentic Git/worktree browser demo, run `node dist/test/support/folder-explorer-entry.js` after building; its owned temporary fixtures are removed before delivery.
 
 For the older text demo, run `npm run cli -- demo` or `npm run cli -- demo disagreement`. Developer checks are `npm run typecheck` and `npm test`.
 
@@ -65,9 +65,11 @@ Browser delivery follows successful verification and cleanup. A temporary loopba
 
 ## Current limitations and next steps
 
-The approved standalone entry is `node dist/test/support/personal-explorer-entry.js` after building. Close local Codex/ChatGPT Desktop normally first. Database, global-state JSON and session-index JSONL default to the current user's `.codex` directory; `--source`, `--global-state` and `--session-index` override the respective path for this invocation only. No repeated opt-ins or typed consent phrases are required. After the verified-snapshot message, reopen Desktop to compare its UI with the memory-only browser. No new turns, deletion or migration are needed. Close the browser session when finished.
+The approved standalone entry is `node dist/test/support/personal-explorer-entry.js` after building. Close local Codex/ChatGPT Desktop normally first. Database, global-state JSON and session-index JSONL default to the current user's `.codex` directory; `--source`, `--global-state` and `--session-index` override the respective path for this invocation only. Add `--discovery-root <absolute-local-folder>` to inspect bounded physical directories and Git relationships. No repeated opt-ins or typed consent phrases are required. After the verified-snapshot message, reopen Desktop to compare its UI with the memory-only browser. No new turns, deletion or migration are needed. Close the browser session when finished.
 
-Missing/incompatible Project metadata leaves retained Threads under Unclassified with unknown membership. Missing/incompatible title-index metadata preserves Threads and relationships with compact SQLite fallback headings and visible title provenance. Index-only records never create Threads. Source protection, file/data limits and cleanup uncertainty still refuse delivery. Title/source semantics and UI correspondence need the [bounded real comparison](docs/research/explorer-local-read-only-validation.md#real-projectthread-slice-2026-10-09); no metadata rule universally proves visibility. Lexical Windows matching does not establish filesystem identity. Folder inventory, Git/worktrees, migration, exports and automatic refresh remain deferred. Direct live SQLite access remains disabled: an owned-fixture probe demonstrated that a read-only connection can create a shared-memory sidecar.
+Missing/incompatible Project metadata leaves retained Threads with unknown membership under Needs review or Diagnostics. Titles prefer the latest valid exact-ID session-index name, then a narrowly qualified complete Markdown skill-link title. All other fallback titles receive `Thread <short ID>`; raw SQLite prompts are never displayed or searched. Index-only records never create Threads. Source protection, file/data limits and cleanup uncertainty still refuse delivery. No metadata rule universally proves visibility. Lexical Windows matching does not establish filesystem identity. Folder/Git discovery is invocation-only: directories remain distinct from Codex membership, containment does not merge Workspace groups, and standard linked worktrees require reciprocal administrative metadata. Git installation is unnecessary for observation. Missing, inaccessible, excluded and limited observations remain visible. See [launch, bounds, disposable demo and real acceptance](docs/research/explorer-local-read-only-validation.md#filesystem-git-2026-10-10). Migration, exports and automatic refresh remain deferred. Direct live SQLite access remains disabled: an owned-fixture probe demonstrated that a read-only connection can create a shared-memory sidecar.
+
+Workspace prioritizes Project roots, ordinary Thread CWDs, Git trees and unassociated folder branches. Threads nest beneath their assigned Project. One Source folders branch sits at group level, with selectable references to each declaring Project; different Thread CWDs use selectable references. Shared physical folders appear once. Suitable standalone roots show one observed single-child parent as visual context, without merging groups or listing ordinary descendants. Internal directory observations remain in the model without inventory UI. Independently meaningful nested roots remain visible. Five Threads per Project appear initially; useful global expansion exposes all ordinary Threads for browser Find. Routine exclusions and depth limits remain in Diagnostics; failed discovery roots or checks at displayed working locations warrant a Workspace notice. Details separates exact-path existence from recursive coverage, including outside-scope roots. Failed checks include bounded stage information in Diagnostics, without raw exceptions. Folder launching is not supported.
 
 ## Privacy and read-only design
 
