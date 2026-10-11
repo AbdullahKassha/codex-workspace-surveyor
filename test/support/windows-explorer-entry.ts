@@ -69,10 +69,10 @@ async function main():Promise<void>{
     const refused=launchPrerequisite({platform:process.platform,nodeVersion:process.versions.node,
       terminal:!!process.stdin.isTTY&&!!process.stdout.isTTY,executable},path=>{try{return statSync(path).isFile();}catch{return false;}});
     if(refused){console.log(refused);process.exitCode=1;return;}
-    console.log('Close Codex and ChatGPT Desktop normally before inspection. Browser chatgpt.com may remain open.');
-    console.log('Preparing one protected local snapshot. Full copies may contain unselected private data. IDs, titles and paths are displayed in the temporary local browser. No automatic retry.');
-    const {manualPersonalExplorer}=await import('./personal-explorer-entry.js');
-    await manualPersonalExplorer({args:windowsDiscoveryArgs(process.argv.slice(2),process.env.USERPROFILE),
+    console.log('Opening Workspace Surveyor. UI startup does not require Desktop closure; each requested refresh still does. Browser chatgpt.com may remain open.');
+    console.log('Full protected copies may contain unselected private data. IDs, titles and paths are displayed in the temporary local browser. No automatic inspection retry.');
+    const {manualReusableExplorer}=await import('./reusable-explorer-entry.js');
+    await manualReusableExplorer(windowsDiscoveryArgs(process.argv.slice(2),process.env.USERPROFILE),{
       openBrowser:(url,signal)=>openWindowsBrowser(executable,url,signal),
       write:text=>console.log(text.startsWith('{')?launchReport(text):text)});
   }catch{console.log('Launch could not be completed. Check compiled output and prerequisites using the README setup or standalone entry.');process.exitCode=1;}

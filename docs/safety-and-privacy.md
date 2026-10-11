@@ -12,6 +12,14 @@ Read-only SQLite can create SHM in an owned fixture; removing WAL from an analys
 
 [WIN-021](research/explorer-local-read-only-validation.md#win-021) reports a separately approved historical quarantine, not cleanup guidance. No remnant detection, folder removal, migration executor or source-state repair is implemented. Preserve historical residual disclosures; cleanup and normal operation do not prove secure erasure, crash durability or universal recoverability.
 
+## Reusable-session preparation, 2026-10-11
+
+Phase 2A separates UI startup from acquisition. Desktop closure still gates every explicit launch/Refresh acquisition. Source selections are frozen server-side; authenticated browser commands accept no bodies, source paths or filesystem paths. Only candidates passing existing source stability, helper exit and authenticated cleanup checks plus completed discovery replace the successful memory view. Failed/cancelled attempts retain it. Closing or expiring immediately blocks work, clears the view and waits for cleanup; cancellation never kills the acquisition helper.
+
+Reusable discovery checks an invocation access policy before target filesystem reads, including declared locations and Git-reference targets. Structural ancestor/reparse checks are permitted, not out-of-scope Git reads or enumeration. External locations remain uninspected. Standalone discovery retains its previously accepted invocation behavior. Windows folder IDs are captured without numeric rounding for selection restoration; metadata observations still cannot eliminate namespace races.
+
+Ephemeral browser credentials alone use tab-scoped `sessionStorage` for reload. No dataset, path, scope profile or authorization enters it. Loopback Host/Origin/header authentication, CSP and no-store remain required. A session-child managed pipe uses current-user/elevation checks at both ends and first-instance ownership; it saves no token or locator. Same-account malicious processes, administrators, OS/browser capture and secure erasure remain outside isolation guarantees. Deliberate activity bounds idle sessions to two hours and absolute lifetime to twelve hours; events and status reads do not renew them. No durable authorization or live source access is implemented. See [validation, limits and residual disclosure](research/explorer-local-read-only-validation.md#phase-2a-reusable-session-2026-10-11).
+
 <a id="current-m2a1-boundary-design-decisions"></a>
 ## Historical M2a.1 boundary: design decisions
 

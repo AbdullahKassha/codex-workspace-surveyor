@@ -8,6 +8,12 @@ The accepted path is selected sources → protected acquisition and separate ana
 
 [Current validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) records the accepted scope and its limitations. The sections below retain their named historical stages or describe deferred outcomes; old exact-string-only, unavailable-Project and deferred-Git statements do not describe the current explorer.
 
+## Phase 2A preparation, 2026-10-11
+
+The approved reusable path adds a session controller and separate loopback server interface alongside the accepted standalone path. UI startup performs pure source nomination, not acquisition. Each launch or authenticated Refresh requests one serialized attempt; protected acquisition/disposal/cleanup precedes scoped discovery and candidate publication. Cancellation suppresses publication and subsequent discovery dispatch, while close/expiry disables commands and waits for acquisition cleanup. The previous successful dataset remains in memory during refresh failures. A host restart starts empty.
+
+A session-child PowerShell 7 managed pipe owns the current-user rendezvous for its lifetime. First-instance ownership, same-user controls at both ends, exact version/selection checks and bounded messages coordinate relaunch without files, retries or an installed service. Pipe loss closes the Node host after cleanup; occupied recovery controls are not bypassed. The reusable browser stores only its ephemeral credential in tab-scoped storage, reconnects on reload, and receives bounded authenticated state events. Events/reads never refresh or extend idle time. Entity IDs are qualified by frozen source scope; folder restoration additionally needs exact observed filesystem identity. Durable authorization and registry primitives are intentionally deferred until 2A acceptance/review. See [implementation validation](research/explorer-local-read-only-validation.md#phase-2a-reusable-session-2026-10-11).
+
 ## M3a concrete browser preparation
 
 Under [ADR 0014](decisions/0014-named-threads-and-local-projects.md), the private synthetic acquisition bridge supplies owned analysis copies → fixed source-specific readers → evidence-bearing snapshot → pure exact-string reconciliation → short-lived loopback browser. Core `src/explorer` modules import no fixtures, helper protocols, opt-ins or canary entries. Product CLI remains the M1 demonstration. Historical architecture below retains its milestone context.

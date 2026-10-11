@@ -4,10 +4,11 @@ import { realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runExplorerEntry } from './explorer-entry.js';
-import { runPersonalExplorer, explorerPreflightSafety, validPersonalMapSource, type CanaryOptions } from './personal-canary.js';
+import { runPersonalExplorer, explorerPreflightSafety, validPersonalMapSource, type CanaryOptions, type ExplorerDelivery } from './personal-canary.js';
 import { serveLocalExplorer } from '../../src/explorer/server.js';
 import { escapeStored } from '../../src/explorer/view.js';
 import { enrichExplorerSnapshot, validDiscoveryRoot } from '../../src/explorer/discovery.js';
+import type { RefreshResult } from '../../src/explorer/session.js';
 
 type Context={enabled:boolean;nodeVersion:string;executable:string;scratchParent:string;home:string};
 function active(signal:AbortSignal):void {if(signal.aborted)throw new Error('Preflight refused');}
@@ -45,6 +46,31 @@ export async function preparePersonalExplorer(args:readonly string[],display:(te
       scratchParent:context.scratchParent,writers:['ChatGPT','Codex'],consent:true,actualValueConsent:true,
       titleConsent:true,browserConsent:true}}};
   }catch{throw new Error('Preflight refused');}
+}
+
+// Repeated invocations use the same reviewed operation. Cancellation withholds
+// delivery; it never interrupts the coordinator's disposal/recovery work.
+export async function acquirePersonalSnapshot(options:CanaryOptions & {discoveryRoot?:string},signal:AbortSignal,
+  discovery:()=>void=()=>{},scoped=false):Promise<RefreshResult>{
+  if(signal.aborted)return {failure:'unavailable'};
+  return completeExplorerRefresh(await runPersonalExplorer(options),options,signal,discovery,scoped);
+}
+// Shared publication gate also exercised through disposable protected acquisition.
+export async function completeExplorerRefresh(result:ExplorerDelivery,options:{discoveryRoot?:string;executable:string},signal:AbortSignal,
+  discovery:()=>void=()=>{},scoped=false):Promise<RefreshResult>{
+  const s=result.safety;
+  if(signal.aborted){result.snapshot?.discard();return {failure:s.cleanup!=='removed'||s.recovery!=='removed'?'cleanup':'unavailable'};}
+  if(s.status!=='passed'||s.cleanup!=='removed'||s.recovery!=='removed'||!s.sourcesStable||!s.evidence.exitConfirmed||!result.snapshot){
+    result.snapshot?.discard();return {failure:s.cleanup!=='removed'||s.recovery!=='removed'?'cleanup':
+      s.reason==='closure'||s.evidence.phase==='closure'?'closure':'acquisition'};
+  }
+  if(options.discoveryRoot){
+    discovery();try{result.snapshot=await enrichExplorerSnapshot(result.snapshot,{root:options.discoveryRoot,signal,executable:options.executable,
+      ...(scoped?{access:{metadataRoots:[options.discoveryRoot]}}:{})});}
+    catch{result.snapshot.discard();return {failure:'discovery'};}
+  }
+  if(signal.aborted){result.snapshot.discard();return {failure:'unavailable'};}
+  return {snapshot:result.snapshot};
 }
 
 export async function manualPersonalExplorer(launch?:{

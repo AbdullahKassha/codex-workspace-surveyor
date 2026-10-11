@@ -11,6 +11,7 @@ export const discoveryLimits=Object.freeze({depth:4,folders:600,entries:6000,ope
 const excluded=new Set(['.git','node_modules','dist','build','out','target','coverage','.next','.cache','.venv','venv','vendor','bin','obj']);
 type Limits={depth:number;folders:number;entries:number;operations:number;milliseconds:number;git:number};
 export type DiscoveryOptions={root:string;signal?:AbortSignal;executable?:string;limits?:Partial<Limits>;
+  access?:Readonly<{metadataRoots:readonly string[]}>;
   // Internal test seam; never selected from personal command arguments.
   attributes?:(path:string)=>Promise<number|null|'access-denied'|'missing'|'inspection-error'>;
   openDirectory?:typeof opendir};
@@ -77,6 +78,8 @@ export function lstatPath(path:string):string {
 // All findings stay in the one-use browser snapshot; no source/repository writes.
 export async function discoverRelationships(data:ExplorerData,options:DiscoveryOptions):Promise<ExplorerData>{
   if(!validDiscoveryRoot(options.root))throw new Error('Discovery root refused');
+  if(options.access&&(options.access.metadataRoots.length>16||options.access.metadataRoots.some(root=>!validDiscoveryRoot(root))||
+    !options.access.metadataRoots.some(root=>insidePath(options.root,root))))throw new Error('Discovery scope refused');
   const limits={...discoveryLimits,...options.limits};
   for(const key of Object.keys(limits) as (keyof Limits)[])if(!Number.isInteger(limits[key])||limits[key]<1||limits[key]>discoveryLimits[key])throw new Error('Discovery limits refused');
   const folders:FolderObservation[]=[],git:GitObservation[]=[],relations:PhysicalRelation[]=[],diagnostics:DiscoveryDiagnostic[]=[];
@@ -87,8 +90,9 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
   const step=()=>{if(options.signal?.aborted){status='cancelled';throw new Stop();}
     if(operations>=limits.operations||Date.now()-started>limits.milliseconds){status='limited';throw new Stop();}operations++;};
   const note=(path:string,reason:string,stage?:DiscoveryDiagnostic['stage'],at?:DiscoveryDiagnostic['at'])=>{if(diagnostics.length<limits.folders)diagnostics.push({path,reason,...(stage?{stage}:{}),...(at?{at}:{})});};
-  const safeStat=async(path:string):Promise<{state:State;stat?:Awaited<ReturnType<typeof lstat>>}>=>{
+  const safeStat=async(path:string):Promise<{state:State;stat?:Awaited<ReturnType<typeof lstat>>;identity?:FolderObservation['identity']}>=>{
     if(!validDiscoveryPath(path))return {state:'uninspected'};
+    if(options.access&&!options.access.metadataRoots.some(root=>insidePath(path,root))){note(path,'outside-approved-scope');return {state:'uninspected'};}
     const chain:string[]=[];let current=path;for(let i=0;;i++){
       if(i>64)return {state:'uninspected'};chain.push(current);const parent=dirname(current);if(parent===current)break;current=parent;
     }
@@ -101,6 +105,13 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
       }if(value&1024)return {state:'reparse'};}
       if(member!==path&&!last.isDirectory())return {state:'not-directory'};
     }
+    // Node's numeric Windows file IDs can exceed its exact integer range.
+    // Capture the actual directory identity without rounding it for selection.
+    if(options.access&&last!.isDirectory()){
+      step();const precise=await lstat(lstatPath(path),{bigint:true});
+      if(!precise.isDirectory()||precise.isSymbolicLink()||Number(precise.dev)!==last!.dev||Number(precise.ino)!==last!.ino)return {state:'uninspected'};
+      return {state:'exists',stat:last!,identity:{device:String(precise.dev),file:String(precise.ino)}};
+    }
     return {state:'exists',stat:last!};
   };
   const directory=async(path:string)=>{const s=await safeStat(path);return s.state==='exists'&&!s.stat!.isDirectory()?{state:'not-directory' as const}:s;};
@@ -111,7 +122,8 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
       aliases:f.aliases.includes(path)?f.aliases:[...f.aliases,path]};return previous;}
     if(folders.length>=limits.folders){status='limited';throw new Stop();}
     const s=await directory(path),i=folders.length;
-    folders.push({path,aliases:[path],origin,state:s.state,inspection:s.state==='exists'?'exact-only':'uninspected'});folderByKey.set(key,i);return i;
+    folders.push({path,aliases:[path],origin,state:s.state,inspection:s.state==='exists'?'exact-only':'uninspected',
+      ...('identity' in s&&s.identity?{identity:s.identity}:{})});folderByKey.set(key,i);return i;
   };
   const metadataText=async(path:string):Promise<string>=>{
     const s=await safeStat(path);if(s.state!=='exists')throw new Error(s.state);

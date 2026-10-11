@@ -11,6 +11,7 @@ export type AssignmentClaim = Readonly<{ threadId: string; projectId: string; pr
 export type Membership = 'stored-assignment' | 'projectless' | 'no-assignment-observed' | 'unknown' | 'conflicting' | 'dangling';
 export type Visibility = 'inferred'|'unknown'|'internal'|'archived';
 export type FolderObservation = Readonly<{path:string; aliases:readonly string[]; origin:'discovery'|'declared'|'git-metadata';
+  identity?:Readonly<{device:string;file:string}>;
   state:'exists'|'missing'|'inaccessible'|'inspection-error'|'reparse'|'not-directory'|'uninspected';
   inspection:'enumerated'|'exact-only'|'excluded'|'depth-limit'|'entry-limit'|'contents-unavailable'|'uninspected'; parent?:number;}>;
 export type GitObservation = Readonly<{folder:number; kind:'main'|'linked'|'unsupported'; state:'verified'|'missing'|'inaccessible'|'unsupported';

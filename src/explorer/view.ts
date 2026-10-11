@@ -1,4 +1,5 @@
 import { locationKey, windowsPathKey } from './model.js';
+import { bookmarkSelection, restoreSelection } from './selection.js';
 import { displayTitle, friendlyTitle, folderContains, folderCoverage, folderStatus, membershipStatus, projectThreads,
   workspaceLocations, workspacePresentation, locationPlacement, discoveryNotice, hasExpandableThreads, standaloneParent } from './presentation.js';
 export { displayTitle } from './presentation.js';
@@ -13,6 +14,17 @@ export function escapeStored(value:string):string {
 }
 export function displayText(value:string):string {
   return [...value].map(c=>c==='\\'?c:escapeStored(c)).join('');
+}
+export function snapshotUpdatedLabel(iso:string|null,now=Date.now(),locale?:string):string {
+  const date=new Date(iso??''),current=new Date(now),age=now-date.getTime();
+  if(!Number.isFinite(age))return 'Last updated time unavailable';
+  if(age<0)return 'Last updated time is in the future; check the local clock';
+  const today=date.getFullYear()===current.getFullYear()&&date.getMonth()===current.getMonth()&&date.getDate()===current.getDate();
+  const when=today?'today at '+new Intl.DateTimeFormat(locale,{hour:'numeric',minute:'2-digit'}).format(date):
+    new Intl.DateTimeFormat(locale,{dateStyle:'medium',timeStyle:'short'}).format(date);
+  const relative=age<60000?'just now':new Intl.RelativeTimeFormat(locale,{numeric:'always'}).format(
+    -Math.floor(age/(age<3600000?60000:age<86400000?3600000:86400000)),age<3600000?'minute':age<86400000?'hour':'day');
+  return 'Last updated '+when+' · '+relative;
 }
 export const clientCode = `
 const escapeStored=${escapeStored.toString()};
@@ -221,4 +233,100 @@ button{font:inherit;color:inherit}button{cursor:pointer;border:0;background:tran
 .layout{display:block}.layout.has-selection{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:35px}.layout>*{min-width:0}.component{border-top:1px solid #e3e7e1;padding:15px 0 18px}.component>h2{color:#68716f;margin:0 0 10px}.relationship-tree{display:block}.project-block+.project-block,.relationship-tree>.thread-row+.thread-row{margin-top:12px}.entity-select{display:inline-flex;align-items:center;gap:8px;text-align:left;max-width:100%;padding:5px 7px;margin-left:-7px;font-size:14px;min-width:0;vertical-align:middle}.entity-icon{width:18px;height:18px;flex:none}.icon-project{color:#6474aa}.icon-thread{color:#32836c}.icon-folder{color:#b28c3d}.icon-repository{color:#617180}.icon-worktree{color:#927293}.entity-name{overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr}.project-line>.entity-select{font-weight:600}.entity-select.related{background:#f0f4ee}.entity-select[aria-pressed=true]{background:#e2eee5;color:#1e513b}.entity-type{font-size:10px;color:#79807e;margin-left:8px}.project-line,.thread-line,.location-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}.project-branches,.location-branch,.worktree-list{margin:3px 0 0 8px;padding-left:22px;border-left:1px solid #d9e1d6}.member-list>.thread-row,.source-folders>.location-row,.location-branch>.location-row,.worktree-list>.location-row{position:relative}.member-list>.thread-row:before,.source-folders>.location-row:before,.location-branch>.location-row:before,.worktree-list>.location-row:before{content:'';position:absolute;left:-22px;top:16px;width:15px;border-top:1px solid #d9e1d6}.thread-row{padding:2px 0}.thread-line .entity-name{font-size:13px}.open-thread{color:#728078;font-size:14px;padding:3px 6px;text-decoration:none;border-radius:4px}.uses-location{font-size:11px;color:#687c70;padding:3px 6px;overflow-wrap:anywhere}.member-list{margin:0}.source-folders{margin-top:9px}.source-folders>.location-line,.folder-context>.location-line{font-size:14px;gap:8px;padding:5px 0}.source-label{display:block;font-size:10px;color:#79807e;margin:0 0 2px}.source-projects{margin-left:20px}.root-reference{display:block;margin:3px 0}.show-more{font-size:11px;color:#597565;margin:4px 0}.location-row{padding:5px 0 7px;min-width:0}.path-preview{font-size:11px;color:#7a817d;margin:0 0 0 26px;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr}.git-facet{font-size:10px;color:#738077;margin-left:6px;padding:3px 5px}.git-facet .entity-icon{width:14px;height:14px}.muted,small{color:#79817b}.muted{font-size:11px}.warning{color:#966126;font-size:11px;margin:5px 0}.notice-action{color:#946c36;text-align:left;font-size:11px;padding-left:0}.needs-review{border-top:1px solid #e6decf;padding:15px 0}.empty-state{padding:25px 0;color:#727b74;font-size:13px}
 aside{align-self:start;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;border-left:1px solid #e0e5de;padding:5px 0 18px 24px}aside h2{font-size:18px;line-height:1.45;margin:14px 0;overflow-wrap:anywhere}aside h3{color:#788079;font-size:11px;margin:18px 0 5px}aside .quiet{font-size:11px;padding-left:0;display:block;color:#597361}.detail-top{display:flex;align-items:center;justify-content:space-between}.detail-top small{font-size:11px}.detail-back{font-size:11px;color:#728178}.exact{white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr;font-family:ui-monospace,monospace;font-size:11px;margin:6px 0}.primary-action{display:inline-block;padding:8px 11px;border-radius:6px;background:#e5eee5;color:#2d6342;font-size:12px;text-decoration:none}.technical-link{margin-top:20px;font-size:10px;color:#7d8b80;padding-left:0}.copy-status{font-size:11px;color:#5d7764}details{border-top:1px solid #e0e5df;margin-top:12px;padding:7px 0}summary{cursor:pointer;font-size:12px;color:#68786c;padding:7px 0}.diagnostic-evidence{border-left:2px solid #bdcabd;padding-left:15px}.diagnostic-evidence h3{font-size:11px;color:#728674}footer{font-size:10px;color:#819081;margin-top:15px}footer:has(p:empty){display:none}
 @media(max-width:899px){header{padding:14px 18px;flex-wrap:wrap;gap:9px}.brand span{display:none}main{padding:20px 18px}.workspace-top{align-items:flex-start;flex-direction:column;gap:13px}.layout.has-selection{display:block}.layout.has-selection #relationships{display:none}aside{position:static;max-height:none;border-left:0;padding:0}.project-branches,.location-branch,.worktree-list{padding-left:18px}.member-list>.thread-row:before,.source-folders>.location-row:before,.location-branch>.location-row:before,.worktree-list>.location-row:before{left:-18px;width:12px}.entity-type{margin-left:0}}
+.session-header{display:grid;grid-template-columns:minmax(0,1fr) auto}.header-navigation{display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-width:0}.header-navigation nav{flex-wrap:wrap}.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap;min-width:0;font-size:12px}.session-menu{position:relative;margin:0;padding:0 0 0 16px;border-top:0;border-left:1px solid #e6e8e4}.session-menu summary{padding:7px 9px;border-radius:6px;color:#697271}.session-menu summary:hover{background:#edf0ec}.session-menu summary:focus-visible{outline:2px solid #25856c;outline-offset:3px}.session-popover{position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:232px;max-width:calc(100vw - 36px);padding:12px;border:1px solid #e0e5df;border-radius:6px;background:#fff}.session-popover p{margin:0 0 8px;font-size:11px;color:#727a7b;overflow-wrap:anywhere}.session-popover button{width:100%;text-align:left}.refresh-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}.refresh-status p{margin:0;min-width:0;overflow-wrap:anywhere}.refresh-status button{font-size:11px;color:#597565}
+@media(max-width:520px){.session-header{grid-template-columns:minmax(0,1fr);gap:12px}.header-navigation{gap:9px}.header-actions{justify-self:end}}
 `;
+
+// Reuse the accepted Workspace renderer; only the transport/lifecycle differs.
+const renderer=clientCode.slice(clientCode.indexOf('let data=null'),clientCode.indexOf('async function closeView()'))
+ .replace("'Observation interval'","'Acquisition interval (UTC)'")
+ .replace("field(coverage,'Source namespace'","field(coverage,'Snapshot completed (UTC)',currentUpdatedAt||'Unavailable');if(data.discovery)field(coverage,'Folder observation interval (UTC)',data.discovery.from+' → '+data.discovery.through);field(coverage,'Source namespace'");
+export const reusableClientCode=clientCode.slice(0,clientCode.indexOf('const token='))+`
+const bookmarkSelection=${bookmarkSelection.toString()};
+const restoreSelection=${restoreSelection.toString()};
+const snapshotUpdatedLabel=${snapshotUpdatedLabel.toString()};
+const storageKey='workspace-surveyor-session';
+let token=location.hash.slice(1);
+try{if(/^[a-f0-9]{64}$/.test(token))sessionStorage.setItem(storageKey,token);else token=sessionStorage.getItem(storageKey)||'';}catch{}
+history.replaceState(null,'',location.pathname);
+`+renderer+`
+let latestVersion=-1,latestRevision=-1,currentRevision=-1,currentScope='',currentUpdatedAt=null,latestState=null,lastActivity=0;
+let connected=false,connectionWarning='Connecting to local session…';
+const eventsAbort=new AbortController();
+function forgetCredential(){try{sessionStorage.removeItem(storageKey);}catch{}}
+function finishView(message){const menu=byId('session-menu'),restoreFocus=menu.open||document.activeElement===byId('cancel');menu.open=false;
+ closeLocal();forgetCredential();token='';clearInterval(ageTimer);byId('refresh').disabled=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;byId('session-status').textContent=message;
+ if(restoreFocus)byId('session-status').focus?.();}
+function disconnected(){if(closed)return;connected=false;connectionWarning='Connection unavailable; the displayed snapshot may be stale. Reload to reconnect.';
+ byId('session-status').textContent=connectionWarning;byId('refresh').disabled=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;
+ if(document.activeElement===byId('cancel'))byId('session-status').focus?.();}
+function showStatus(){
+ if(!latestState||closed)return;
+ const s=latestState,a=s.attempt;
+ const stages={idle:'Ready.',acquiring:'Acquiring and verifying a protected snapshot. Desktop must be closed.',discovery:'Inspecting approved folders and Git metadata.',cancelling:'Cancelling; waiting for protected cleanup.'};
+ const failures={closure:'Close Codex and ChatGPT Desktop normally, then request Refresh.',acquisition:'Acquisition refused; check source availability and compatibility.',cleanup:'Cleanup or recovery was not confirmed. Use the documented explicit recovery procedure; do not delete controls manually.',discovery:'Folder inspection failed.',unavailable:'Refresh could not complete.'};
+ let message=stages[s.phase]||'Session closing.';
+ if(s.phase==='idle'&&a?.outcome==='failure')message=failures[a.failure]||failures.unavailable;
+ if(s.phase==='idle'&&a?.outcome==='cancelled')message=a.failure==='cleanup'?failures.cleanup:'Refresh cancelled.';
+ if(data&&(s.phase!=='idle'||a?.outcome!=='success'||currentRevision!==s.revision))message+=' Showing the previous successful snapshot.';
+ byId('session-status').textContent=connected?message:connectionWarning;
+ byId('coverage').textContent=data?snapshotUpdatedLabel(currentUpdatedAt):'No successful snapshot yet. Use Refresh when Desktop is closed.';
+ const active=connected&&['acquiring','discovery'].includes(s.phase);byId('refresh').disabled=!connected||s.phase!=='idle';byId('cancel').disabled=!active;byId('cancel').hidden=!active;byId('close').disabled=!connected;
+ if(!active&&document.activeElement===byId('cancel'))byId('session-status').focus?.();
+}
+async function control(path){
+ if(closed||!token||!connected)return;
+ try{const response=await fetch(path,{method:'POST',headers:{'X-Surveyor-Session':token},cache:'no-store'});
+  if(response.status===403||response.status===410)finishView('Local session unavailable. Launch Workspace Surveyor again.');
+  return response.ok;
+ }catch{disconnected();}
+}
+async function loadSnapshot(revision,scope,updatedAt){
+ try{const response=await fetch('/snapshot',{headers:{'X-Surveyor-Session':token},cache:'no-store',signal:snapshotLoad.signal});
+  if(closed)return;if(!response.ok)throw 0;const loaded=await response.json();
+  if(closed||loaded.revision!==latestRevision||loaded.scope!==scope||revision!==latestRevision)return;
+  const same=currentScope===scope,bookmark=same&&data?bookmarkSelection(data,selection):null;
+  const expandedIds=same&&data?[...expanded].flatMap(i=>data.projects[i]&&data.projects.filter(p=>p.id===data.projects[i].id).length===1?[data.projects[i].id]:[]):[];
+  data=loaded.data;currentScope=scope;currentRevision=loaded.revision;currentUpdatedAt=data?updatedAt:null;returnFocus=null;expanded.clear();
+  if(!same||!data)allThreads=false;
+  if(data){expandedIds.forEach(id=>{const rows=data.projects.flatMap((p,i)=>p.id===id?[i]:[]);if(rows.length===1)expanded.add(rows[0]);});
+   selection=restoreSelection(data,bookmark);
+   if(view==='workspace'&&selection?.kind==='thread'&&data.visibility[selection.index]!=='inferred'&&
+     !(data.visibility[selection.index]==='unknown'&&data.threads[selection.index].sourceState==='ordinary'&&data.threads[selection.index].archived===false))selection=null;
+   if(!selection)byId('details').replaceChildren();
+   groups=workspacePresentation(data);render();if(selection&&view==='workspace')renderDetails();
+  }else{selection=null;groups=[];byId('relationships').replaceChildren();byId('details').replaceChildren();byId('details').hidden=true;}
+  showStatus();
+ }catch{if(connected&&!closed&&revision===latestRevision&&scope===latestState?.scope)byId('session-status').textContent='Snapshot delivery failed; retaining the previous view. Reload to reconnect.';}
+}
+function receiveState(s){
+ if(!s||!Number.isSafeInteger(s.version)||s.version<=latestVersion)return;latestVersion=s.version;latestState=s;connected=true;
+ if(s.phase==='closing'||s.phase==='closed'){finishView(s.phase==='closing'?'Session closing; waiting for protected cleanup.':
+   s.attempt?.failure==='cleanup'?'Session closed. Cleanup or recovery was not confirmed; see the console and documented recovery procedure.':'Session closed.');if(s.phase==='closed')eventsAbort.abort();return;}
+ if(closed)return;latestRevision=s.revision;showStatus();if(currentRevision!==s.revision)void loadSnapshot(s.revision,s.scope,s.updatedAt);
+}
+async function followState(){
+ try{const response=await fetch('/events',{headers:{'X-Surveyor-Session':token},cache:'no-store',signal:eventsAbort.signal});
+  if(!response.ok||!response.body)throw 0;const reader=response.body.getReader(),decoder=new TextDecoder();let pending='';
+  while(!eventsAbort.signal.aborted){const chunk=await reader.read();if(chunk.done)break;pending+=decoder.decode(chunk.value,{stream:true});
+   let newline;while((newline=pending.indexOf('\\n'))>=0){const line=pending.slice(0,newline);pending=pending.slice(newline+1);if(line.length>4096)throw 0;receiveState(JSON.parse(line));}
+   if(pending.length>4096)throw 0;
+  }
+  if(!closed&&!eventsAbort.signal.aborted)disconnected();
+ }catch{if(!closed&&!eventsAbort.signal.aborted)disconnected();}
+}
+byId('workspace').onclick=()=>{if(data)returnWorkspace();};byId('diagnostics').onclick=()=>{if(data)openDiagnostics();};
+byId('expand-threads').onclick=()=>{if(closed||!data||!hasExpandableThreads(data,groups))return;allThreads=!allThreads;if(!allThreads)expanded.clear();render();};
+byId('refresh').onclick=()=>{byId('refresh').disabled=true;void control('/refresh');};byId('cancel').onclick=()=>{void control('/cancel');};
+byId('close').onclick=async()=>{if(await control('/close')&&!closed)finishView('Session closing; waiting for protected cleanup.');};
+function activity(event){if(!event.isTrusted||closed||Date.now()-lastActivity<30000)return;lastActivity=Date.now();void control('/activity');}
+addEventListener('click',event=>{activity(event);if(byId('session-menu').open&&event.target&&!byId('session-menu').contains(event.target))byId('session-menu').open=false;});
+addEventListener('keydown',event=>{activity(event);if(event.key==='Escape'){
+ if(byId('session-menu').open){byId('session-menu').open=false;byId('session-toggle').focus?.();event.preventDefault?.();return;}
+ if(view==='diagnostics'&&data)returnWorkspace();else dismissDetails();}});
+const ageTimer=setInterval(showStatus,30000);
+addEventListener('pagehide',()=>{snapshotLoad.abort();eventsAbort.abort();clearInterval(ageTimer);});
+if(/^[a-f0-9]{64}$/.test(token))void followState();else finishView('Local session refused. Open it using Workspace Surveyor.cmd.');
+`;
+export const reusableExplorerHtml=explorerHtml.replace(/<header>[\s\S]*?<\/header>/,`<header class="session-header"><div class="header-navigation"><div class="brand">Workspace Surveyor <span>for Codex</span></div><nav aria-label="Views"><button id="workspace" aria-pressed="true">Workspace</button><button id="diagnostics" aria-pressed="false">Diagnostics</button></nav></div><div class="header-actions"><button id="refresh">Refresh</button><details id="session-menu" class="session-menu"><summary id="session-toggle">Session</summary><div class="session-popover"><p id="session-close-note">Closing the session disconnects all connected tabs.</p><button id="close" aria-describedby="session-close-note">Close session</button></div></details></div></header>`)
+  .replace('<div id="notices"','<div class="refresh-status"><p id="session-status" class="muted" role="status" tabindex="-1">Starting local session…</p><button id="cancel" hidden disabled>Cancel refresh</button></div><div id="notices"');
