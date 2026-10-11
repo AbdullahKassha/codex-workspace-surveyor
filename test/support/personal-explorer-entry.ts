@@ -47,16 +47,24 @@ export async function preparePersonalExplorer(args:readonly string[],display:(te
   }catch{throw new Error('Preflight refused');}
 }
 
-export async function manualPersonalExplorer():Promise<void>{
-  process.exitCode=await runExplorerEntry({personal:true,signals:process,start:serveLocalExplorer,write:text=>console.log(text),
+export async function manualPersonalExplorer(launch?:{
+  args:readonly string[];
+  openBrowser:(url:string,signal:AbortSignal)=>Promise<boolean>;
+  write:(text:string)=>void;
+}):Promise<void>{
+  process.exitCode=await runExplorerEntry({personal:true,signals:process,start:serveLocalExplorer,write:launch?.write??(text=>console.log(text)),
+    ...(launch?{openBrowser:launch.openBrowser}:{}),
     createFixture:()=>({acquire:async signal=>{
       let options:CanaryOptions & {discoveryRoot?:string};
       try{
         if(!process.stdin.isTTY||!process.stdout.isTTY)throw new Error('Preflight refused');
         const executable=process.env.WORKSPACE_SURVEYOR_HELPER_PWSH??join(process.env.ProgramFiles??'','PowerShell','7','pwsh.exe');
-        options=await preparePersonalExplorer(process.argv.slice(2),text=>process.stdout.write(text),{
+        options=await preparePersonalExplorer(launch?.args??process.argv.slice(2),launch?()=>{}:text=>process.stdout.write(text),{
           enabled:true,nodeVersion:process.versions.node,executable,scratchParent:realpathSync(tmpdir()),home:homedir()},signal);
         active(signal);
+        if(launch)launch.write(options.discoveryRoot?
+          'Folder discovery root: '+escapeStored(options.discoveryRoot)+'\nBounded folder and Git metadata inspection; exact declared locations and Git-referenced worktrees may be outside this root.':
+          'Standalone folder discovery is not enabled: %USERPROFILE%\\Documents\\Codex is unavailable. Project/Thread inspection remains enabled. No alternative root was searched.');
       }catch{return {safety:explorerPreflightSafety};}
       // After the coordinator starts, cancellation withholds delivery but never aborts cleanup.
       const result=await runPersonalExplorer(options);

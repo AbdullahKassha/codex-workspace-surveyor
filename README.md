@@ -4,7 +4,7 @@
 
 Workspace Surveyor is a Windows-first, read-only explorer of Codex relationships. It helps explain shared working locations, stored Project assignments and uncertainty in the available evidence.
 
-**Current status:** the Filesystem/Git Discovery and Workspace Relationship Explorer milestone was founder-accepted and independently reviewed at `d15c78b121074c78a3b3492e369c3e89c85ca93e`, reported 2026-10-10. The light vertical browser presents numbered relationship groups, meaningful locations, selection details and discreet Diagnostics. The next priority is Evidence & Compatibility; see [tested scenarios and limits](docs/compatibility.md).
+**Current status:** Workspace Explorer and Evidence & Compatibility are founder-accepted and independently reviewed at `b2b6fbb31cdd103d6d66e29c7133f328319692d4`. The light vertical browser presents numbered relationship groups, meaningful locations, selection details and discreet Diagnostics. The founder reports successful Windows one-click launch and session closure; its discovery-scope correction awaits founder acceptance and independent review. See [tested scenarios and limits](docs/compatibility.md).
 
 ## Why it exists
 
@@ -31,6 +31,21 @@ A **stored CWD** is the working-directory string recorded for a thread. It does 
 | Personal browser workflow | Accepted bounded Windows workflow at the milestone above; not certification of every Desktop release, source schema or Git layout |
 
 The earlier synthetic CLI remains available for bundled text explanations. There is no published package, globally installed command or public API.
+
+## Launch on Windows
+
+First-time setup requires Node **24** on PATH, npm **11**, and PowerShell **7** (normally installed under `Program Files/PowerShell/7`). From the checkout, run once, and build again after updates:
+
+```powershell
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build
+```
+
+Close Codex and ChatGPT Desktop normally, then double-click **[Workspace Surveyor.cmd](Workspace%20Surveyor.cmd)**. A visible console reports progress and failures. After verified acquisition, helper exit, temporary-copy cleanup and local-server readiness, the default browser opens automatically. You may then reopen Desktop. Finish with **Close session** in the page or Ctrl+C in the console; review the final result and press a key to close the console. The existing ten-minute session expiry still applies. Closing the console window forcibly can leave recovery artifacts; handled cancellation waits for cleanup, and uncertain cleanup is reported rather than presumed complete.
+
+The launcher runs Node with the repository directory as its working directory, restores the caller's directory and preserves Node's exit status. Keep the checkout outside the temporary tree: existing containment safeguards still refuse unsafe repository locations. The launcher never builds, installs, closes applications or retries automatically. It displays the selected folder discovery scope, without printing Codex source paths or a session token during successful browser dispatch. If browser opening cannot be confirmed, it prints one temporary URL for manual opening; dispatch success does not guarantee that the browser rendered the page. Another launch during acquisition may refuse because recovery controls are occupied; do not delete them. A launch after acquisition cleanup creates an independent snapshot/session.
+
+The Windows launcher uses exactly `%USERPROFILE%\Documents\Codex` for bounded folder/Git discovery when that directory exists, and displays the selected scope before acquisition. If unavailable, it explains that standalone folder discovery is disabled and continues Project/Thread inspection; it never searches broader or alternative roots. Existing discovery safeguards still apply, including reparse refusal. An explicit `--discovery-root <absolute-local-folder>` overrides the convention without probing it; existing arguments can be supplied when invoking the `.cmd` from a terminal. Codex source defaults and invocation-only overrides are unchanged. For a nonstandard PowerShell installation, use the existing `WORKSPACE_SURVEYOR_HELPER_PWSH` variable with its absolute `pwsh.exe` path. The standalone fallback remains `node dist/test/support/personal-explorer-entry.js` from the checkout; it prints a manual URL and sanitized diagnostics and still requires `--discovery-root` to enable folder discovery. No personal acceptance is claimed by synthetic validation.
 
 <a id="run-the-synthetic-demonstration"></a>
 ## Try the synthetic demo
