@@ -247,7 +247,7 @@ test('Workspace DOM shows connected real-shaped entities, empty Projects and pro
   const primary=get('relationships').children.slice(0,2).flatMap(texts);
   assert.ok(primary.includes('Atlas'));assert.ok(primary.includes('Empty Project'));assert.ok(primary.includes('Visible title'));assert.ok(primary.includes('Free title'));
   assert.equal(primary.includes('Internal title'),false);assert.equal(primary.includes('Unclassified title'),false);
-  assert.ok(primary.includes('Projectless'));assert.ok(primary.includes('No current Threads'));
+  assert.ok(primary.includes('Projectless'));assert.ok(primary.includes('No qualifying assigned Threads observed'));
   assert.equal(primary.some(x=>x.includes('Registry Project')),false);
   const find=(e:Element,title:string):Element|undefined=>e.onclick&&(e.textContent===title||e.children.some(c=>c.textContent===title))?e:e.children.map(x=>find(x,title)).find(Boolean);
   find(get('relationships'),'Visible title')!.onclick!();

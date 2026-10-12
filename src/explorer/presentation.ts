@@ -1,4 +1,4 @@
-import { locationKey, windowsPathKey, type ExplorerData, type FolderObservation, type ThreadClaim } from './model.js';
+import { locationKey, windowsPathKey, type ExplorerData, type FolderObservation, type GitObservation, type ThreadClaim } from './model.js';
 
 // Existing inert link-label normalization. This is formatting, not qualification.
 export function displayTitle(t:{title:string|null;titleSource?:string}):string {
@@ -44,6 +44,67 @@ export function discoveryNotice(data:ExplorerData,groups:WorkspacePresentation[]
 export function membershipStatus(value:string):string {
   return ({conflicting:'Conflicting relationship',dangling:'Associated Project unavailable',unknown:'Unknown membership',
     'no-assignment-observed':'Unknown membership'} as Record<string,string>)[value]||'';
+}
+// Explain snapshot evidence only; these helpers neither observe paths nor add relationships.
+export function membershipExplanation(data:ExplorerData,index:number):string {
+  const assigned=data.relations.find(r=>r.kind==='assigned-project'&&r.subject===index);
+  switch(data.memberships[index]) {
+    case 'stored-assignment':return assigned?'Stored assignment links this Thread to '+(data.projects[assigned.target]!.label||'Unnamed Project')+'.':'Project membership remains unknown.';
+    case 'projectless':return 'Explicitly recorded as projectless.';
+    case 'no-assignment-observed':return 'No assignment was observed; Project membership remains unknown.';
+    case 'conflicting':return 'Stored relationship evidence conflicts; Project membership could not be resolved.';
+    case 'dangling':return 'A stored assignment references an unavailable Project.';
+    default:return data.coverage.projects==='unavailable'||data.coverage.correspondence!=='qualified'?
+      'Qualified Project assignment information is unavailable; membership remains unknown.':'The stored assignment could not establish Local Project membership.';
+  }
+}
+export function cwdExplanations(data:ExplorerData,index:number):string[] {
+  const t=data.threads[index]!,result:string[]=[];
+  if(t.cwd===null)return result;
+  const assigned=data.relations.find(r=>r.kind==='assigned-project'&&r.subject===index);
+  if(assigned) {
+    const p=data.projects[assigned.target]!,matches=data.relations.some(r=>r.subject===index&&r.target===assigned.target&&
+      (r.kind==='matches-exact-root'||r.kind==='matches-normalized-root'));
+    if(p.roots.length&&!matches)result.push('The stored working directory differs from all declared Source folders. The stored Project assignment remains '+(p.label||'Unnamed Project')+'.');
+  }
+  const matches=data.relations.filter(r=>r.subject===index&&(r.kind==='matches-exact-root'||r.kind==='matches-normalized-root'));
+  if(matches.length) {
+    result.push('Its stored CWD matches a Source folder declared by '+matches.map(r=>data.projects[r.target]!.label||'Unnamed Project').join(', ')+'.');
+    if(data.memberships[index]!=='stored-assignment'||!assigned||matches.some(r=>r.target!==assigned.target))
+      result.push('Matching a Source folder does not establish Project membership.');
+  }
+  // Use Folder Details' component/location population, not all stored CWD claims.
+  const component=data.components.find(c=>c.threads.includes(index));
+  const location=component&&workspaceLocations(data,{...component,folders:component.folders??[]})
+    .find(l=>locationKey(l.path)===locationKey(t.cwd!));
+  const count=location?.threads.length??0;
+  if(data.visibility[index]==='inferred'&&count>1)result.push(count+' qualifying Threads report this folder as their stored working directory.');
+  return result;
+}
+export function sourceFolderExplanation(data:ExplorerData,index:number):string {
+  return (data.projects[index]!.label||'Unnamed Project')+' declares this Source folder.';
+}
+export function folderExplanations(data:ExplorerData,location:WorkspaceLocation):string[] {
+  const result=location.projects.map(i=>sourceFolderExplanation(data,i)),count=location.threads.length;
+  if(count)result.push(count===1?'One qualifying Thread reports this folder as its stored working directory.':
+    count+' qualifying Threads report this folder as their stored working directory.');
+  const assignments=location.threads.map(i=>data.memberships[i]==='stored-assignment'?
+    data.relations.find(r=>r.kind==='assigned-project'&&r.subject===i)?.target:undefined);
+  const unambiguous=assignments.length>0&&assignments[0]!==undefined&&assignments.every(i=>i===assignments[0])&&
+    (location.projects.length===0||location.projects.length===1&&location.projects[0]===assignments[0]);
+  if(location.projects.length>1||!unambiguous&&(count>1||location.projects.length>0&&count>0))
+    result.push('Sharing this folder does not establish Project membership.');
+  return result;
+}
+export function gitLinkLabel(g:GitObservation):string {
+  return g.state==='verified'?(g.kind==='linked'?'View worktree':'View repository'):'View Git evidence';
+}
+export function gitExplanation(data:ExplorerData,index:number):string {
+  const g=data.discovery!.git[index]!;
+  if(g.state!=='verified')return 'Git repository identity was not established from the inspected metadata.';
+  const related=g.commonIdentity!==undefined&&data.discovery!.git.some((other,i)=>i!==index&&other.state==='verified'&&other.commonIdentity===g.commonIdentity);
+  return related?'Verified Git metadata links these checkouts to the same repository.':
+    'Standard '+(g.kind==='linked'?'linked-worktree':'main-repository')+' metadata was verified.';
 }
 export function projectThreads(data:ExplorerData,index:number):number[] {
   return data.relations.flatMap(r=>r.kind==='assigned-project'&&r.target===index&&data.visibility[r.subject]==='inferred'?[r.subject]:[]);

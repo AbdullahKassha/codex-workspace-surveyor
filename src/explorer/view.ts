@@ -1,6 +1,7 @@
 import { locationKey, windowsPathKey } from './model.js';
 import { bookmarkSelection, restoreSelection } from './selection.js';
 import { displayTitle, friendlyTitle, folderContains, folderCoverage, folderStatus, membershipStatus, projectThreads,
+  membershipExplanation, cwdExplanations, sourceFolderExplanation, folderExplanations, gitLinkLabel, gitExplanation,
   workspaceLocations, workspacePresentation, locationPlacement, discoveryNotice, hasExpandableThreads, standaloneParent } from './presentation.js';
 export { displayTitle } from './presentation.js';
 
@@ -37,6 +38,12 @@ const displayTitle=${displayTitle.toString()};
 const friendlyTitle=${friendlyTitle.toString()};
 const folderStatus=${folderStatus.toString()};
 const membershipStatus=${membershipStatus.toString()};
+const membershipExplanation=${membershipExplanation.toString()};
+const cwdExplanations=${cwdExplanations.toString()};
+const sourceFolderExplanation=${sourceFolderExplanation.toString()};
+const folderExplanations=${folderExplanations.toString()};
+const gitLinkLabel=${gitLinkLabel.toString()};
+const gitExplanation=${gitExplanation.toString()};
 const projectThreads=${projectThreads.toString()};
 const workspaceLocations=${workspaceLocations.toString()};
 const workspacePresentation=${workspacePresentation.toString()};
@@ -111,9 +118,14 @@ function threadOpen(i,label='Open in Codex ↗'){
 }
 function appendStatus(panel,value){if(value)panel.append(text('p',value,'warning'));}
 function locationRelationships(panel,l){
- if(!l)return;if(l.projects.length){panel.append(text('h3','Projects'));l.projects.forEach(i=>relatedButton(panel,'project',i,data.projects[i].label||'Unnamed Project'));}
- if(l.threads.length){panel.append(text('h3','Threads'));l.threads.forEach(i=>relatedButton(panel,'thread',i,friendlyTitle(data.threads[i]).label));}
- if(!l.projects.length&&!l.threads.length&&!l.git.length)panel.append(text('p','No associated Project or Thread found.','muted'));
+ if(!l)return;folderExplanations(data,l).forEach(value=>panel.append(text('p',value,'muted')));
+ if(l.projects.length){panel.append(text('h3','Projects declaring this folder'));l.projects.forEach(i=>relatedButton(panel,'project',i,data.projects[i].label||'Unnamed Project'));}
+ if(l.threads.length){panel.append(text('h3','Threads reporting this working directory'));l.threads.forEach(i=>relatedButton(panel,'thread',i,friendlyTitle(data.threads[i]).label));}
+ if(!l.projects.length&&!l.threads.length&&!l.git.length)panel.append(text('p','No associated Project or Thread found in this snapshot.','muted'));
+}
+function locatedGit(panel,index,subject){
+ panel.append(text('p',subject+' lies within this verified Git working tree by lexical path comparison.','muted'));
+ relatedButton(panel,'git',index,gitLinkLabel(data.discovery.git[index]));
 }
 function renderDetails(){
  if(closed||!data||!selection)return;const panel=byId('details');panel.hidden=false;panel.replaceChildren();byId('layout').className='layout has-selection';
@@ -124,23 +136,25 @@ function renderDetails(){
   const i=selection.index,t=data.threads[i],resolved=friendlyTitle(t),assigned=data.relations.find(r=>r.kind==='assigned-project'&&r.subject===i),open=threadOpen(i);if(open)panel.append(open);
   appendStatus(panel,membershipStatus(data.memberships[i]));if(resolved.qualification==='unavailable')panel.append(text('p','Friendly title unavailable','muted'));
   panel.append(text('h3','Project'));if(assigned)relatedButton(panel,'project',assigned.target,data.projects[assigned.target].label||'Unnamed Project');else panel.append(text('p',data.memberships[i]==='projectless'?'Projectless':membershipStatus(data.memberships[i])||'Unknown membership'));
-  field(panel,'Working directory',t.cwd||'Unavailable',t.cwd?'Copy path':undefined);
+  panel.append(text('p',membershipExplanation(data,i),'muted'));
+  field(panel,'Stored working directory',t.cwd||'Unavailable',t.cwd?'Copy path':undefined);
+  cwdExplanations(data,i).forEach(value=>panel.append(text('p',value,'muted')));
   if(t.cwd){const l=locationAt(t.cwd);if(l){appendStatus(panel,folderStatus(l.folder===null?undefined:data.discovery.folders[l.folder]));relatedButton(panel,'location',l.path,'View folder');}
-   data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='thread'&&r.subject.index===i).forEach(r=>relatedButton(panel,'git',r.target.index,'View repository'));}
-  if(assigned&&t.cwd&&!data.projects[assigned.target].roots.some(p=>locationKey(p)===locationKey(t.cwd)))panel.append(text('p','Working directory differs from the Project root.','muted'));
+   data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='thread'&&r.subject.index===i).forEach(r=>locatedGit(panel,r.target.index,'The stored working directory'));}
   field(panel,'Thread ID',t.id,'Copy ID');
  }else if(selection.kind==='project'){
   const i=selection.index,p=data.projects[i];if(!p.roots.length)appendStatus(panel,'Root unavailable');
-  p.roots.forEach(path=>{field(panel,'Source folder',path,'Copy path');const l=locationAt(path);appendStatus(panel,folderStatus(l?.folder==null?undefined:data.discovery.folders[l.folder]));if(l){relatedButton(panel,'location',l.path,'View folder');l.git.forEach(g=>relatedButton(panel,'git',g,data.discovery.git[g].kind==='linked'?'View worktree':'View repository'));}});
-  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='project'&&r.subject.index===i&&!p.roots.some(path=>locationAt(path)?.git.includes(r.target.index))).forEach(r=>relatedButton(panel,'git',r.target.index,data.discovery.git[r.target.index].kind==='linked'?'View worktree':'View repository'));
-  const threads=projectThreads(data,i);panel.append(text('h3','Threads'));if(!threads.length)panel.append(text('p','No current Threads','muted'));threads.forEach(t=>relatedButton(panel,'thread',t,friendlyTitle(data.threads[t]).label));
+  p.roots.forEach(path=>{field(panel,'Source folder',path,'Copy path');panel.append(text('p',sourceFolderExplanation(data,i),'muted'));const l=locationAt(path);appendStatus(panel,folderStatus(l?.folder==null?undefined:data.discovery.folders[l.folder]));if(l){relatedButton(panel,'location',l.path,'View folder');l.git.forEach(g=>relatedButton(panel,'git',g,gitLinkLabel(data.discovery.git[g])));}});
+  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='project'&&r.subject.index===i&&!p.roots.some(path=>locationAt(path)?.git.includes(r.target.index))).forEach(r=>locatedGit(panel,r.target.index,'A declared Source folder'));
+  const threads=projectThreads(data,i);panel.append(text('h3','Threads'));if(!threads.length)panel.append(text('p','No qualifying assigned Threads observed','muted'));threads.forEach(t=>relatedButton(panel,'thread',t,friendlyTitle(data.threads[t]).label));
  }else if(selection.kind==='location'){
   const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];field(panel,'Path',selection.path,'Copy path');panel.append(text('h3','Folder status'),text('p',f?.state==='exists'?(folderStatus(f)||'Exists'):folderStatus(f)));
   if(f&&data.discovery&&!folderContains(f.path,data.discovery.root))panel.append(text('p',f.state==='uninspected'?'Outside discovery scope; this path was not checked.':'This path was checked; surrounding folders were not scanned.','muted'));
-  locationRelationships(panel,l);l?.git.forEach(i=>relatedButton(panel,'git',i,data.discovery.git[i].kind==='linked'?'View worktree':'View repository'));
-  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='folder'&&r.subject.index===l?.folder&&!l.git.includes(r.target.index)).forEach(r=>relatedButton(panel,'git',r.target.index,'Located in repository'));
+  locationRelationships(panel,l);l?.git.forEach(i=>relatedButton(panel,'git',i,gitLinkLabel(data.discovery.git[i])));
+  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='folder'&&r.subject.index===l?.folder&&!l.git.includes(r.target.index)).forEach(r=>locatedGit(panel,r.target.index,'This folder'));
  }else{
   const i=selection.index,g=data.discovery.git[i],path=data.discovery.folders[g.folder].path;field(panel,'Working root',path,'Copy path');panel.append(text('h3','Type'),text('p',g.state==='verified'?(g.kind==='linked'?'Linked worktree':'Main repository'):'Git metadata '+g.state));appendStatus(panel,folderStatus(data.discovery.folders[g.folder]));if(g.common)field(panel,'Common Git directory',g.common,'Copy path');
+  panel.append(text('p',gitExplanation(data,i),'muted'),text('p','The effective Codex discovery boundary has not been established.','muted'));
   if(g.state==='verified'){
    const related=data.discovery.git.flatMap((other,j)=>j!==i&&other.state==='verified'&&other.commonIdentity===g.commonIdentity?[j]:[]);if(g.kind==='linked'&&!related.some(j=>data.discovery.git[j].kind==='main'))appendStatus(panel,'Main location unavailable');
    if(related.length){panel.append(text('h3',g.kind==='linked'?'Related repository and worktrees':'Linked worktrees'));related.forEach(j=>relatedButton(panel,'git',j,name(data.discovery.folders[data.discovery.git[j].folder].path)));}
@@ -181,7 +195,7 @@ function componentCard(c){
  const section=document.createElement('section');section.className='component';section.append(text('h2','Workspace group '+c.number));const tree=document.createElement('div');tree.className='relationship-tree';
  c.projects.forEach(i=>{const p=data.projects[i],project=document.createElement('section');project.className='project-block';const line=document.createElement('div');line.className='project-line';const b=entity('project',p.label||'Unnamed Project','project:'+i,()=>select('project',i,b));b.id='project-'+i;line.append(b,text('small','Codex Project','entity-type'));project.append(line);
   const branches=document.createElement('div');branches.className='project-branches';
-  const threads=projectThreads(data,i).filter(t=>c.threads.includes(t)),list=document.createElement('div');list.className='member-list';if(threads.length)list.append(text('small','Threads','source-label'));else list.append(text('p','No current Threads','muted'));threadList(list,threads,c,i);branches.append(list);
+  const threads=projectThreads(data,i).filter(t=>c.threads.includes(t)),list=document.createElement('div');list.className='member-list';if(threads.length)list.append(text('small','Threads','source-label'));else list.append(text('p','No qualifying assigned Threads observed','muted'));threadList(list,threads,c,i);branches.append(list);
   project.append(branches);if(!p.roots.length)appendStatus(project,'Root unavailable');tree.append(project);});
  const separate=c.threads.filter(i=>!c.projects.some(p=>projectThreads(data,p).includes(i)));threadList(tree,separate,c);
  const roots=c.locations.filter(l=>l.projects.length);if(roots.length){const source=document.createElement('div');source.className='source-folders';const line=document.createElement('div');line.className='location-line';line.append(icon('folder'),text('span','Source folders','entity-name'));source.append(line);
@@ -194,7 +208,7 @@ function diagnosticThreads(parent,title,indexes){if(!indexes.length)return;const
 function renderDiagnostics(list){
  list.append(text('h2','Diagnostics'),text('p','Technical observations for this snapshot.','muted'));
  if(selection){const box=document.createElement('section');box.className='diagnostic-evidence';const heading=text('h3','Selected entity evidence');heading.id='diagnostic-heading';heading.tabIndex=-1;box.append(button('Back to Workspace',returnWorkspace,'detail-back'),heading);
-  if(selection.kind==='thread'){const t=data.threads[selection.index];for(const [label,value] of [['Thread ID',t.id],['Working directory',t.cwd||'Unavailable'],['Visibility',data.visibility[selection.index]],['Membership',data.memberships[selection.index]],['Title source',t.titleSource||'unavailable'],['Title resolution',t.titleResolution||'unavailable'],['Display qualification',friendlyTitle(t).qualification]])field(box,label,value);}
+  if(selection.kind==='thread'){const t=data.threads[selection.index];for(const [label,value] of [['Thread ID',t.id],['Stored working directory',t.cwd||'Unavailable'],['Visibility',data.visibility[selection.index]],['Membership',data.memberships[selection.index]],['Title source',t.titleSource||'unavailable'],['Title resolution',t.titleResolution||'unavailable'],['Display qualification',friendlyTitle(t).qualification]])field(box,label,value);}
   else if(selection.kind==='project')field(box,'Project ID',data.projects[selection.index].id);
   else if(selection.kind==='location'){const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];if(f){field(box,'Inspection coverage',folderCoverage(f,data.discovery.root));field(box,'Selection evidence',f.origin);data.discovery.diagnostics.filter(n=>locationKey(n.path)===locationKey(f.path)).forEach(n=>{field(box,'Inspection result',n.reason);if(n.stage)field(box,'Inspection stage',n.stage+(n.at?' · '+n.at:''));});}}
   else{const g=data.discovery.git[selection.index];if(g.admin)field(box,'Administrative directory',g.admin);field(box,'Git evidence',g.detail);}list.append(box);

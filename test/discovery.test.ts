@@ -291,6 +291,46 @@ async function browser(data:ExplorerData){
   return {get,groups:()=>get('relationships').children.filter(e=>e.children.some(c=>/^Workspace group \d+$/.test(c.textContent)))};
 }
 
+test('Git Details explain verified common identity and location evidence without asserting a Codex boundary',async()=>{
+  const f=fixture();try{
+    const run=gitFixture(f),main=f.mkdir(join(f.root,'main')),linked=join(f.owner,'linked');
+    run(main,'init','--initial-branch=fixture-main');run(main,'commit','--allow-empty','-m','Invented fixture');run(main,'worktree','add','-b','fixture-linked',linked);
+    const child=f.mkdir(join(linked,'working')),d=await discover(empty([{id:'p',label:'Atlas',roots:[main]}],[thread('linked',child)],['linked']),f.root);
+    const before=JSON.stringify(d),ui=await browser(d);
+    find(ui.get('relationships'),'Thread linked')!.onclick!();
+    assert.ok(texts(ui.get('details')).includes('The stored working directory lies within this verified Git working tree by lexical path comparison.'));
+    assert.ok(find(ui.get('details'),'View worktree →'));assert.equal(find(ui.get('details'),'View repository →'),undefined);
+    find(ui.get('details'),'View worktree →')!.onclick!();
+    for(const value of ['Linked worktree','Verified Git metadata links these checkouts to the same repository.',
+      'The effective Codex discovery boundary has not been established.'])assert.ok(texts(ui.get('details')).includes(value));
+    find(ui.get('relationships'),'Atlas')!.onclick!();assert.ok(find(ui.get('details'),'View repository →'));
+    find(ui.get('details'),'View repository →')!.onclick!();assert.ok(texts(ui.get('details')).includes('Main repository'));
+    assert.ok(texts(ui.get('details')).includes('Verified Git metadata links these checkouts to the same repository.'));
+    assert.deepEqual(d.memberships,['projectless']);assert.equal(ui.groups().length,1);assert.equal(JSON.stringify(d),before);
+  }finally{f.cleanup();}
+});
+
+test('unverified Git links preserve missing, inaccessible and unsupported evidence without repository or marker claims',async()=>{
+  const f=fixture();try{
+    const path=f.mkdir(join(f.root,'uncertain'));f.mkdir(join(path,'.git'));
+    const observed=await discover(empty([{id:'p',label:'Atlas',roots:[path]}]),f.root);
+    assert.equal(observed.discovery!.git[0]!.state,'missing');
+    for(const state of ['unsupported','missing','inaccessible'] as const){
+      const d={...observed,discovery:{...observed.discovery!,git:observed.discovery!.git.map(g=>({...g,state,
+        detail:'Invented '+state+' inspection result'}))}},before=JSON.stringify(d),ui=await browser(d);
+      find(ui.get('relationships'),'Atlas')!.onclick!();assert.ok(find(ui.get('details'),'View Git evidence →'));
+      assert.equal(find(ui.get('details'),'View repository →'),undefined);assert.equal(find(ui.get('details'),'View worktree →'),undefined);
+      find(ui.get('details'),'View folder →')!.onclick!();assert.ok(find(ui.get('details'),'View Git evidence →'));
+      find(ui.get('details'),'View Git evidence →')!.onclick!();
+      for(const value of ['Git metadata '+state,'Git repository identity was not established from the inspected metadata.',
+        'The effective Codex discovery boundary has not been established.'])assert.ok(texts(ui.get('details')).includes(value));
+      assert.equal(texts(ui.get('details')).some(v=>/invalid repository|marker.*(present|exists)|boundary.*selected/i.test(v)),false);
+      find(ui.get('details'),'View diagnostic details')!.onclick!();assert.ok(texts(ui.get('relationships')).includes('Invented '+state+' inspection result'));
+      assert.equal(JSON.stringify(d),before);
+    }
+  }finally{f.cleanup();}
+});
+
 test('group Source branch preserves Git nesting and declares only actual registered roots without duplicate locations',async()=>{
   const f=fixture();try{
     const run=gitFixture(f),main=f.mkdir(join(f.root,'main')),linked=join(f.owner,'linked');
@@ -350,6 +390,9 @@ test('standalone branch has one location without child-directory UI and contiguo
     assert.equal(find(group,'outputs'),undefined);assert.equal(find(group,'work'),undefined);
     assert.equal(ui.get('relationships').children.some(e=>e.tag==='details'),false);
     assert.ok(d.discovery!.folders.some(f=>f.path===join(standalone,'outputs')));
+    const before=JSON.stringify(d);find(ui.get('relationships'),'new-chat')!.onclick!();
+    assert.ok(texts(ui.get('details')).includes('No associated Project or Thread found in this snapshot.'));
+    assert.equal(texts(ui.get('details')).includes('No associated Project or Thread found.'),false);assert.equal(JSON.stringify(d),before);
   }finally{f.cleanup();}
 });
 

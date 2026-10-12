@@ -78,7 +78,7 @@ test('location projection deduplicates qualified aliases and preserves Project n
 test('global and local expansion expose all ordinary Threads for native find and preserve group numbering',async()=>{
   const threads=Array.from({length:8},(_,i)=>thread(i+1)),p={id:'p',label:'Atlas',roots:['C:\\Synthetic\\atlas']},empty={id:'empty',label:'Empty',roots:[]};
   const ui=await browser(model(threads,[p,empty],threads.map(t=>({threadId:t.id,projectId:'p',projectKind:'local'}))));
-  assert.equal(all(ui.groups()[0]!).filter(e=>e.className==='thread-row').length,5);assert.ok(texts(ui.groups()[1]!).includes('No current Threads'));
+  assert.equal(all(ui.groups()[0]!).filter(e=>e.className==='thread-row').length,5);assert.ok(texts(ui.groups()[1]!).includes('No qualifying assigned Threads observed'));
   action(ui.get('relationships'),'Show 3 more Threads').onclick!();assert.equal(all(ui.groups()[0]!).filter(e=>e.className==='thread-row').length,8);
   action(ui.get('relationships'),'Show fewer Threads').onclick!();assert.equal(all(ui.groups()[0]!).filter(e=>e.className==='thread-row').length,5);
   action(ui.get('relationships'),'Show 3 more Threads').onclick!();ui.get('expand-threads').onclick!();assert.equal(ui.get('expand-threads').textContent,'Collapse all Threads');
@@ -144,6 +144,136 @@ test('normal Workspace omits technical noise, empty diagnostic sections and obso
   assert.ok(explorerCss.includes('@media(max-width:899px)'));assert.ok(explorerCss.includes('.layout.has-selection #relationships{display:none}'));
   ui.get('diagnostics').onclick!();assert.equal(texts(ui.get('relationships')).some(v=>/^(Internal|Archived|Unresolved) records/.test(v)),false);
   assert.equal(folderStatus(undefined),'Folder not checked');
+});
+
+test('Details explain membership evidence without changing assignment or shared-location grouping',async()=>{
+  const assigned=thread(1),free=thread(2),unknown=thread(3),conflict=thread(4),dangling=thread(5),remote=thread(6);
+  const d=model([assigned,free,unknown,conflict,dangling,remote],[{id:'p',label:'Atlas',roots:[assigned.cwd!]}],
+    [{threadId:assigned.id,projectId:'p',projectKind:'local'},{threadId:conflict.id,projectId:'p',projectKind:'local'},
+      {threadId:dangling.id,projectId:'missing',projectKind:'local'},{threadId:remote.id,projectId:'p',projectKind:'remote'}],[free.id,conflict.id]);
+  const before=JSON.stringify(d),groups=workspacePresentation(d),ui=await browser(d);
+  for(const [t,explanation] of [
+    [assigned,'Stored assignment links this Thread to Atlas.'],[free,'Explicitly recorded as projectless.'],
+    [unknown,'No assignment was observed; Project membership remains unknown.'],
+    [conflict,'Stored relationship evidence conflicts; Project membership could not be resolved.'],
+    [dangling,'A stored assignment references an unavailable Project.'],
+    [remote,'The stored assignment could not establish Local Project membership.']] as const){
+    action(ui.get('relationships'),t.title!).onclick!();assert.ok(texts(ui.get('details')).includes(explanation));
+    assert.ok(texts(ui.get('details')).includes('Stored working directory'));
+    assert.equal(texts(ui.get('details')).includes('Working directory'),false);
+  }
+  action(ui.get('relationships'),free.title!).onclick!();
+  assert.ok(texts(ui.get('details')).includes('Its stored CWD matches a Source folder declared by Atlas.'));
+  assert.ok(texts(ui.get('details')).includes('Matching a Source folder does not establish Project membership.'));
+  assert.equal(texts(ui.get('details')).includes('Atlas →'),false);
+  assert.deepEqual(d.memberships,['stored-assignment','projectless','no-assignment-observed','conflicting','dangling','unknown']);
+  assert.deepEqual(workspacePresentation(d),groups);assert.equal(JSON.stringify(d),before);
+  assert.deepEqual(ui.groups().map(g=>g.children[0]!.textContent),['Workspace group 1']);
+
+  const unavailable={...d,coverage:{...d.coverage,projects:'unavailable' as const,correspondence:'unknown' as const},
+    memberships:d.memberships.map(()=> 'unknown' as const),relations:d.relations.filter(r=>r.kind!=='assigned-project')};
+  const other=await browser(unavailable);action(other.get('relationships'),unknown.title!).onclick!();
+  assert.ok(texts(other.get('details')).includes('Qualified Project assignment information is unavailable; membership remains unknown.'));
+  assert.equal(texts(other.get('details')).includes('No assignment was observed; Project membership remains unknown.'),false);
+});
+
+test('Folder Details distinguish declarers and CWD reporters across shared Windows aliases',async()=>{
+  const root='C:\\Synthetic\\atlas',alias='\\\\?\\C:\\SYNTHETIC\\ATLAS',assigned=thread(1),free=thread(2,{cwd:alias});
+  const d=model([assigned,free],[{id:'p',label:'Atlas',roots:[root,alias]},{id:'q',label:'Other',roots:[alias]}],
+    [{threadId:assigned.id,projectId:'p',projectKind:'local'}],[free.id]),before=JSON.stringify(d),ui=await browser(d);
+  const folder=all(ui.get('relationships')).find(e=>e.className==='location-row')!;
+  action(folder,'atlas').onclick!();const detail=texts(ui.get('details'));
+  for(const value of ['Projects declaring this folder','Threads reporting this working directory','Atlas declares this Source folder.',
+    'Other declares this Source folder.','2 qualifying Threads report this folder as their stored working directory.',
+    'Sharing this folder does not establish Project membership.'])assert.ok(detail.includes(value));
+  assert.equal(detail.filter(v=>v==='Atlas declares this Source folder.').length,1);
+  assert.equal(all(ui.get('relationships')).filter(e=>e.className==='location-row').length,1);assert.equal(JSON.stringify(d),before);
+});
+
+test('Thread Details compare all Source folders while preserving assignment and unavailable-root uncertainty',async()=>{
+  const roots=['C:\\Synthetic\\first','C:\\Synthetic\\second'],a=thread(1,{cwd:roots[1]!}),b=thread(2,{cwd:'C:\\Synthetic\\scratch'}),c=thread(3);
+  const d=model([a,b,c],[{id:'p',label:'Atlas',roots},{id:'empty',label:'No roots',roots:[]},{id:'unused',label:'Unused',roots:[]}],
+    [{threadId:a.id,projectId:'p',projectKind:'local'},{threadId:b.id,projectId:'p',projectKind:'local'},{threadId:c.id,projectId:'empty',projectKind:'local'}]);
+  const before=JSON.stringify(d),ui=await browser(d);
+  action(ui.get('relationships'),a.title!).onclick!();assert.ok(texts(ui.get('details')).includes('Its stored CWD matches a Source folder declared by Atlas.'));
+  assert.equal(texts(ui.get('details')).some(v=>v.includes('differs from all')),false);
+  action(ui.get('relationships'),b.title!).onclick!();assert.ok(texts(ui.get('details')).includes('The stored working directory differs from all declared Source folders. The stored Project assignment remains Atlas.'));
+  action(ui.get('relationships'),c.title!).onclick!();assert.equal(texts(ui.get('details')).some(v=>v.includes('differs from all')),false);
+  action(ui.get('relationships'),'Atlas').onclick!();assert.equal(texts(ui.get('details')).filter(v=>v==='Atlas declares this Source folder.').length,2);
+  action(ui.get('relationships'),'Unused').onclick!();assert.ok(texts(ui.get('details')).includes('No qualifying assigned Threads observed'));
+  assert.equal(texts(ui.get('relationships')).includes('No current Threads'),false);assert.equal(JSON.stringify(d),before);
+});
+
+test('relationship explanations keep arbitrary Project labels inert and private title fallbacks absent',async()=>{
+  const label='<img onerror=alert(1)>\u202e',marker='PRIVATE_BOUNDARY_TITLE',t=thread(1,{title:marker,titleSource:'sqlite',titleResolution:'missing'});
+  const d=model([t],[{id:'p',label,roots:[t.cwd!]}],[{threadId:t.id,projectId:'p',projectKind:'local'}]),ui=await browser(d);
+  action(ui.get('relationships'),'Thread 00000000').onclick!();
+  assert.ok(texts(ui.get('details')).includes('Stored assignment links this Thread to <img onerror=alert(1)>\\u{202e}.'));
+  assert.equal(all(ui.get('details')).some(e=>e.tag==='img'),false);assert.equal(JSON.stringify([...ui.elements.values()]).includes(marker),false);
+});
+
+test('hidden stored CWD claims do not imply additional qualifying Threads in Details',async()=>{
+  const visible=thread(1),p={id:'p',label:'Atlas',roots:[visible.cwd!]};
+  for(const hidden of [thread(2,{archived:true}),thread(3,{sourceState:'subagent'}),thread(4)]){
+    const d=model([visible,hidden],[p],[{threadId:visible.id,projectId:'p',projectKind:'local'}]),before=JSON.stringify(d),groups=workspacePresentation(d);
+    assert.ok(d.relations.some(r=>r.kind==='shares-exact-cwd'&&r.subject===0));
+    assert.equal(d.visibility[0],'inferred');assert.notEqual(d.visibility[1],'inferred');
+    assert.deepEqual(groups[0]!.threads,[0]);const ui=await browser(d);
+    action(ui.get('relationships'),visible.title!).onclick!();
+    assert.equal(texts(ui.get('details')).some(v=>/Other Threads|qualifying Threads report/.test(v)),false);
+    action(ui.get('details'),'View folder →').onclick!();
+    assert.ok(texts(ui.get('details')).includes('One qualifying Thread reports this folder as its stored working directory.'));
+    assert.equal(texts(ui.get('details')).includes('Sharing this folder does not establish Project membership.'),false);
+    assert.deepEqual(workspacePresentation(d),groups);assert.equal(JSON.stringify(d),before);
+  }
+});
+
+test('two qualifying CWD reporters use the same count in Thread and Folder Details',async()=>{
+  for(const cwd of ['C:\\Synthetic\\atlas','\\\\?\\C:\\SYNTHETIC\\ATLAS']){
+    const a=thread(1),b=thread(2,{cwd}),p={id:'p',label:'Atlas',roots:[a.cwd!]};
+    const d=model([a,b],[p],[a,b].map(t=>({threadId:t.id,projectId:'p',projectKind:'local'}))),before=JSON.stringify(d),groups=workspacePresentation(d),ui=await browser(d);
+    for(const t of [a,b]){
+      action(ui.get('relationships'),t.title!).onclick!();
+      assert.ok(texts(ui.get('details')).includes('2 qualifying Threads report this folder as their stored working directory.'));
+      assert.equal(texts(ui.get('details')).includes('Matching a Source folder does not establish Project membership.'),false);
+    }
+    action(ui.get('details'),'View folder →').onclick!();
+    assert.ok(texts(ui.get('details')).includes('2 qualifying Threads report this folder as their stored working directory.'));
+    assert.equal(texts(ui.get('details')).includes('Sharing this folder does not establish Project membership.'),false);
+    assert.deepEqual(workspacePresentation(d),groups);assert.equal(JSON.stringify(d),before);
+  }
+});
+
+test('a single assigned Thread at its own Source folder needs no membership caveats',async()=>{
+  const t=thread(1),d=model([t],[{id:'p',label:'Atlas',roots:[t.cwd!]}],[{threadId:t.id,projectId:'p',projectKind:'local'}]),before=JSON.stringify(d),ui=await browser(d);
+  action(ui.get('relationships'),t.title!).onclick!();
+  assert.ok(texts(ui.get('details')).includes('Stored assignment links this Thread to Atlas.'));
+  assert.ok(texts(ui.get('details')).includes('Its stored CWD matches a Source folder declared by Atlas.'));
+  assert.equal(texts(ui.get('details')).some(v=>/does not establish Project membership|qualifying Threads report/.test(v)),false);
+  action(ui.get('details'),'View folder →').onclick!();
+  assert.ok(texts(ui.get('details')).includes('One qualifying Thread reports this folder as its stored working directory.'));
+  assert.equal(texts(ui.get('details')).some(v=>v.includes('does not establish Project membership')),false);
+  assert.equal(JSON.stringify(d),before);
+});
+
+test('matching caveats remain for unresolved membership and clear cross-Project associations',async()=>{
+  const a=thread(1),root=a.cwd!,p={id:'p',label:'Atlas',roots:[root]},q={id:'q',label:'Other',roots:[root]};
+  for(const kind of ['projectless','unknown','conflicting','cross-project'] as const){
+    const assignments=kind==='conflicting'||kind==='cross-project'?[{threadId:a.id,projectId:'p',projectKind:'local'}]:[];
+    const d=model([a],kind==='cross-project'?[p,q]:[p],assignments,kind==='projectless'||kind==='conflicting'?[a.id]:[]),before=JSON.stringify(d),ui=await browser(d);
+    action(ui.get('relationships'),a.title!).onclick!();
+    assert.ok(texts(ui.get('details')).includes('Matching a Source folder does not establish Project membership.'));
+    if(kind==='projectless'||kind==='cross-project'){
+      action(ui.get('details'),'View folder →').onclick!();
+      assert.ok(texts(ui.get('details')).includes('Sharing this folder does not establish Project membership.'));
+    }
+    assert.equal(JSON.stringify(d),before);
+  }
+  // Two clear assignments to different Projects remain distinct despite one shared CWD.
+  const b=thread(2),d=model([a,b],[p,q],[{threadId:a.id,projectId:'p',projectKind:'local'},{threadId:b.id,projectId:'q',projectKind:'local'}]),before=JSON.stringify(d),ui=await browser(d);
+  action(ui.get('relationships'),a.title!).onclick!();action(ui.get('details'),'View folder →').onclick!();
+  assert.ok(texts(ui.get('details')).includes('Sharing this folder does not establish Project membership.'));
+  assert.deepEqual(d.memberships,['stored-assignment','stored-assignment']);assert.equal(JSON.stringify(d),before);
 });
 
 

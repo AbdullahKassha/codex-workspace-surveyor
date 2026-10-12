@@ -10,6 +10,14 @@ Folder observations retain exact-path state independently of enumeration coverag
 
 [Regression coverage](../test/discovery.test.ts) and [reconciliation tests](../test/explorer.test.ts) validate this subset. The conceptual relationships below also include future capabilities; runtime CWD observations, spawn edges, effective Codex boundaries and instruction loading are not reconstructed by this implementation.
 
+## Contextual relationship explanations, 2026-10-12
+
+**Approved presentation-only subset:** existing membership, stored relations, qualified coverage and bounded Git observations now supply concise explanations in Details. Stored assignment establishes the displayed Local Project association; explicit projectlessness remains distinct from missing assignment or unavailable qualification. Matching/sharing a folder explains co-location without establishing membership. A differing stored CWD preserves its Project assignment and is compared against all declared Source folders; an empty root list supplies no mismatch claim. Folder Details distinguishes Projects declaring a Source folder from qualifying Threads reporting that stored working directory.
+
+Verified metadata explains common repository associations; lexical `inside-git-tree` evidence explains location without file tracking, ownership or membership claims. Unsupported, missing and inaccessible metadata remains unverified with its existing detailed state. Git Details leaves the effective Codex discovery boundary unknown. The internal nearest-marker barrier is a conservative Git-association rule, not an observation of Codex root selection. No marker inventory, policy reader or AGENTS.md discovery is added. The future distinctions below remain governed by [WIN-018–WIN-020](research/project-boundary-observations.md), [DOC-005/DOC-006](research/evidence-catalog.md#doc-005-configurable-project-root-markers) and [DOC-025](research/evidence-catalog.md#doc-025-standard-git-administrative-relationships); no evidence IDs or historical compatibility limits change.
+
+See [validation](research/explorer-local-read-only-validation.md#project-boundary-explanations-2026-10-12). These explanations do not alter the snapshot schema, components, path comparison, discovery or acquisition.
+
 ## Vocabulary: design decisions
 
 These terms define product language, not runtime classes or a public schema.

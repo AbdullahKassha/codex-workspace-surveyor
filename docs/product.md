@@ -53,6 +53,14 @@ Organization opportunities include shared CWDs, projectless threads at an existi
 
 Exclude automatic fixes, file moves, database editing, deletion, transcript analysis, whole-disk discovery, background monitoring, remote/cloud auditing, WSL reconciliation, macOS certification, and speculative plugin dependencies. Limited metadata cannot establish that a physical workspace is abandoned or safe to remove.
 
+## Project Boundary Diagnostics: relationship explanations, 2026-10-12
+
+**Approved implementation scope:** the first slice explains existing snapshot relationships in entity Details: stored Project assignment, explicit projectlessness versus unknown membership, declared Source folders, stored CWD matches/differences, shared folders, lexical Git-tree location and verified common Git identity. The compact Workspace groups and relationship tree retain their existing semantics. Empty Project wording is qualified by the observed assigned-Thread population; Git links distinguish verified repositories/worktrees from unverified metadata.
+
+This slice adds no observations or boundary selection. Git Details explicitly leaves the effective Codex discovery boundary unestablished. Marker presence/type/absence, effective marker policy and candidate-boundary analysis require a separately specified observation slice. All AGENTS.md eligibility, selection, loading and following questions remain in Instruction Discovery Scope. Reuse [WIN-018–WIN-020](research/project-boundary-observations.md), [DOC-005/DOC-006](research/evidence-catalog.md#doc-005-configurable-project-root-markers) and [DOC-025](research/evidence-catalog.md#doc-025-standard-git-administrative-relationships) with their original limits; this implementation creates no new Codex behavioral evidence.
+
+The broader future design below retains its original research questions; it does not expand this approved slice. See [implementation validation](research/explorer-local-read-only-validation.md#project-boundary-explanations-2026-10-12).
+
 ## Project Boundary Diagnostics: future design scope
 
 This first-class capability is deferred beyond M1 and requires separate later research and implementation authorization. It must not block the initial synthetic CLI foundation. [WIN-018–WIN-020](research/project-boundary-observations.md) form a separate founder-observed Windows research group, with historically uncertain versions and no independent Workspace Surveyor reproduction. Independently reviewed official sources are [DOC-005 and DOC-006](research/evidence-catalog.md#doc-005-configurable-project-root-markers).
