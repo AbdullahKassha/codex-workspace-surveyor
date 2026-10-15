@@ -5,7 +5,7 @@ import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, realpath
   unlinkSync, writeFileSync, openSync, readSync, fstatSync, closeSync, mkdirSync, opendirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync, constants } from 'node:sqlite';
 import { inspectQualificationAnalysis, type Qualification, type QualificationTest } from './personal-qualification.js';
 import type { AdapterResult } from './thread-cwd-adapter.js';
@@ -22,6 +22,9 @@ export const explorerScratchLimits = Object.freeze({...canaryLimits, files:11});
 const steps = ['prepared', 'recovery-ready', 'held', 'copied', 'verified'] as const;
 const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'unsupported', 'helper', 'cleanup', 'io'] as const;
 type Reason = typeof reasons[number];
+type AcquisitionStage='input'|'recovery-preflight'|'source-selection'|'scratch-initialization'|'recovery-initialization'|
+  'helper-preparation'|'recovery-persistence'|'source-acquisition'|'copy-validation'|'analysis'|'source-verification'|'helper-release';
+type ScratchInitialization='not-started'|'validating'|'creation-attempted'|'created';
 type CanaryLimit=LimitDetail|'source-file-bytes'|'source-total-bytes'|'scratch-file-bytes'|'scratch-total-bytes'|'scratch-entries'|'recovery-controls'|'recovery-entries';
 export type CanaryFault = 'none' | 'protected' | 'descriptor' | 'partial-copy' | 'diagnostic' |
   'recovery-create' | 'recovery-descriptor' | 'recovery-write' | 'recovery-flush' | 'recovery-readback';
@@ -29,10 +32,11 @@ type Entry = { name: typeof explorerNames[number]; size: number; digest: string 
 type Stat = { dev: bigint; ino: bigint; size: bigint; mtime: bigint; ctime: bigint };
 type Final = { stage: 'finished'; run: string; outcome: 'ok' | 'io' | 'acl-refused' | 'sharing-refused' |
   'closure-refused' | 'unstable'; closed: boolean; copied: boolean; phase: string; fault: string;
-  partialWritten: boolean; opened: number };
-type Frame = { stage: 'prepared' | 'recovery-ready' | 'recovery-verified' | 'copied' | 'verified'; run: string; count: number; protected: true } |
+  partialWritten: boolean; opened: number; recoveryCheck?:RecoveryCheck; refusal?:RecoveryCategory };
+type Frame = { stage: 'prepared' | 'recovery-ready' | 'recovery-verified' | 'legacy-prepared' | 'legacy-ready' | 'copied' | 'verified'; run: string; count: number; protected: true } |
   { stage: 'held'; run: string; count: number; manifest: Entry[] } |
-  { stage:'recovery-held'; run:string; payload:string } | { stage:'location';run:string;store:string } |
+  { stage:'recovery-held'|'legacy-held'; run:string; payload:string } | { stage:'location';run:string;store:string;legacy?:string } |
+  { stage:'legacy-held';run:string;payload:string;security:string } |
   { stage:'recovery-deleted'|'recovery-paused';run:string;count:number;deleted:boolean } | Final;
 export type CanaryResult = Readonly<{ status: 'passed' | 'refused'; reason: Reason | 'none';
   cleanup: 'removed' | 'residual'; files: number; schemaReadable: boolean; sourcesStable: boolean;
@@ -42,11 +46,16 @@ export type CanaryResult = Readonly<{ status: 'passed' | 'refused'; reason: Reas
   attemptConsumed?: boolean;
   limit?:CanaryLimit;failureStage?:'source-selection'|'copy-validation'|'analysis'|'source-verification';
   evidence: { stages: readonly string[]; phase: string; fault: string; partialWritten: boolean;
-    opened: number; exitConfirmed: boolean; diagnosticsDiscarded: boolean } }>;
+    opened: number; exitConfirmed: boolean; diagnosticsDiscarded: boolean;
+    acquisition?:Readonly<{stage:AcquisitionStage;reason:Reason|'none';scratchInitialization:ScratchInitialization;
+      recoveryPreflight:'not-checked'|'clear'|'occupied';helperLaunched:boolean;
+      helperExit:'not-launched'|'confirmed'|'unconfirmed';helperOutcome:Final['outcome']|'not-reported';
+      cleanupRecovery:RecoveryStatus|'not-attempted'}> } }>;
 class Refusal extends Error {
-  constructor(readonly reason: Reason,readonly limit?:CanaryLimit) { super('Canary refused'); this.stack = 'CanaryRefusal'; }
+  constructor(readonly reason: Reason,readonly limit?:CanaryLimit,readonly recoveryCategory?:RecoveryCategory) { super('Canary refused'); this.stack = 'CanaryRefusal'; }
 }
 function stop(reason: Reason,limit?:CanaryLimit): never { throw new Refusal(reason,limit); }
+function recoveryStop(category:RecoveryCategory,reason:Reason='cleanup'):never{throw new Refusal(reason,undefined,category);}
 function safeReason(error: unknown): Reason { return error instanceof Refusal ? error.reason : 'io'; }
 export function contains(parent: string, child: string): boolean {
   const part = relative(resolve(parent), resolve(child));
@@ -99,24 +108,30 @@ export function selectedPaths(source: string): string[] {
 
 // Owns scratch only. No source argument, source registration or recursive deletion.
 export class CanaryScratch {
-  constructor(readonly copyNames:readonly string[]=names,readonly profile:'canary'|'explorer'='canary') {
+  constructor(readonly copyNames:readonly string[]=names,readonly profile:'canary'|'explorer'='canary',private readonly selectedWal?:boolean) {
     if(profile==='canary'&&copyNames!==names)stop('selection');
     if(profile==='explorer'&&!explorerSets.some(set=>set.join(',')===copyNames.join(',')))stop('selection');
     this.copyNames=Object.freeze([...copyNames]);
   }
   root: string | undefined;
+  #initialization:ScratchInitialization='not-started';
+  get initialization():ScratchInitialization{return this.#initialization;}
   readonly nonce = randomUUID();
   private identity: { dev: bigint; ino: bigint } | undefined;
   private markerRemoved = false;
   private removed = false;
   initialize(): void {
+    this.#initialization='validating';
     const parent = realpathSync(tmpdir());
     checked(parent, true);
     if (overlap(parent, process.cwd()) || parent.split(/[\\/]/).some(p => p.toLowerCase() === '.codex')) stop('containment');
+    // Set before dispatch: a creation exception is still uncertain, even without a returned path.
+    this.#initialization='creation-attempted';
     this.root = mkdtempSync(join(parent, 'workspace-surveyor-canary-'));
     this.identity = lstatSync(this.root, { bigint: true });
     writeFileSync(join(this.root, 'owner'), this.nonce, { flag: 'wx' });
     this.owned();
+    this.#initialization='created';
   }
   private rootCheck(): void {
     if (!this.root || !this.identity || this.removed) stop('containment');
@@ -133,6 +148,18 @@ export class CanaryScratch {
     if (!Number.isInteger(index) || index < 0 || index >= this.copyNames.length) stop('selection');
     this.owned(); checked(join(this.root!, area), true);
     return join(this.root!, area, this.copyNames[index]!);
+  }
+  sqliteLocation():string {
+    // Only verified owned analysis copies. Never apply immutable mode to a source or omit a selected WAL.
+    const inventory=this.entries(),files=inventory.files,path=this.path('analysis',0);
+    const wal=files.includes(path+'-wal'),shm=files.includes(path+'-shm');
+    if(wal!==shm)stop('containment');
+    if(this.selectedWal!==undefined&&wal!==this.selectedWal)stop('containment');
+    if(inventory.directories.includes(join(this.root!,'acquisition'))){
+      const acquisition=join(this.root!,'acquisition','database.sqlite');
+      if(files.includes(acquisition+'-wal')!==wal||files.includes(acquisition+'-shm')!==shm)stop('containment');
+    }
+    return wal?path:pathToFileURL(path).href+'?immutable=1';
   }
   entries(): { files: string[]; directories: string[] } {
     this.owned();
@@ -184,7 +211,7 @@ function digestCopy(path: string): string {
 }
 export function inspectCanaryAnalysis(scratch: CanaryScratch, test?: (db: DatabaseSync) => void): boolean {
   const path = scratch.path('analysis',0); metadata(path,'scratch');
-  const db = new DatabaseSync(path,{readOnly:true,allowExtension:false,defensive:true,timeout:0,
+  const db = new DatabaseSync(scratch.sqliteLocation(),{readOnly:true,allowExtension:false,defensive:true,timeout:0,
     enableDoubleQuotedStringLiterals:false,limits:{length:1024*1024,sqlLength:1024*1024,column:512,attach:0}});
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON');
@@ -201,15 +228,15 @@ export function inspectCanaryAnalysis(scratch: CanaryScratch, test?: (db: Databa
     return true;
   } finally { db.close(); }
 }
-export function parseCanaryFrame(raw: string, nonce: string, copyNames:readonly string[]=names): Frame {
+export function parseCanaryFrame(raw: string, nonce: string, copyNames:readonly string[]=names,recovery=false,disposal=false): Frame {
   if (Buffer.byteLength(raw) > 8192) stop('helper');
   let value: unknown; try { value=JSON.parse(raw); } catch { stop('helper'); }
   if (!value || typeof value !== 'object' || Array.isArray(value)) stop('helper');
   const x=value as Record<string,unknown>, keys=Object.keys(x).sort().join(',');
   if (x.run !== nonce) stop('helper');
   const count=(v:unknown):v is number=>typeof v==='number' && Number.isInteger(v) && v>=0 && v<= copyNames.length;
-  if (['prepared','recovery-ready','recovery-verified','copied','verified'].includes(String(x.stage)) && keys==='count,protected,run,stage' &&
-      x.protected===true && count(x.count) && (['prepared','recovery-ready','recovery-verified'].includes(String(x.stage)) ? x.count===0 : x.count>0)) return x as Frame;
+  if (['prepared','recovery-ready','recovery-verified','legacy-prepared','legacy-ready','copied','verified'].includes(String(x.stage)) && keys==='count,protected,run,stage' &&
+      x.protected===true && count(x.count) && (['prepared','recovery-ready','recovery-verified','legacy-prepared','legacy-ready'].includes(String(x.stage)) ? x.count===0 : x.count>0)) return x as Frame;
   if (x.stage==='held' && keys==='count,manifest,run,stage' && count(x.count) && x.count>0 &&
       Array.isArray(x.manifest) && x.manifest.length===x.count) {
     let total=0;
@@ -224,12 +251,17 @@ export function parseCanaryFrame(raw: string, nonce: string, copyNames:readonly 
     if ((copyNames.some(n=>n==='global-state.json'||n==='session-index.jsonl')?x.count!==copyNames.length:x.count!==1&&x.count!==3) || total>canaryLimits.selected)stop('helper');
     return x as Frame;
   }
-  if(x.stage==='recovery-held' && keys==='payload,run,stage' && typeof x.payload==='string' && Buffer.byteLength(x.payload)<=6144)return x as Frame;
+  if(['recovery-held','legacy-held'].includes(String(x.stage)) && keys==='payload,run,stage' && typeof x.payload==='string' && Buffer.byteLength(x.payload)<=6144)return x as Frame;
+  if(disposal&&x.stage==='legacy-held'&&keys==='payload,run,security,stage'&&typeof x.payload==='string'&&Buffer.byteLength(x.payload)<=3072&&
+    typeof x.security==='string'&&/^[a-f0-9]{64}$/.test(x.security))return x as Frame;
   if(x.stage==='location' && keys==='run,stage,store' && typeof x.store==='string' && x.store.length<=2048)return x as Frame;
+  if(x.stage==='location' && keys==='legacy,run,stage,store' && typeof x.store==='string' && x.store.length<=2048&&typeof x.legacy==='string'&&Buffer.byteLength(x.legacy)<=3072)return x as Frame;
   if(['recovery-deleted','recovery-paused'].includes(String(x.stage)) && keys==='count,deleted,run,stage' &&
-      Number.isInteger(x.count) && Number(x.count)>=1 && Number(x.count)<=(copyNames.length===5?14:copyNames.includes('global-state.json')||copyNames.includes('session-index.jsonl')?12:10) && typeof x.deleted==='boolean' &&
+      Number.isInteger(x.count) && Number(x.count)>=1 && Number(x.count)<=(disposal?18:copyNames.length===5?14:copyNames.includes('global-state.json')||copyNames.includes('session-index.jsonl')?12:10) && typeof x.deleted==='boolean' &&
       (x.stage!=='recovery-paused'||x.deleted===true))return x as Frame;
-  if(x.stage==='finished' && keys==='closed,copied,fault,opened,outcome,partialWritten,phase,run,stage' &&
+  const recoveryFinal=recovery&&keys==='closed,copied,fault,opened,outcome,partialWritten,phase,recoveryCheck,refusal,run,stage'&&
+    recoveryChecks.includes(x.recoveryCheck as RecoveryCheck)&&recoveryCategories.includes(x.refusal as RecoveryCategory)&&['input','recovery'].includes(String(x.phase));
+  if(x.stage==='finished' && (keys==='closed,copied,fault,opened,outcome,partialWritten,phase,run,stage'||recoveryFinal) &&
       ['ok','io','acl-refused','sharing-refused','closure-refused','unstable'].includes(String(x.outcome)) &&
       ['input','closure','protect','persistence','open','held','copy','verify','release','location','recovery'].includes(String(x.phase)) &&
       ['none','after-protection','destination-descriptor','after-partial-write','diagnostic','recovery-create','recovery-descriptor','recovery-write','recovery-flush','recovery-readback'].includes(String(x.fault)) &&
@@ -251,6 +283,7 @@ export function prepareCanaryRequest(request:object):Buffer {
       const payload=JSON.stringify({version:explorer?2:1,...(explorer?{profile:'explorer'}:{}),store:id,root:{path:value.root,...id},nonce:value.nonce,entries});
       reserve=Buffer.byteLength(JSON.stringify({command:'persist',payload})+'\n');
       for(const command of ['acquire','copy','verify','release'])reserve+=Buffer.byteLength(JSON.stringify({command})+'\n');
+      if(typeof value.store==='string'&&value.store.endsWith('-Active'))reserve+=Buffer.byteLength(JSON.stringify({command:'accept-legacy'})+'\n');
     }
     if(bytes.length+reserve>8192)stop('helper');return bytes;
   }catch{stop('helper');}
@@ -260,8 +293,14 @@ export class CanarySession {
   private input=0; private output=0; private buffer=''; private next:(()=>void)|undefined;
   private queue:Frame[]=[]; private timer:NodeJS.Timeout|undefined;
   private initial:Buffer;
+  private recoveryProtocol:boolean;
+  private disposalProtocol:boolean;
   constructor(request:object,private executable:string,private nonce:string,private corrupt?: (s:string)=>string,
-    private order:readonly string[]=steps,private copyNames:readonly string[]=names) { this.initial=prepareCanaryRequest(request); }
+    private order:readonly string[]=steps,private copyNames:readonly string[]=names) {
+    this.initial=prepareCanaryRequest(request);const operation=(request as {operation?:unknown}).operation;
+    this.disposalProtocol=operation==='dispose-legacy'||operation==='preview-legacy';
+    this.recoveryProtocol=this.disposalProtocol||['recover','diagnose-recovery','preserve-legacy','retire-legacy','validate-legacy'].includes(String(operation));
+  }
   get processExited():boolean{return !this.child||this.exited;}
   get spawned():boolean{return this.child!==undefined;}
   allowExplorerRecovery():void { this.copyNames=explorerNames; }
@@ -284,7 +323,7 @@ export class CanarySession {
       while((end=this.buffer.indexOf('\n'))>=0){
         const line=this.buffer.slice(0,end).trimEnd();this.buffer=this.buffer.slice(end+1);
         try{
-          const f=parseCanaryFrame(this.corrupt?.(line)??line,this.nonce,this.copyNames);
+          const f=parseCanaryFrame(this.corrupt?.(line)??line,this.nonce,this.copyNames,this.recoveryProtocol,this.disposalProtocol);
           if(this.final)stop('helper');
           if(f.stage==='finished')this.final=f;
           else {if(f.stage!==this.order[this.reached.length])stop('helper');this.reached.push(f.stage);}
@@ -325,13 +364,22 @@ type Identity={dev:string;ino:string};
 type RecoveryEntry=Identity & {name:string;kind:'file'|'directory'};
 type RecoveryPayload={version:1|2;profile?:'explorer';store:Identity;root:Identity & {path:string};nonce:string;entries:RecoveryEntry[]};
 export type RecoveryStatus='removed'|'busy'|'refused'|'residual'|'unavailable';
+const recoveryCategories=['none','selection','path-safety','structural-inventory','identity-ownership','access-security',
+  'authentication','scratch-validation','scratch-inventory','scratch-limit','scratch-entry-disappeared','scratch-inspection',
+  'helper-protocol','io','lifetime-unconfirmed','cleanup'] as const;
+type RecoveryCategory=typeof recoveryCategories[number];
+const recoveryChecks=['selection','location','controls','control-security','authentication','payload','scratch-validation',
+  'protocol','deletion','release','control-retirement'] as const;
+type RecoveryCheck=typeof recoveryChecks[number];
+export type RecoveryReport=Readonly<{status:RecoveryStatus|'verified';check:RecoveryCheck;category:RecoveryCategory;
+  helperExit:'not-launched'|'confirmed'|'unconfirmed';deletionAuthorized:boolean}>;
 export type CleanupPhase='file'|'child'|'marker'|'root'|'metadata';
 const controlNames=['key','record'];
 function identity(path:string,directory:boolean):Identity {
   checked(path,directory);const s=lstatSync(path,{bigint:true});return {dev:s.dev.toString(),ino:s.ino.toString()};
 }
 function identified(path:string,directory:boolean,id:Identity):void {
-  const actual=identity(path,directory);if(actual.dev!==id.dev||actual.ino!==id.ino)stop('containment');
+  const actual=identity(path,directory);if(actual.dev!==id.dev||actual.ino!==id.ino)recoveryStop('identity-ownership','containment');
 }
 function missing(path:string):boolean {
   try{lstatSync(path);return false;}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return true;throw e;}
@@ -342,9 +390,10 @@ function recoveryLocation(store:string,root?:string,source?:string):void {
     store.split(/[\\/]/).some(p=>p.toLowerCase()==='.codex')||
     (root&&overlap(store,root))||(source&&overlap(store,dirname(source))))stop('containment');
 }
-function controlInventory(store:string):{directory:Identity;key:Identity;record:Identity} {
+function controlInventory(store:string,disposal=false):{directory:Identity;key:Identity;record:Identity} {
   checked(store,true);
-  if(recoveryEntries(store).sort().join(',')!=='key,record')stop('cleanup');
+  const members=recoveryEntries(store).sort().join(',');
+  if(members!=='key,record'&&!(disposal&&members==='disposal,key,record'))recoveryStop('structural-inventory');
   if(lstatSync(join(store,'key')).size!==32||lstatSync(join(store,'record')).size>8192)stop('limit','recovery-controls');
   return {directory:identity(store,true),key:identity(join(store,'key'),false),record:identity(join(store,'record'),false)};
 }
@@ -385,12 +434,322 @@ function readAuthenticatedRecord(store:string):RecoveryPayload {
   if(!timingSafeEqual(tag,Buffer.from(envelope.mac,'hex')))stop('cleanup');
   return parseRecoveryPayload(envelope.payload,store);
 }
+type LegacyManifest={version:1;status:'preserved-unverified';original:string;controls:ReturnType<typeof controlInventory>;
+  seal:ReturnType<typeof controlInventory>;recordHash:string;root:RecoveryPayload['root'];nonce:string;
+  entries:(RecoveryEntry & {size:number;registered:boolean})[]};
+const legacyByteLimit=64*1024*1024+1024*1024; // Retention only; acquisition/recovery budgets do not change.
+function legacyPaths(original:string){return {seal:original+'-Legacy',active:original+'-Active'};}
+function legacyEntries(p:RecoveryPayload):LegacyManifest['entries']{
+  identified(p.root.path,true,p.root);const entries:LegacyManifest['entries']=[];
+  const add=(name:string,directory:boolean)=>{
+    if(entries.length>=17||!/^(?:(?:acquisition|analysis)\/)?[A-Za-z0-9_.-]{1,64}$/.test(name)||name==='.'||name==='..')stop('containment');
+    const path=join(p.root.path,name),id=identity(path,directory),registered=p.entries.find(e=>e.name===name);
+    if(registered&&(registered.kind!==(directory?'directory':'file')||id.dev!==registered.dev||id.ino!==registered.ino))stop('containment');
+    const size=directory?0:lstatSync(path).size;if(size>canaryLimits.file)stop('limit');
+    entries.push({name,kind:directory?'directory':'file',...id,size,registered:!!registered});
+  };
+  for(const name of recoveryEntries(p.root.path)){
+    if(name==='acquisition'||name==='analysis'){
+      add(name,true);for(const child of recoveryEntries(join(p.root.path,name)))add(name+'/'+child,false);
+    }else add(name,false);
+  }
+  // Preservation requires the complete signed inventory. RECOVER separately
+  // permits authenticated partial cleanup; that policy does not apply here.
+  for(const signed of p.entries){
+    const observed=entries.find(e=>e.name===signed.name);
+    if(!observed||!observed.registered||observed.kind!==signed.kind||observed.dev!==signed.dev||observed.ino!==signed.ino)stop('containment');
+  }
+  if(entries.reduce((n,e)=>n+e.size,0)>legacyByteLimit)stop('limit');
+  if(!entries.some(e=>e.name==='owner'&&e.registered))stop('containment');
+  const marker=join(p.root.path,'owner');if(lstatSync(marker).size!==36||readFileSync(marker,'utf8')!==p.nonce)stop('containment');
+  return entries.sort((a,b)=>a.name.localeCompare(b.name));
+}
+function validateLegacy(raw:string,original:string,remaining=true,disposal=false):LegacyManifest{
+  if(Buffer.byteLength(raw)>3072)stop('limit');const x=JSON.parse(raw) as LegacyManifest;
+  if(Object.keys(x).sort().join(',')!=='controls,entries,nonce,original,recordHash,root,seal,status,version'||
+    x.version!==1||x.status!=='preserved-unverified'||x.original!==original||!Array.isArray(x.entries)||x.entries.length>17||
+    !/^[a-f0-9]{64}$/.test(x.recordHash)||!/^[a-f0-9-]{36}$/.test(x.nonce))stop('containment');
+  if(!x.root||Object.keys(x.root).sort().join(',')!=='dev,ino,path'||typeof x.root.path!=='string'||
+    !/^\d{1,20}$/.test(x.root.dev)||!/^[1-9]\d{0,19}$/.test(x.root.ino)||dirname(x.root.path)!==realpathSync(tmpdir())||
+    !/^workspace-surveyor-canary-[A-Za-z0-9]+$/.test(relative(dirname(x.root.path),x.root.path)))stop('containment');
+  recoveryLocation(original,x.root.path);const paths=legacyPaths(original);recoveryLocation(paths.seal,x.root.path);
+  for(const group of [x.controls,x.seal]){
+    if(!group||Object.keys(group).sort().join(',')!=='directory,key,record')stop('containment');
+    for(const id of Object.values(group))if(!id||Object.keys(id).sort().join(',')!=='dev,ino'||!/^\d{1,20}$/.test(id.dev)||!/^[1-9]\d{0,19}$/.test(id.ino))stop('containment');
+  }
+  if(JSON.stringify(controlInventory(paths.seal,disposal))!==JSON.stringify(x.seal))stop('containment');
+  const seen=new Set<string>();
+  for(const e of x.entries){
+    if(Object.keys(e).sort().join(',')!=='dev,ino,kind,name,registered,size'||typeof e.registered!=='boolean'||
+      !/^\d{1,20}$/.test(e.dev)||!/^[1-9]\d{0,19}$/.test(e.ino)||!Number.isSafeInteger(e.size)||e.size<0||e.size>canaryLimits.file||
+      !/^(?:(?:acquisition|analysis)\/)?[A-Za-z0-9_.-]{1,64}$/.test(e.name)||e.name==='.'||e.name==='..'||seen.has(e.name)||
+      (e.kind!=='file'&&(e.kind!=='directory'||!['acquisition','analysis'].includes(e.name)||e.size!==0)))stop('containment');seen.add(e.name);
+  }
+  if(remaining){
+    if(JSON.stringify(controlInventory(original))!==JSON.stringify(x.controls))stop('containment');
+    // Before accepting this declaration the exclusive helper checks its complete
+    // registered subset against the original authenticated inventory. Never reopen
+    // its held record; Node verifies all those namespace identities/metadata here.
+    const p:RecoveryPayload={version:1,store:x.controls.directory,root:x.root,nonce:x.nonce,
+      entries:x.entries.filter(e=>e.registered).map(({name,kind,dev,ino})=>({name,kind,dev,ino}))};
+    if(JSON.stringify(legacyEntries(p))!==JSON.stringify(x.entries))stop('containment');
+  }
+  return x;
+}
+export async function resolveOriginalRecoveryStore(executable:string,localExplorer=false):Promise<string>{
+  if(!localExplorer&&(process.env.WORKSPACE_SURVEYOR_LEGACY_PRESERVATION!=='1'||process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1'))stop('selection');
+  const nonce=randomUUID(),session=new CanarySession({operation:localExplorer?'locate-original-explorer':'locate-original',nonce},executable,nonce,undefined,['location']);
+  try{session.start();const f=await session.expect('location');if(f.stage!=='location')stop('helper');
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');return f.store;
+  }finally{await session.finish();}
+}
+export async function preserveLegacyStore(options:{executable:string;store:string;synthetic:boolean;localExplorer?:true;
+  hook?:(stage:'prepared'|'ready')=>void}):Promise<{status:'preserved'|'refused'|'unconfirmed';deletionAuthorized:false;category:RecoveryCategory;check:RecoveryCheck}>{
+  let session:CanarySession|undefined,status:'preserved'|'refused'|'unconfirmed'='refused';
+  let category:RecoveryCategory='none',check:RecoveryCheck='selection';
+  try{
+    if(!options.localExplorer&&process.env.WORKSPACE_SURVEYOR_LEGACY_PRESERVATION!=='1'||(options.synthetic?
+      options.localExplorer||process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1':options.hook||options.store!==await resolveOriginalRecoveryStore(options.executable,options.localExplorer)))stop('selection');
+    check='controls';recoveryLocation(options.store);const controls=controlInventory(options.store),nonce=randomUUID();
+    session=new CanarySession({operation:'preserve-legacy',store:options.store,nonce,mode:options.synthetic?'synthetic':options.localExplorer?'explorer':'personal',probe:'none'},
+      options.executable,nonce,undefined,['recovery-held','legacy-prepared','legacy-ready']);
+    check='control-security';session.start();const held=await session.expect('recovery-held');if(held.stage!=='recovery-held')stop('helper');
+    check='scratch-validation';
+    const original=parseRecoveryPayload(held.payload,options.store),entries=legacyEntries(original);
+    const recordHash=createHash('sha256').update(held.payload,'utf8').digest('hex');
+    const preliminary={version:1,status:'preserved-unverified',original:options.store,controls,recordHash,root:original.root,nonce:original.nonce,entries};
+    const preliminaryPayload=JSON.stringify(preliminary);if(Buffer.byteLength(preliminaryPayload)>3072)stop('limit');
+    check='protocol';session.send({command:'prepare-legacy',payload:preliminaryPayload});await session.expect('legacy-prepared',0);options.hook?.('prepared');
+    const value:LegacyManifest={version:1,status:'preserved-unverified',original:options.store,controls,
+      seal:controlInventory(legacyPaths(options.store).seal),recordHash,root:original.root,nonce:original.nonce,entries};
+    const payload=JSON.stringify(value);if(Buffer.byteLength(payload)>3072)stop('limit');
+    session.send({command:'persist-legacy',payload});await session.expect('legacy-ready',0);options.hook?.('ready');
+    const paths=legacyPaths(options.store),key=readFileSync(join(paths.seal,'key')),envelope=JSON.parse(readFileSync(join(paths.seal,'record'),'utf8'));
+    if(envelope.payload!==payload||envelope.mac!==createHmac('sha256',key).update(payload).digest('hex'))stop('containment');
+    validateLegacy(payload,options.store);session.send({command:'release'});
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');status='preserved';
+  }catch(error){category=recoveryFailureCategory(error,check,session?.final);}
+  finally{if(session&&!await session.finish())status='unconfirmed';}
+  return {status,deletionAuthorized:false,category,check};
+}
+// Future retirement is separate authorization. It never deletes legacy scratch
+// or tolerates a surviving original/active store. Only declaration controls retire.
+export async function retireLegacyDeclaration(options:{executable:string;store:string;synthetic:boolean}):Promise<RecoveryStatus>{
+  let session:CanarySession|undefined,status:RecoveryStatus='refused';
+  try{
+    if(options.synthetic?process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1':
+      process.env.WORKSPACE_SURVEYOR_LEGACY_RETIREMENT!=='1'||options.store!==await resolveOriginalRecoveryStore(options.executable))stop('selection');
+    const nonce=randomUUID(),paths=legacyPaths(options.store);
+    session=new CanarySession({operation:'retire-legacy',store:options.store,nonce,mode:options.synthetic?'synthetic':'personal',probe:'none'},
+      options.executable,nonce,undefined,['legacy-held']);session.start();
+    const frame=await session.expect('legacy-held');if(frame.stage!=='legacy-held')stop('helper');
+    const manifest=validateLegacy(frame.payload,options.store,false);
+    // Root absence is not evidence of an unverified object's disposition.
+    // Keep its durable identity references until independent proof is reviewed.
+    if(manifest.entries.some(e=>!e.registered))stop('cleanup');
+    if(!missing(options.store)||!missing(manifest.root.path)||!missing(paths.active))stop('cleanup');
+    session.send({command:'verify-legacy-absence'});session.send({command:'release'});
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
+    if(!missing(options.store)||!missing(manifest.root.path)||!missing(paths.active))stop('cleanup');
+    if(JSON.stringify(controlInventory(paths.seal))!==JSON.stringify(manifest.seal))stop('containment');
+    for(const name of controlNames)identified(join(paths.seal,name),false,manifest.seal[name as 'key'|'record']);
+    unlinkSync(join(paths.seal,'record'));unlinkSync(join(paths.seal,'key'));
+    identified(paths.seal,true,manifest.seal.directory);if(recoveryEntries(paths.seal).length)stop('cleanup');rmdirSync(paths.seal);status='removed';
+  }catch{/* No scratch deletion, fallback or retry. */}
+  finally{if(session&&!await session.finish())status='residual';}
+  return status;
+}
+async function verifyLegacyGuard(executable:string,original:string,synthetic:boolean):Promise<void>{
+  const nonce=randomUUID(),session=new CanarySession({operation:'validate-legacy',store:original,nonce,
+    mode:synthetic?'synthetic':'personal',probe:'none'},executable,nonce,undefined,['legacy-held']);
+  try{
+    session.start();const held=await session.expect('legacy-held');if(held.stage!=='legacy-held')stop('helper');
+    validateLegacy(held.payload,original);session.send({command:'release'});
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
+  }finally{if(!await session.finish())stop('helper');}
+}
+// Deliberate disposal is distinct from RECOVER: the caller authorizes disposition
+// of the exact preserved inventory, without asserting creation ownership.
+function disposalIntent(raw:string){return JSON.stringify({version:1,action:'user-directed-disposal',
+  manifestHash:createHash('sha256').update(raw,'utf8').digest('hex')});}
+function verifiedDisposalIntent(seal:string,raw:string):{id:Identity;completed:number}|undefined{
+  const path=join(seal,'disposal');if(missing(path))return undefined;
+  const id=identity(path,false);if(lstatSync(path).size>4096)stop('limit');
+  const text=readFileSync(path,'utf8');if(!text.endsWith('\n'))stop('containment');
+  const lines=text.slice(0,-1).split('\n');if(lines.length>19)stop('limit');
+  const key=readFileSync(join(seal,'key'));if(key.length!==32)stop('containment');
+  for(let i=0;i<lines.length;i++){
+    const envelope=JSON.parse(lines[i]!) as {payload:string;mac:string};
+    const expected=i===0?disposalIntent(raw):JSON.stringify({manifestHash:createHash('sha256').update(raw,'utf8').digest('hex'),index:i});
+    if(Object.keys(envelope).sort().join(',')!=='mac,payload'||envelope.payload!==expected||!/^[a-f0-9]{64}$/.test(envelope.mac))stop('containment');
+    const mac=createHmac('sha256',key).update(envelope.payload).digest('hex');
+    if(!timingSafeEqual(Buffer.from(mac),Buffer.from(envelope.mac)))stop('containment');
+  }
+  return {id,completed:lines.length-1};
+}
+function disposalMembers(value:LegacyManifest){return [...value.entries.filter(e=>e.kind==='file'&&e.name!=='owner'),
+  ...value.entries.filter(e=>e.kind==='directory'),{name:'owner',kind:'file'},{name:'root',kind:'directory'}];}
+function remainingLegacy(value:LegacyManifest,completed:number):void{
+  const members=disposalMembers(value);if(completed>members.length)stop('containment');
+  if(!missing(value.root.path)){
+    identified(value.root.path,true,value.root);
+    for(const entry of value.entries.filter(e=>e.kind==='directory')){
+      const path=join(value.root.path,entry.name);if(!missing(path))identified(path,true,entry);
+    }
+  }
+  for(let i=0;i<members.length;i++){
+    const name=members[i]!.name,path=name==='root'?value.root.path:join(value.root.path,name);
+    if(missing(path)!==(i<completed))stop('containment');
+  }
+  if(missing(value.root.path))return;
+  identified(value.root.path,true,value.root);const actual:string[]=[];
+  for(const name of recoveryEntries(value.root.path)){
+    actual.push(name);
+    if(name==='acquisition'||name==='analysis'){
+      const entry=value.entries.find(e=>e.name===name);if(!entry||entry.kind!=='directory')stop('containment');
+      identified(join(value.root.path,name),true,entry);
+      for(const child of recoveryEntries(join(value.root.path,name)))actual.push(name+'/'+child);
+    }
+  }
+  if(actual.length>17)stop('containment');
+  for(const name of actual){
+    const entry=value.entries.find(e=>e.name===name);if(!entry)stop('containment');
+    const path=join(value.root.path,name);identified(path,entry.kind==='directory',entry);
+    if(entry.kind==='file'&&lstatSync(path).size!==entry.size)stop('containment');
+  }
+  const owner=join(value.root.path,'owner');
+  if(!missing(owner)){if(lstatSync(owner).size!==36||readFileSync(owner,'utf8')!==value.nonce)stop('containment');}
+  else if(actual.length)stop('containment');
+}
+function disposalOriginalControls(value:LegacyManifest,completed:number):void{
+  // Matching authenticated bytes do not excuse replacement control identities.
+  // Missing controls are tolerated only after all scratch deletion receipts exist.
+  const retired=completed===disposalMembers(value).length;
+  if(missing(value.original)){if(!retired)stop('containment');return;}
+  identified(value.original,true,value.controls.directory);
+  const names=recoveryEntries(value.original);
+  if(names.some(name=>!controlNames.includes(name))||!retired&&names.length!==2)stop('containment');
+  for(const name of names)identified(join(value.original,name),false,value.controls[name as 'key'|'record']);
+}
+export type LegacyInventoryPreview=Readonly<{root:string;previouslyRemoved:number;totalBytes:number;
+  objects:readonly Readonly<{path:string;kind:'file'|'directory';size:number|null;registered:boolean}>[]}>;
+const legacyPreviews=new WeakMap<LegacyInventoryPreview,{store:string;fingerprint:string}>();
+function previewFingerprint(manifest:LegacyManifest,raw:string,security:string,completed:number):string{
+  const paths=[manifest.original,join(manifest.original,'key'),join(manifest.original,'record'),legacyPaths(manifest.original).seal,
+    ...['key','record','disposal'].map(name=>join(legacyPaths(manifest.original).seal,name)),manifest.root.path,
+    ...manifest.entries.map(e=>join(manifest.root.path,e.name))];
+  const metadata=paths.map(path=>{
+    if(missing(path))return null;
+    const s=lstatSync(path,{bigint:true});return [s.dev,s.ino,s.size,s.mtimeNs,s.ctimeNs,s.mode,s.nlink].map(String);
+  });
+  return createHash('sha256').update(JSON.stringify({raw,security,completed,metadata})).digest('hex');
+}
+async function inspectLegacy(options:{executable:string;store:string;synthetic:boolean},expected?:LegacyInventoryPreview,
+  verified?:()=>Promise<boolean>):Promise<LegacyInventoryPreview|undefined>{
+  let session:CanarySession|undefined,result:LegacyInventoryPreview|undefined;
+  try{
+    if(options.synthetic?process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1':
+      process.env.WORKSPACE_SURVEYOR_LEGACY_INSPECTION!=='1'||options.store!==await resolveOriginalRecoveryStore(options.executable))stop('selection');
+    recoveryLocation(options.store);const nonce=randomUUID();
+    session=new CanarySession({operation:'preview-legacy',store:options.store,nonce,mode:options.synthetic?'synthetic':'personal',probe:'none'},
+      options.executable,nonce,undefined,['legacy-held']);session.start();
+    const held=await session.expect('legacy-held');if(held.stage!=='legacy-held'||!('security' in held))stop('helper');
+    const manifest=validateLegacy(held.payload,options.store,false,true),progress=verifiedDisposalIntent(legacyPaths(options.store).seal,held.payload);
+    const completed=progress?.completed??0;remainingLegacy(manifest,completed);disposalOriginalControls(manifest,completed);
+    const fingerprint=previewFingerprint(manifest,held.payload,held.security,completed);
+    if(expected){const binding=legacyPreviews.get(expected);if(!binding||binding.store!==options.store||binding.fingerprint!==fingerprint)stop('containment');}
+    const objects=disposalMembers(manifest).slice(completed).map(e=>Object.freeze({
+      path:e.name==='root'?manifest.root.path:join(manifest.root.path,e.name),kind:e.kind as 'file'|'directory',
+      size:e.kind==='file'?manifest.entries.find(m=>m.name===e.name)!.size:null,
+      registered:e.name==='root'||manifest.entries.find(m=>m.name===e.name)!.registered}));
+    const preview=Object.freeze({root:manifest.root.path,previouslyRemoved:completed,
+      totalBytes:objects.reduce((n,e)=>n+(e.size??0),0),objects:Object.freeze(objects)});
+    if(verified&&(!expected||!await verified()))stop('selection');
+    remainingLegacy(manifest,completed);disposalOriginalControls(manifest,completed);
+    if(previewFingerprint(manifest,held.payload,held.security,completed)!==fingerprint)stop('containment');
+    session.send({command:'release'});
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
+    legacyPreviews.set(preview,{store:options.store,fingerprint});result=preview;
+  }catch{/* Inspection has no creation, deletion, recovery or publication command. */}
+  finally{if(session&&!await session.finish())result=undefined;}
+  return result;
+}
+export async function previewLegacyIncident(options:{executable:string;store:string;synthetic:boolean}):Promise<LegacyInventoryPreview|undefined>{
+  return inspectLegacy(options);
+}
+// The approved active cleanup may run only after the displayed binding matches,
+// while read-only legacy lifetime and file handles remain retained.
+export async function withVerifiedLegacyPreview(options:{executable:string;store:string;synthetic:boolean},preview:LegacyInventoryPreview,
+  verified:()=>Promise<boolean>):Promise<boolean>{return !!await inspectLegacy(options,preview,verified);}
+export type LegacyDisposalSummary=Readonly<{registeredEntries:number;unregisteredEntries:number;remainingEntries:number;retainedBytes:number;resuming:boolean}>;
+export async function disposeLegacyIncident(options:{executable:string;store:string;synthetic:boolean;
+  preview?:LegacyInventoryPreview;authorize:(summary:LegacyDisposalSummary)=>Promise<boolean>;fault?:(phase:'intent'|'member'|'controls')=>void}):Promise<{
+    status:'closed'|'refused'|'partial';helperExit:'not-launched'|'confirmed'|'unconfirmed';disposalAuthorized:boolean}> {
+  let session:CanarySession|undefined,authorized=false,status:'closed'|'refused'|'partial'='refused';
+  try{
+    if(options.synthetic?process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1':
+      options.fault||!options.preview||process.env.WORKSPACE_SURVEYOR_LEGACY_DISPOSAL!=='1'||options.store!==await resolveOriginalRecoveryStore(options.executable))stop('selection');
+    const paths=legacyPaths(options.store);recoveryLocation(options.store);if(!missing(paths.active))stop('cleanup');
+    const nonce=randomUUID(),order=['legacy-held','legacy-ready'];
+    session=new CanarySession({operation:'dispose-legacy',store:options.store,nonce,mode:options.synthetic?'synthetic':'personal',probe:'none'},
+      options.executable,nonce,undefined,order);session.start();
+    const held=await session.expect('legacy-held');if(held.stage!=='legacy-held')stop('helper');
+    const manifest=validateLegacy(held.payload,options.store,false,true);
+    const priorIntent=verifiedDisposalIntent(paths.seal,held.payload);remainingLegacy(manifest,priorIntent?.completed??0);
+    disposalOriginalControls(manifest,priorIntent?.completed??0);
+    if(options.preview){
+      const binding=legacyPreviews.get(options.preview);
+      if(!binding||binding.store!==options.store||!('security' in held)||
+        binding.fingerprint!==previewFingerprint(manifest,held.payload,held.security,priorIntent?.completed??0))stop('containment');
+    }
+    const remaining=disposalMembers(manifest).slice(priorIntent?.completed??0).filter(e=>e.name!=='root');
+    if(!await options.authorize({registeredEntries:manifest.entries.filter(e=>e.registered).length,
+      unregisteredEntries:manifest.entries.filter(e=>!e.registered).length,
+      remainingEntries:remaining.length,retainedBytes:manifest.entries.filter(e=>remaining.some(r=>r.name===e.name)).reduce((n,e)=>n+e.size,0),resuming:!!priorIntent}))stop('selection');
+    session.send({command:'authorize-disposal'});await session.expect('legacy-ready',0);
+    const intent=verifiedDisposalIntent(paths.seal,held.payload);if(!intent)stop('containment');authorized=true;
+    options.fault?.('intent');
+    const members=disposalMembers(manifest);let count=0,completed=intent.completed;
+    for(const member of members){
+      remainingLegacy(manifest,completed);identified(join(paths.seal,'disposal'),false,intent.id);
+      disposalOriginalControls(manifest,completed);
+      if(!missing(paths.active))stop('cleanup');
+      const path=member.name==='root'?manifest.root.path:join(manifest.root.path,member.name),existed=!missing(path);
+      order.push('recovery-deleted');session.send({command:'delete-recovery',name:member.name});
+      const frame=await session.expect('recovery-deleted',++count);
+      if(!('deleted' in frame)||frame.deleted!==existed||!missing(path))stop('cleanup');
+      const progress=verifiedDisposalIntent(paths.seal,held.payload);
+      if(!progress||progress.completed!==Math.max(count,completed))stop('cleanup');
+      identified(join(paths.seal,'disposal'),false,intent.id);completed=progress.completed;options.fault?.('member');
+    }
+    if(!missing(manifest.root.path))stop('cleanup');session.send({command:'release'});
+    if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
+    // Only after confirmed helper exit and positive scratch absence may controls
+    // retire. A metadata interruption is reported, never an automatic repair.
+    options.fault?.('controls');
+    const absent=()=>{if(!missing(manifest.root.path)||!missing(paths.active))stop('cleanup');};
+    const retire=(store:string,controls:LegacyManifest['controls'],extra=false)=>{
+      absent();if(missing(store))return;identified(store,true,controls.directory);
+      const names=recoveryEntries(store);if(names.some(n=>!['record','key',...(extra?['disposal']:[])].includes(n)))stop('containment');
+      for(const name of names)identified(join(store,name),false,name==='disposal'?intent.id:controls[name as 'key'|'record']);
+      for(const name of ['record','key',...(extra?['disposal']:[])]){
+        absent();identified(store,true,controls.directory);const path=join(store,name);
+        if(!missing(path)){identified(path,false,name==='disposal'?intent.id:controls[name as 'key'|'record']);unlinkSync(path);}
+      }
+      identified(store,true,controls.directory);if(recoveryEntries(store).length)stop('cleanup');rmdirSync(store);
+    };
+    retire(options.store,manifest.controls);retire(paths.seal,manifest.seal,true);absent();
+    if(!missing(options.store)||!missing(paths.seal))stop('cleanup');status='closed';
+  }catch{status=authorized?'partial':'refused';}
+  finally{if(session&&!await session.finish())status='partial';}
+  return {status,helperExit:!session?.spawned?'not-launched':session.processExited?'confirmed':'unconfirmed',disposalAuthorized:authorized};
+}
 function validateRemaining(p:RecoveryPayload):void {
   if(missing(p.root.path))return;
   identified(p.root.path,true,p.root);
   const actual:string[]=[];
   for(const n of recoveryEntries(p.root.path)){
-    if(!['owner','acquisition','analysis'].includes(n))stop('cleanup');
+    if(!['owner','acquisition','analysis'].includes(n))recoveryStop('scratch-inventory');
     actual.push(n);
     if(n!=='owner'){
       const entry=p.entries.find(e=>e.name===n)!;identified(join(p.root.path,n),true,entry);
@@ -398,14 +757,14 @@ function validateRemaining(p:RecoveryPayload):void {
     }
   }
   if(actual.length>(p.version===2?13:9))stop('limit','recovery-entries');let total=0;
-  for(const name of actual){const entry=p.entries.find(e=>e.name===name);if(!entry)stop('cleanup');
+  for(const name of actual){const entry=p.entries.find(e=>e.name===name);if(!entry)recoveryStop('scratch-inventory');
     const path=join(p.root.path,name);identified(path,entry.kind==='directory',entry);
     if(entry.kind==='file'){const size=lstatSync(path).size;if(size>canaryLimits.file)stop('limit','scratch-file-bytes');total+=size;}
   }
   if(total>canaryLimits.scratch)stop('limit','scratch-total-bytes');
   const marker=join(p.root.path,'owner');
-  if(missing(marker)){if(actual.length)stop('cleanup');}
-  else if(lstatSync(marker).size!==36||readFileSync(marker,'utf8')!==p.nonce)stop('cleanup');
+  if(missing(marker)){if(actual.length)recoveryStop('identity-ownership');}
+  else if(lstatSync(marker).size!==36||readFileSync(marker,'utf8')!==p.nonce)recoveryStop('identity-ownership');
 }
 // Node authorizes fixed steps only. The exclusive-handle owner performs every
 // synchronous scratch deletion; no Node scratch-deletion fallback exists here.
@@ -437,40 +796,86 @@ async function removeRecoveredScratch(p:RecoveryPayload,session:CanarySession,or
 export async function resolvePersonalRecoveryStore(executable:string):Promise<string> {
   return locatePersonalRecoveryStore(executable);
 }
+export async function resolveExplorerRecoveryStore(executable:string):Promise<string>{return locatePersonalRecoveryStore(executable,undefined,true);}
 async function locatePersonalRecoveryStore(executable:string,attempt?:{consumed:boolean},localExplorer=false):Promise<string> {
   if(!localExplorer&&process.env.WORKSPACE_SURVEYOR_PERSONAL_CANARY!=='1')stop('selection');
   const nonce=randomUUID(),session=new CanarySession({operation:'locate',nonce},executable,nonce,undefined,['location']);
   try{
     if(attempt)attempt.consumed=true; // Request construction succeeded; helper startup begins now.
     session.start();const frame=await session.expect('location');if(frame.stage!=='location')stop('helper');
+    if(frame.legacy){const original=frame.store.slice(0,-7);if(!frame.store.endsWith('-Active'))stop('containment');validateLegacy(frame.legacy,original,false);}
     if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok')stop('helper');
     recoveryLocation(frame.store);return frame.store;
   }finally{await session.finish();}
 }
-type RecoveryOptions={executable:string;store:string;synthetic:boolean;localExplorer?:true;
+type RecoveryOptions={executable:string;store:string;synthetic:boolean;localExplorer?:true;originalLegacy?:true;activeLegacy?:true;
   fault?:(phase:CleanupPhase)=>void;locked?:()=>void|Promise<void>;
   probe?:'slow'|'short';step?:(event:{stage:'before'|'paused'|'deleted';count:number},session:CanarySession)=>void|Promise<void>};
 export async function recoverCanary(options:RecoveryOptions):Promise<RecoveryStatus>{
+  const result=await recoverCanaryWithEvidence(options);
+  return result.status==='verified'?'refused':result.status;
+}
+export async function diagnoseCanaryRecovery(options:Pick<RecoveryOptions,'executable'|'store'|'synthetic'>):Promise<RecoveryReport>{
+  return recoveryOperation(options,true);
+}
+export async function recoverCanaryWithEvidence(options:RecoveryOptions):Promise<RecoveryReport>{
+  return recoveryOperation(options,false);
+}
+function recoveryFailureCategory(error:unknown,check:RecoveryCheck,final?:Final):RecoveryCategory{
+  if(error instanceof Refusal&&error.recoveryCategory)return error.recoveryCategory;
+  const code=(error as NodeJS.ErrnoException|null)?.code;
+  if(code==='EACCES'||code==='EPERM')return 'access-security';
+  if(error instanceof Refusal){
+    if(error.reason==='containment')return 'path-safety';
+    if(error.reason==='selection')return 'selection';
+    if(error.reason==='helper')return final?.refusal&&final.refusal!=='none'?final.refusal:'helper-protocol';
+    if(error.reason==='limit'&&check==='scratch-validation')return 'scratch-limit';
+  }
+  if(check==='controls'||check==='payload'||error instanceof SyntaxError)return 'structural-inventory';
+  if(check==='scratch-validation'){
+    // Initial ordinary root absence returns before here. ENOENT here is a failed later check.
+    if(code==='ENOENT')return 'scratch-entry-disappeared';
+    if(code==='ENOTDIR')return 'path-safety';
+    return 'scratch-inspection';
+  }
+  if(check==='deletion'||check==='control-retirement')return 'cleanup';
+  return 'io';
+}
+async function recoveryOperation(options:RecoveryOptions,diagnose:boolean):Promise<RecoveryReport>{
   let session:CanarySession|undefined;let cleanupBegan=false;let status:RecoveryStatus='refused';
+  let check:RecoveryCheck='selection',category:RecoveryCategory='none',verified=false;
   try{
+    if(diagnose&&(!options.synthetic&&process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC!=='1'||
+      options.fault||options.locked||options.probe||options.step))stop('selection');
     if(process.platform!=='win32'||!isAbsolute(options.executable)||!lstatSync(options.executable).isFile())stop('selection');
     if(options.synthetic){if(process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1')stop('selection');}
-    else{if(options.fault||options.locked||options.probe||options.step||options.store!==await locatePersonalRecoveryStore(options.executable,undefined,options.localExplorer===true))stop('selection');}
+    else{check='location';
+      if(options.activeLegacy&&(options.originalLegacy||process.env.WORKSPACE_SURVEYOR_LEGACY_ACTIVE_RECOVERY!=='1'))stop('selection');
+      if(options.fault||options.locked||options.probe||options.step||options.store!==(options.activeLegacy?
+        (await resolveOriginalRecoveryStore(options.executable))+'-Active':options.originalLegacy?
+        await resolveOriginalRecoveryStore(options.executable):await locatePersonalRecoveryStore(options.executable,undefined,options.localExplorer===true)))stop('selection');}
     if(options.probe!==undefined&&!['slow','short'].includes(options.probe))stop('selection');
-    recoveryLocation(options.store);if(missing(options.store))return 'unavailable';
+    check='location';recoveryLocation(options.store);if(missing(options.store))return {
+      status:'unavailable',check,category:'structural-inventory',helperExit:'not-launched',deletionAuthorized:false};
+    check='controls';
     const controls=controlInventory(options.store);const nonce=randomUUID();
     const order=['recovery-held','recovery-verified'];
-    session=new CanarySession({operation:'recover',store:options.store,nonce,mode:options.synthetic?'synthetic':'personal',
+    check='control-security';session=new CanarySession({operation:diagnose?'diagnose-recovery':'recover',store:options.store,nonce,mode:options.synthetic?'synthetic':'personal',
       probe:options.probe??'none'},options.executable,nonce,undefined,order);
     session.start();const f=await session.expect('recovery-held');if(f.stage!=='recovery-held')stop('helper');
-    const payload=parseRecoveryPayload(f.payload,options.store);validateRemaining(payload);
+    check='payload';const payload=parseRecoveryPayload(f.payload,options.store);
+    check='scratch-validation';validateRemaining(payload);
     if(payload.version===2)session.allowExplorerRecovery();
     await options.locked?.();session.send({command:'verify-recovery'});await session.expect('recovery-verified',0);
-    cleanupBegan=true;await removeRecoveredScratch(payload,session,order,options);
+    if(!diagnose){check='deletion';cleanupBegan=true;await removeRecoveredScratch(payload,session,order,options);}
+    check='release';
     session.send({command:'release'});
     if(!await session.finish()||session.unsafe||session.final?.outcome!=='ok'||session.final.phase!=='recovery'||
       session.final.opened!==0||session.final.copied||session.final.fault!=='none')stop('helper');
+    if(diagnose){verified=true;}
+    else{
     if(!missing(payload.root.path))stop('cleanup');
+    check='control-retirement';
     const current=controlInventory(options.store);
     if(JSON.stringify(current)!==JSON.stringify(controls))stop('cleanup');
     options.fault?.('metadata');
@@ -479,9 +884,16 @@ export async function recoverCanary(options:RecoveryOptions):Promise<RecoverySta
     unlinkSync(join(options.store,'record'));unlinkSync(join(options.store,'key'));
     identified(options.store,true,controls.directory);if(recoveryEntries(options.store).length)stop('cleanup');rmdirSync(options.store);
     if(!missing(options.store))stop('cleanup');status='removed';
-  }catch{status=cleanupBegan?'residual':session?.final?.outcome==='sharing-refused'?'busy':'refused';}
-  finally{if(session&&!await session.finish())status='residual';}
-  return status;
+    }
+  }catch(error){
+    category=recoveryFailureCategory(error,check,session?.final);
+    if(error instanceof Refusal&&error.reason==='helper'&&session?.final?.recoveryCheck)check=session.final.recoveryCheck;
+    status=cleanupBegan?'residual':session?.final?.outcome==='sharing-refused'?'busy':'refused';
+    if(status==='busy')category='access-security';
+  }
+  finally{if(session&&!await session.finish()){status='residual';verified=false;category='lifetime-unconfirmed';}}
+  return {status:verified?'verified':status,check,category,
+    helperExit:!session?.spawned?'not-launched':session.processExited?'confirmed':'unconfirmed',deletionAuthorized:cleanupBegan};
 }
 // Only for pre-persistence failures: the current process owns this newly created,
 // empty-of-source-data directory. Never used to recover a previous run.
@@ -496,6 +908,7 @@ export type SyntheticSelection = { source:string; ownerRoot:string; ownerNonce:s
 type PersonalSelection = { source:string; consent:true; actualValueConsent?:true; displayConsent?:true;
   titleConsent?:true; browserConsent?:true; scratchParent:string; writers:readonly string[] };
 export type CanaryOptions = {
+  legacySynthetic?:true;
   executable:string;
   analysis?: 'qualification' | 'thread-cwd' | 'explorer';
   // Fixed DB + one Desktop registry JSON; personal callbacks remain forbidden.
@@ -564,6 +977,9 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   let explorerIndex=explorer&&options.explorer?.sessionIndex!==undefined;
   let explorerResult:ReaderResult|undefined,limit:CanaryLimit|undefined;
   let failureStage:NonNullable<CanaryResult['failureStage']>='source-selection';
+  let acquisitionStage:AcquisitionStage='input',acquisitionReason:Reason|'none'='none';
+  let recoveryPreflight:'not-checked'|'clear'|'occupied'='not-checked';
+  let cleanupRecovery:RecoveryStatus|'not-attempted'='not-attempted';
   let store:string|undefined,storeId:Identity|undefined,lease:number|undefined,persisted=false;
   let recovery:CanaryResult['recovery']='removed';
   let qualification:Qualification|undefined;
@@ -573,6 +989,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
   const namespace=attempt||explorer?(synthetic&&explorer?'synthetic-':'source-')+randomUUID():undefined;
   try{
     if (options.analysis !== undefined && options.analysis !== 'qualification' && options.analysis !== 'thread-cwd' && !explorer) stop('selection');
+    if(options.legacySynthetic&&!synthetic)stop('selection');
     if(options.explorer&&!explorer)stop('selection');
     if(explorer&&(!explorerDelivery||options.inspectHook||options.qualificationHook))stop('selection');
     if(explorer&&synthetic&&process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION!=='1')stop('selection');
@@ -614,8 +1031,10 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
           options.selection.private.writers.length<1||options.selection.private.writers.length>12||
           options.selection.private.writers.some(n=>!/^[A-Za-z0-9_.-]{1,64}$/.test(n)))stop('selection');
     }
-    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery'):await locatePersonalRecoveryStore(options.executable,attempt,explorer);
-    recoveryLocation(store,undefined,source);if(!missing(store)){cleanup='residual';recovery='unavailable';stop('selection');}
+    acquisitionStage='recovery-preflight';
+    store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery')+(options.legacySynthetic?'-Active':''):await locatePersonalRecoveryStore(options.executable,attempt,explorer);
+    recoveryLocation(store,undefined,source);if(!missing(store)){recoveryPreflight='occupied';cleanup='residual';recovery='unavailable';stop('selection');}
+    recoveryPreflight='clear';acquisitionStage='source-selection';
     // ENOENT alone disables optional Projects. Other source/safety failures still refuse.
     if(explorerJson){
       if(options.selection.kind==='synthetic'&&!contains(join(options.selection.fixture.ownerRoot,'sources'),options.explorer!.globalState))stop('selection');
@@ -644,20 +1063,39 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       return paths;
     };
     const paths=select();const before=paths.map(p=>metadata(p));count=paths.length;
-    if(explorerJson||explorerIndex)scratch=new CanaryScratch([...names.slice(0,count-Number(explorerJson)-Number(explorerIndex)),...(explorerJson?['global-state.json']:[]),...(explorerIndex?['session-index.jsonl']:[])],'explorer');
-    cleanup='residual';scratch.initialize();await options.hook?.('initialized',scratch);
+    const selectedWal=paths.includes(source+'-wal');
+    if(explorerJson||explorerIndex)scratch=new CanaryScratch([...names.slice(0,count-Number(explorerJson)-Number(explorerIndex)),...(explorerJson?['global-state.json']:[]),...(explorerIndex?['session-index.jsonl']:[])],'explorer',selectedWal);
+    else scratch=new CanaryScratch(names,'canary',selectedWal);
+    acquisitionStage='scratch-initialization';cleanup='residual';
+    try{scratch.initialize();}catch(error){
+      // Validation has no creation side effects. Do not misreport that refusal as cleanup uncertainty.
+      // Once creation was dispatched, retain the fail-closed residual status, even if root is unknown.
+      if(scratch.initialization==='validating')cleanup='removed';
+      throw error;
+    }
+    await options.hook?.('initialized',scratch);
     if(overlap(dirname(source),scratch.root!)||overlap(source,scratch.root!))stop('containment');
+    acquisitionStage='recovery-initialization';
     recoveryLocation(store,scratch.root,source);mkdirSync(store);storeId=identity(store,true);
     const fault=options.fault??'none';if(!['none','protected','descriptor','partial-copy','diagnostic','recovery-create','recovery-descriptor','recovery-write','recovery-flush','recovery-readback'].includes(fault))stop('selection');
     const writers=options.selection.kind==='personal'?[...options.selection.private.writers]:[];
     if(explorerJson&&overlap(dirname(options.explorer!.globalState),scratch.root!))stop('containment');
     if(explorerIndex&&overlap(dirname(options.explorer!.sessionIndex!),scratch.root!))stop('containment');
+    acquisitionStage='helper-preparation';
     session=new CanarySession({operation:'acquire',store,count,root:scratch.root,nonce:scratch.nonce,source,mode:synthetic?'synthetic':'personal',writers,fault,
-      ...(explorerJson||explorerIndex?{profile:'explorer',...(explorerJson?{globalState:options.explorer!.globalState}:{}),...(explorerIndex?{sessionIndex:options.explorer!.sessionIndex}: {})}:{})},options.executable,scratch.nonce,options.corruptFrame,steps,scratch.copyNames);
+      ...(explorerJson||explorerIndex?{profile:'explorer',...(explorerJson?{globalState:options.explorer!.globalState}:{}),...(explorerIndex?{sessionIndex:options.explorer!.sessionIndex}: {})}:{})},options.executable,scratch.nonce,options.corruptFrame,
+        store.endsWith('-Active')?['legacy-held',...steps]:steps,scratch.copyNames);
     session.start(options.afterSpawn);
+    let legacyPayload:string|undefined;
+    if(store.endsWith('-Active')){const held=await session.expect('legacy-held');if(held.stage!=='legacy-held')stop('helper');
+      legacyPayload=held.payload;const legacy=validateLegacy(legacyPayload,store.slice(0,-7));
+      if([source,...(explorerJson?[options.explorer!.globalState]:[]),...(explorerIndex?[options.explorer!.sessionIndex!]:[])].some(path=>
+        overlap(dirname(path),legacy.root.path)||overlap(path,legacy.original)||overlap(path,legacyPaths(legacy.original).seal)))stop('containment');
+      session.send({command:'accept-legacy'});}
     await session.expect('prepared',0);await options.hook?.('prepared',scratch);
     identified(store,true,storeId);scratch.owned();
     if(!same(before,select().map(p=>metadata(p))))stop('unstable');
+    acquisitionStage='recovery-persistence';
     const payload=recoveryPayload(scratch,store);
     session.send({command:'persist',payload});await session.expect('recovery-ready',0);
     if(JSON.stringify(readAuthenticatedRecord(store))!==JSON.stringify(JSON.parse(payload)))stop('cleanup');
@@ -665,7 +1103,7 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     const held=fstatSync(lease,{bigint:true});const recordId=identity(join(store,'record'),false);
     if(held.dev.toString()!==recordId.dev||held.ino.toString()!==recordId.ino)stop('cleanup');
     persisted=true;recovery='available';await options.hook?.('recovery-ready',scratch);
-    session.send({command:'acquire'});
+    acquisitionStage='source-acquisition';session.send({command:'acquire'});
     const frame=await session.expect('held',count);if(frame.stage!=='held')stop('helper');
     const manifest=frame.manifest;
     if(manifest.some((e,i)=>BigInt(e.size)!==before[i]?.size))stop('unstable');
@@ -673,11 +1111,11 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
     if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     session.send({command:'copy'});await session.expect('copied',count);
-    failureStage='copy-validation';scratch.entries();
+    acquisitionStage='copy-validation';failureStage='copy-validation';scratch.entries();
     for(let i=0;i<count;i++)for(const area of ['acquisition','analysis'] as const)
       if(digestCopy(scratch.path(area,i))!==manifest[i]?.digest)stop('unstable');
     await options.hook?.('copied',scratch);
-    failureStage='analysis';
+    acquisitionStage='analysis';failureStage='analysis';
     try{
       if(explorer){
         const reader=await import('../../src/explorer/readers.js');
@@ -692,21 +1130,22 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
         qualification=inspectQualificationAnalysis(scratch,options.qualificationHook);readable=true;
       }else{readable=inspectCanaryAnalysis(scratch,options.inspectHook);}
     }catch{stop('analysis');}
-    await options.hook?.('analyzed',scratch);failureStage='source-verification';
+    await options.hook?.('analyzed',scratch);acquisitionStage='source-verification';failureStage='source-verification';
     if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     for(let i=0;i<count;i++)if(digestCopy(scratch.path('acquisition',i))!==manifest[i]?.digest)stop('unstable');
     session.send({command:'verify'});await session.expect('verified',count);
+    if(legacyPayload)validateLegacy(legacyPayload,store.slice(0,-7));
     await options.hook?.('verified',scratch);
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
     if(!same(before,select().map(p=>metadata(p))))stop('unstable');
-    session.send({command:'release'});candidate=true;
+    acquisitionStage='helper-release';session.send({command:'release'});candidate=true;
     exit=await session.finish();
     if(!exit||session.unsafe||session.final?.outcome!=='ok'||session.final.phase!=='release'||
         session.final.opened!==count||!session.final.copied||session.final.fault!=='none')stop('helper');
     if(!same(before,select().map(p=>metadata(p))))stop('unstable');
     if(synthetic&&options.closure?.()!=='absent')stop('closure');
     stable=true;reason='none';
-  }catch(error){reason=safeReason(error);limit=error instanceof Refusal?error.limit:undefined;candidate=false;}
+  }catch(error){reason=safeReason(error);acquisitionReason=reason;limit=error instanceof Refusal?error.limit:undefined;candidate=false;}
   finally{
     if(session){exit=await session.finish();if(!session.processExited){blocked=true;reason='helper';candidate=false;}}
     if(session?.unsafe||!exit&&session?.spawned){reason='helper';candidate=false;}
@@ -718,13 +1157,19 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       if(lease!==undefined){closeSync(lease);lease=undefined;}
       if(persisted&&store){
         if(exit&&!session?.unsafe){const result=await recoverCanary({store,executable:options.executable,synthetic,...(explorer&&!synthetic?{localExplorer:true as const}:{}),
-          ...(options.cleanupFault?{fault:options.cleanupFault}:{})});cleanup=result==='removed'?'removed':'residual';}
+          ...(options.cleanupFault?{fault:options.cleanupFault}:{})});cleanupRecovery=result;cleanup=result==='removed'?'removed':'residual';}
       }else{
         cleanup=scratch.cleanup(options.cleanupFault);
         if(store&&storeId&&!removeBootstrapStore(store,storeId))cleanup='residual';
       }
     }
     if(lease!==undefined&&(!session||session.processExited)){closeSync(lease);lease=undefined;}
+    // Cleanup may legitimately proceed even when legacy validation fails. A new
+    // snapshot still requires a fresh, closed guard after its own cleanup.
+    if(candidate&&cleanup==='removed'&&store?.endsWith('-Active')){
+      try{await verifyLegacyGuard(options.executable,store.slice(0,-7),synthetic);}catch{candidate=false;reason='helper';}
+    }
+    if(acquisitionReason==='none'&&reason!=='none')acquisitionReason=reason;
     if(cleanup!=='removed'){
       candidate=false;reason='cleanup';recovery='unavailable';
       if(persisted&&store){try{readAuthenticatedRecord(store);recovery='available';}catch{}}
@@ -757,15 +1202,18 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
       explorerDelivery!.result=explorerResult;
     }else{explorerResult.snapshot?.discard();candidate=false;if(reason==='none'){
       reason=explorerResult.reason==='limit'?'limit':explorerResult.reason==='schema'?'unsupported':'analysis';
-      limit=explorerResult.limit;failureStage='analysis';}}
+      limit=explorerResult.limit;failureStage='analysis';acquisitionStage='analysis';acquisitionReason=reason;}}
   }
   return {status:candidate?'passed':'refused',reason,cleanup,recovery,files:explorer&&session?.reached.includes('copied')?count:candidate?count:0,
     ...(options.analysis==='qualification'?{qualification:qualified??null}:{}),
     ...(attempt?{...(!explorer?{mapping:mapSummary}:{}),attemptConsumed:attempt.consumed}:{}),
-    ...(explorer&&reason==='limit'&&limit?{limit,failureStage}:{}),
+    ...(explorer&&limit?{limit,failureStage}:{}),
     schemaReadable:explorer?(explorerResult?.structureAccepted??false):candidate&&readable,sourcesStable:explorer?stable:candidate&&stable,
     evidence:{stages:session?.reached??[],phase:f?.phase??'input',fault:f?.fault??'none',partialWritten:f?.partialWritten??false,
-      opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false}};
+      opened:f?.opened??0,exitConfirmed:exit&&!options.simulateExitUncertainty,diagnosticsDiscarded:session?.diagnostics??false,
+      ...(explorer?{acquisition:{stage:acquisitionStage,reason:acquisitionReason,scratchInitialization:scratch.initialization,recoveryPreflight,
+        helperLaunched:session?.spawned??false,helperExit:!session?.spawned?'not-launched':session.processExited&&!options.simulateExitUncertainty?'confirmed':'unconfirmed',
+        helperOutcome:f?.outcome??'not-reported',cleanupRecovery}}:{})}};
 }
 
 export async function runSyntheticExplorer(options:CanaryOptions):Promise<{safety:CanaryResult|null;snapshot?:ExplorerSnapshot;summary?:ReaderResult['summary']}> {

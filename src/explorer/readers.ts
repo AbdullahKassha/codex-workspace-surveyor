@@ -3,7 +3,7 @@ import { readFileSync, lstatSync } from 'node:fs';
 import { reconcile, ExplorerSnapshot, type Provenance, type ThreadClaim, type ProjectClaim, type AssignmentClaim, type Coverage } from './model.js';
 
 // A concrete acquisition-owned analysis capability, never source discovery/SQL input.
-export interface AnalysisCopies { path(area:'analysis', index:number):string; entries():unknown }
+export interface AnalysisCopies { path(area:'analysis', index:number):string; entries():unknown; sqliteLocation?():string }
 export const explorerLimits = Object.freeze({rows:1000,fieldBytes:16384,textBytes:1048576,
   titleBytes:4096,titleTextBytes:262144,jsonBytes:16777216,projects:1000,roots:1000,assignments:1000});
 export type LimitDetail='reader-rows'|'reader-id-bytes'|'reader-cwd-bytes'|'reader-required-text'|'project-count'|'project-text'|'json-bytes';
@@ -130,7 +130,7 @@ export function readExplorerCopies(copies:AnalysisCopies, provenance:Provenance,
     if(!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(provenance.namespace)||!Number.isFinite(Date.parse(provenance.from))||
       !Number.isFinite(Date.parse(provenance.through))||Date.parse(provenance.through)<Date.parse(provenance.from))refuse('analysis');
     copies.entries();
-    db=new DatabaseSync(copies.path('analysis',0),{readOnly:true,allowExtension:false,defensive:true,timeout:0,
+    db=new DatabaseSync(copies.sqliteLocation?.()??copies.path('analysis',0),{readOnly:true,allowExtension:false,defensive:true,timeout:0,
       // SQLite's record limit also applies before substr can project a title.
       // Bound engine records by the existing maximum acquired file size.
       enableDoubleQuotedStringLiterals:false,limits:{length:16777216,sqlLength:4096,column:512,attach:0}});

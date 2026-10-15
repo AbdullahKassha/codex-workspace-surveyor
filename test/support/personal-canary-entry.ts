@@ -2,7 +2,8 @@
 import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { runCanary, recoverCanary, resolvePersonalRecoveryStore } from './personal-canary.js';
+import { runCanary, recoverCanaryWithEvidence, diagnoseCanaryRecovery, resolvePersonalRecoveryStore,
+  resolveOriginalRecoveryStore, retireLegacyDeclaration } from './personal-canary.js';
 
 export async function hiddenInput(prompt:string):Promise<string>{
   if(!process.stdin.isTTY||!process.stdout.isTTY)throw new Error('Local terminal required');
@@ -32,11 +33,35 @@ export async function manualCanary():Promise<void>{
   try{
     const executable=process.env.WORKSPACE_SURVEYOR_HELPER_PWSH;
     if(!executable)throw new Error('Host not selected');
-    const action=await hiddenInput('Type CANARY, QUALIFY, or RECOVER only for the separately authorized action:');
+    const action=await hiddenInput('Type CANARY, QUALIFY, or RECOVER'+
+      (process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC==='1'?', or DIAGNOSE':'')+
+      (process.env.WORKSPACE_SURVEYOR_LEGACY_PRESERVATION==='1'?', or RECOVER-LEGACY':'')+
+      (process.env.WORKSPACE_SURVEYOR_LEGACY_ACTIVE_RECOVERY==='1'?', or RECOVER-ACTIVE':'')+
+      (process.env.WORKSPACE_SURVEYOR_LEGACY_RETIREMENT==='1'?', or RETIRE-LEGACY':'')+' only for the separately authorized action:');
+    if(action==='RECOVER-LEGACY'||action==='RECOVER-ACTIVE'||action==='RETIRE-LEGACY'){
+      const original=await resolveOriginalRecoveryStore(executable);
+      if(action==='RETIRE-LEGACY'){
+        const status=await retireLegacyDeclaration({executable,store:original,synthetic:false});
+        process.stdout.write('Legacy declaration retirement: '+status+'\n');process.exitCode=status==='removed'?0:1;return;
+      }
+      const active=action==='RECOVER-ACTIVE';
+      const report=await recoverCanaryWithEvidence({executable,store:original+(active?'-Active':''),synthetic:false,
+        ...(active?{activeLegacy:true as const}:{originalLegacy:true as const})});
+      process.stdout.write('Recovery: '+report.status+'\nRecovery evidence: '+JSON.stringify(report)+'\n');
+      process.exitCode=report.status==='removed'?0:1;return;
+    }
+    if(action==='DIAGNOSE'){
+      if(process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC!=='1')throw new Error('Diagnostic not enabled');
+      const store=await resolvePersonalRecoveryStore(executable);
+      const result=await diagnoseCanaryRecovery({executable,store,synthetic:false});
+      process.stdout.write('Recovery diagnostic: '+JSON.stringify(result)+'\n');
+      process.exitCode=result.status==='verified'?0:1;return;
+    }
     if(action==='RECOVER'){
       const store=await resolvePersonalRecoveryStore(executable);
-      const status=await recoverCanary({executable,store,synthetic:false});
-      process.stdout.write('Recovery: '+status+'\n');process.exitCode=status==='removed'?0:1;return;
+      const result=await recoverCanaryWithEvidence({executable,store,synthetic:false});
+      process.stdout.write('Recovery: '+result.status+'\nRecovery evidence: '+JSON.stringify(result)+'\n');
+      process.exitCode=result.status==='removed'?0:1;return;
     }
     if(action!=='CANARY'&&action!=='QUALIFY')throw new Error('Action refused');
     if(action==='QUALIFY'&&process.env.WORKSPACE_SURVEYOR_PERSONAL_QUALIFICATION!=='1')throw new Error('Qualification not enabled');

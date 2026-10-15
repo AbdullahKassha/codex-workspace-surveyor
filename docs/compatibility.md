@@ -1,5 +1,11 @@
 # Compatibility and evidence matrix
 
+## Instruction metadata supplement, 2026-10-12
+
+The founder-approved first Instruction Discovery Scope slice observes bounded exact marker and standard instruction-file metadata for qualifying stored CWDs. It supports conditional explanations under the documented `.git` policy; effective Desktop configuration, root selection and instruction loading remain unknown. Custom marker/fallback names, disabled-policy qualification, global guidance and content-based selection remain deferred. An empty ordinary `.git` directory or unsupported ordinary pointer file can support an independently observed occurrence without verified Git identity; inaccessible/uninspected results cannot. A missing Git metadata member is not marker absence.
+
+Coverage stops at the selected root, nearer ordinary marker, obstruction or independent finite budget. Failure to find a marker in that interval never proves CWD-only fallback. Existing B1 historical versions/policy/trust uncertainty and WIN-018–020, DOC-005/DOC-006, DOC-025 limits remain unchanged. Fixture tests certify observation/presentation mechanics, not Desktop behavior or historical instruction loading. See [validation](research/explorer-local-read-only-validation.md#instruction-scope-2026-10-12).
+
 ## Current support: design decision
 
 **Accepted baseline, reported 2026-10-10:** `d15c78b121074c78a3b3492e369c3e89c85ca93e`. Founder acceptance and independent review are supplied outcomes; the local commit was independently confirmed during the audit. The [validation record](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) retains the preceding 545/545 fixture result and this integration’s separate checks. This is bounded Windows experience, not certification of every Codex build, source schema, filesystem or Git format.
@@ -204,3 +210,11 @@ Before changing a rule, distinguish schema drift from behavioral change. Additiv
 Retirement means stopping an obsolete rule/guidance for a documented applicability range, recording the reason and replacement, and retaining its history. A Codex fix may retire the fallback warning while path accessibility checks remain useful. Safety/privacy design decisions are not automatically retired by a product fix. Workspace Surveyor must not directly mutate Codex-owned SQLite databases or Codex-owned JSON state. Any reversal requires an explicit superseding decision/ADR.
 
 See [evidence catalog](research/evidence-catalog.md) and [research gates](research/open-questions.md).
+
+## Incident follow-up, 2026-10-14
+
+Founder-reported protected preservation, populated-snapshot verification and a subsequent normal launcher/shutdown establish operational restoration on that founder host; they do not authenticate unregistered creators, establish historical SQLite causation or close the old obligation. The existing SQLite correction remains required. Synthetic preparation now includes a separate explicit user-directed disposition path with authenticated deletion receipts and an application recovery action. These changes await blocker-only review and specific host authorization; they do not extend Codex version/schema compatibility or retire RECOVER's ownership rules. See the [closure scope, limitations and host workflow](research/personal-canary-preparation-validation.md#one-final-founder-host-closure-workflow--not-yet-authorized).
+
+Subsequent founder report: complete disposal/journal/control/recovery-UX review passed. The later two-stage read-only inventory preview and separate disposal confirmation are a narrow consent correction pending targeted review, not additional Codex compatibility evidence. No personal preview or disposal was performed during preparation.
+
+**Founder-reported closure, 2026-10-15:** targeted review passed, the authorized two-stage workflow returned `closed-and-operational` with no unresolved legacy obligation and a populated snapshot, and a subsequent normal launcher run populated data, showed no Legacy warning and closed normally. This supersedes the pending personal-closure status above for this incident. The observed unregistered SHM/WAL companions strongly corroborate the reproduced SQLite side effect without independently proving historical provenance. See the [privacy-safe closure record](research/personal-canary-preparation-validation.md#founder-reported-personal-incident-closure-2026-10-15). No new version/schema guarantee or resolution of separate synthetic fixture uncertainties is inferred.

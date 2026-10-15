@@ -7,13 +7,15 @@ import { inspect } from 'node:util';
 import { syncBuiltinESMExports } from 'node:module';
 import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { explorerFixture } from './support/explorer-fixture.js';
 import { runExplorerEntry } from './support/explorer-entry.js';
-import { preparePersonalExplorer } from './support/personal-explorer-entry.js';
-import { runPersonalExplorer, runTitledExplorerPreparation, explorerPreflightSafety, CanarySession,
+import { preparePersonalExplorer, acquisitionFailureSummary, acquirePersonalSnapshot, completeExplorerRefresh } from './support/personal-explorer-entry.js';
+import { runPersonalExplorer, runTitledExplorerPreparation, explorerPreflightSafety, CanarySession, CanaryScratch, diagnoseCanaryRecovery, recoverCanaryWithEvidence,
   type CanaryOptions, type CanaryResult } from './support/personal-canary.js';
 import { ExplorerSnapshot, reconcile } from '../src/explorer/model.js';
 import { escapeStored } from '../src/explorer/view.js';
+import { resolveRecoveryBlocker } from './support/recovery-resolution-entry.js';
 
 const secret='SYNTHETIC_TITLED_PRIVATE';
 const context={home:'C:\\Synthetic\\Home with spaces Ω',enabled:true,nodeVersion:'24.18.1',executable:'C:\\Synthetic\\PowerShell\\pwsh.exe',scratchParent:'C:\\Synthetic\\Temp'};
@@ -31,6 +33,194 @@ function options(f:ReturnType<typeof explorerFixture>,extra:Partial<CanaryOption
 }
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(value:unknown)=>void;
   const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};}
+
+test('checkpointed WAL reproduces legacy analysis side effects and refuses unregistered cleanup',empirical,async()=>{
+  const f=explorerFixture(undefined,'checkpointed'),created:{path:string;ino:bigint;dev:bigint}[]=[];
+  const before=fs.readFileSync(f.source);let reached=false;
+  try{
+    const result=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},hook:(phase,scratch)=>{
+      if(phase!=='copied')return;
+      const path=scratch.path('analysis',0);
+      for(const suffix of ['-wal','-shm'])assert.equal(fs.existsSync(path+suffix),false);
+      // Deliberately reproduce the old constructor on this exact owned synthetic copy.
+      const db=new DatabaseSync(path,{readOnly:true});
+      try{assert.equal(db.prepare('SELECT count(*) AS count FROM threads').get()!.count,4);}finally{db.close();}
+      for(const suffix of ['-wal','-shm']){const entry=path+suffix,s=fs.lstatSync(entry,{bigint:true});created.push({path:entry,ino:s.ino,dev:s.dev});}
+      reached=true;
+    }}));
+    assert.equal(reached,true);assert.equal(result.snapshot,undefined);assert.equal(result.safety.cleanup,'residual');assert.equal(result.safety.recovery,'available');
+    const report=await recoverCanaryWithEvidence({store:join(f.run.root,'recovery'),executable:options(f).executable,synthetic:true});
+    assert.equal(report.category,'scratch-inventory');assert.equal(report.deletionAuthorized,false);assert.equal(report.helperExit,'confirmed');
+    assert.equal(fs.readFileSync(f.source).equals(before),true);
+  }finally{
+    // Test instrumentation established these exact identities; never infer ownership of personal extras.
+    for(const entry of created){const s=fs.lstatSync(entry.path,{bigint:true});assert.equal(s.ino,entry.ino);assert.equal(s.dev,entry.dev);fs.unlinkSync(entry.path);}
+    assert.equal(await f.teardown(),true);
+  }
+});
+
+for(const registry of [false,true])test('checkpointed WAL without companions produces a snapshot and removes authenticated scratch: '+registry,empirical,async()=>{
+  const f=explorerFixture(undefined,'checkpointed');let inspected=false;
+  const before=fs.readFileSync(f.source),stat=fs.lstatSync(f.source,{bigint:true});
+  try{
+    assert.equal(fs.existsSync(f.source+'-wal'),false);assert.equal(fs.existsSync(f.source+'-shm'),false);
+    const result=await runTitledExplorerPreparation(options(f,{...(registry?{explorer:{globalState:f.globalState}}:{}),hook:(phase,scratch)=>{
+      if(phase==='analyzed'){
+        inspected=true;const path=scratch.path('analysis',0);
+        assert.equal(scratch.sqliteLocation().endsWith('?immutable=1'),true);
+        assert.equal(fs.existsSync(path+'-wal'),false);assert.equal(fs.existsSync(path+'-shm'),false);
+      }
+    }}));
+    assert.equal(inspected,true);assert.equal(result.safety.status,'passed');assert.equal(result.safety.cleanup,'removed');assert.equal(result.safety.recovery,'removed');
+    const snapshot=result.snapshot!.take()!;assert.equal(snapshot.threads.length,4);assert.equal(snapshot.projects.length,registry?2:0);
+    assert.equal(fs.readFileSync(f.source).equals(before),true);
+    const after=fs.lstatSync(f.source,{bigint:true});assert.equal(after.ino,stat.ino);assert.equal(after.mtimeNs,stat.mtimeNs);
+    assert.equal(fs.existsSync(f.source+'-wal'),false);assert.equal(fs.existsSync(f.source+'-shm'),false);
+    assert.equal(fs.existsSync(join(f.run.root,'recovery')),false);assert.ok(f.scratches.every(s=>!fs.existsSync(s.root!)));
+  }finally{assert.equal(await f.teardown(),true);}
+});
+for(const areas of [['analysis'],['acquisition','analysis']] as const)
+test('owned analysis never switches to immutable mode after losing a selected WAL pair: '+areas.join(','),empirical,async()=>{
+  const f=explorerFixture(undefined,true);const before=fs.readFileSync(f.source);let refused=false;
+  try{
+    const result=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},hook:(phase,scratch)=>{
+      if(phase==='copied'){
+        for(const area of areas){fs.unlinkSync(scratch.path(area,1));fs.unlinkSync(scratch.path(area,2));}
+        assert.throws(()=>scratch.sqliteLocation());refused=true;
+      }
+    }}));
+    assert.equal(refused,true);assert.equal(result.snapshot,undefined);assert.equal(result.safety.status,'refused');
+    assert.equal(result.safety.cleanup,'removed');assert.equal(result.safety.recovery,'removed');assert.equal(fs.readFileSync(f.source).equals(before),true);
+  }finally{assert.equal(await f.teardown(),true);}
+});
+
+for(const wal of [true,'checkpointed'] as const)
+test('interrupted read-only analysis cleans its authenticated inventory across repeated cycles: '+wal,empirical,async()=>{
+  const f=explorerFixture(undefined,wal);const before=fs.readFileSync(f.source);
+  try{
+    for(let cycle=0;cycle<3;cycle++){
+      const r=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},hook:(phase,scratch)=>{
+        if(phase==='analyzed'){
+          assert.equal(fs.readdirSync(join(scratch.root!,'analysis')).some(n=>n.endsWith('-journal')),false);
+          if(cycle!==2)throw new Error('INVENTED_INTERRUPTION_AFTER_SQLITE_CLOSE');
+        }
+      }}));
+      assert.equal(r.safety.status,cycle===2?'passed':'refused');assert.equal(r.safety.cleanup,'removed');
+      assert.equal(r.safety.recovery,'removed');assert.ok(f.scratches.every(s=>!fs.existsSync(s.root!)));r.snapshot?.discard();
+      assert.deepEqual(fs.readFileSync(f.source),before);
+    }
+  }finally{assert.equal(await f.teardown(),true);}
+});
+test('an unexpected analysis journal is retained and no snapshot is published',empirical,async()=>{
+  const f=explorerFixture(undefined,'checkpointed');let extra:string|undefined;
+  try{
+    const r=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},hook:(phase,scratch)=>{
+      if(phase==='analyzed'){extra=scratch.path('analysis',0)+'-journal';fs.writeFileSync(extra,'INVENTED_SECONDARY_FILE');}
+    }}));
+    assert.equal(r.snapshot,undefined);assert.equal(r.safety.status,'refused');assert.equal(r.safety.cleanup,'residual');
+    assert.equal(fs.readFileSync(extra!,'utf8'),'INVENTED_SECONDARY_FILE');
+    const recovery=await recoverCanaryWithEvidence({store:join(f.run.root,'recovery'),executable:options(f).executable,synthetic:true});
+    assert.equal(recovery.category,'scratch-inventory');assert.equal(recovery.deletionAuthorized,false);
+  }finally{if(extra&&fs.existsSync(extra))fs.unlinkSync(extra);assert.equal(await f.teardown(),true);}
+});
+
+for(const unknown of [false,true])test('guarded recovery resolution with real synthetic controls: unknown inventory '+unknown,empirical,async()=>{
+  const f=explorerFixture(undefined,'checkpointed');let extra:string|undefined,refreshes=0;
+  const before=fs.readFileSync(f.source);
+  try{
+    const held=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState},cleanupFault:()=>{throw new Error('Invented cleanup interruption');}}));
+    assert.equal(held.safety.cleanup,'residual');assert.equal(held.snapshot,undefined);
+    const store=join(f.run.root,'recovery'),root=f.scratches[0]!.root!,record=fs.readFileSync(join(store,'record'));
+    if(unknown){extra=join(root,'invented-unregistered');fs.writeFileSync(extra,'invented independently owned sentinel');}
+    const result=await resolveRecoveryBlocker({recover:()=>recoverCanaryWithEvidence({store,executable:options(f).executable,synthetic:true}),
+      refresh:async()=>{refreshes++;return completeExplorerRefresh(await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState}})),
+        {executable:options(f).executable},new AbortController().signal);}});
+    sanitized(result);assert.equal(result.status,unknown?'blocked':'restored');assert.equal(refreshes,unknown?0:1);
+    if(unknown){assert.equal(result.recovery.category,'scratch-inventory');assert.equal(result.recovery.deletionAuthorized,false);
+      assert.equal(fs.readFileSync(join(store,'record')).equals(record),true);assert.equal(fs.readFileSync(extra!).toString(),'invented independently owned sentinel');
+      assert.equal(fs.existsSync(root),true);
+    }else{assert.equal(result.populated,true);assert.equal(fs.existsSync(store),false);assert.ok(f.scratches.every(s=>!fs.existsSync(s.root!)));}
+    assert.equal(fs.readFileSync(f.source).equals(before),true);
+  }finally{
+    // Independent owner restores only its deliberately inserted synthetic sentinel, never a personal artifact.
+    if(extra)fs.unlinkSync(extra);assert.equal(await f.teardown(),true);
+  }
+});
+
+// Metadata-only regressions: no PowerShell child, protected acquisition or RECOVER dispatch.
+for(const fault of ['source','occupied','validation','containment','creation'] as const)
+test('initial refresh distinguishes '+fault+' refusal without running an acquisition helper',{skip:process.platform!=='win32',concurrency:false},async()=>{
+  const f=explorerFixture(),executable=join(f.run.root,'pwsh.exe'),store=join(f.run.root,'recovery');
+  const saved=['WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION','WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION'].map(k=>process.env[k]);
+  const initialize=CanaryScratch.prototype.initialize,start=CanarySession.prototype.start,stat=fs.lstatSync,mkdtemp=fs.mkdtempSync;
+  let inside=false,creationCalls=0,starts=0;
+  try{
+    fs.writeFileSync(executable,'invented executable; never launched');
+    process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION='1';process.env.WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION='1';
+    CanarySession.prototype.start=()=>{starts++;assert.fail('No helper permitted');};
+    CanaryScratch.prototype.initialize=function(){inside=true;try{return initialize.call(this);}finally{inside=false;}};
+    Reflect.set(fs,'lstatSync',((path:fs.PathLike,...args:unknown[])=>{
+      if(inside&&fault==='validation')throw new Error(secret);
+      const value=Reflect.apply(stat,fs,[path,...args]);
+      if(inside&&fault==='containment')return new Proxy(value,{get:(target,key)=>key==='isSymbolicLink'?()=>true:Reflect.get(target,key)});
+      return value;
+    }) as typeof fs.lstatSync);
+    Reflect.set(fs,'mkdtempSync',()=>{creationCalls++;throw new Error(secret);});syncBuiltinESMExports();
+    if(fault==='occupied')fs.mkdirSync(store);
+    const selection=fault==='source'?{...f.selection,fixture:{...f.selection.fixture,source:join(f.run.sources,'missing.sqlite')}}:f.selection;
+    const result=await runTitledExplorerPreparation({...options(f),executable,selection});
+    assert.equal(result.snapshot,undefined);assert.equal(starts,0);sanitized(result);
+    const a=result.safety.evidence.acquisition!;
+    assert.equal(a.helperLaunched,false);assert.equal(a.helperExit,'not-launched');assert.equal(a.helperOutcome,'not-reported');
+    assert.equal(a.cleanupRecovery,'not-attempted');
+    assert.equal(result.safety.cleanup,fault==='occupied'||fault==='creation'?'residual':'removed');
+    assert.equal(a.recoveryPreflight,fault==='occupied'?'occupied':'clear');
+    assert.equal(a.stage,fault==='source'?'source-selection':fault==='occupied'?'recovery-preflight':'scratch-initialization');
+    assert.equal(a.scratchInitialization,fault==='validation'||fault==='containment'?'validating':fault==='creation'?'creation-attempted':'not-started');
+    assert.equal(a.reason,fault==='occupied'?'selection':fault==='containment'?'containment':'io');
+    assert.equal(creationCalls,fault==='creation'?1:0);
+    const refresh=await completeExplorerRefresh(result,{executable},new AbortController().signal);
+    assert.equal(refresh.failure,fault==='occupied'||fault==='creation'?'cleanup':'acquisition');assert.equal(refresh.snapshot,undefined);
+    const summary=JSON.parse(acquisitionFailureSummary(result.safety).slice('Acquisition failure: '.length));
+    assert.equal(summary.acquisitionReason,a.reason);assert.equal(summary.cleanup,result.safety.cleanup);sanitized(summary);
+    assert.equal(fs.existsSync(store),fault==='occupied');
+  }finally{
+    CanaryScratch.prototype.initialize=initialize;CanarySession.prototype.start=start;
+    Reflect.set(fs,'lstatSync',stat);Reflect.set(fs,'mkdtempSync',mkdtemp);syncBuiltinESMExports();
+    ['WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION','WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION'].forEach((k,i)=>{
+      if(saved[i]===undefined)delete process.env[k];else process.env[k]=saved[i];});
+    if(fault==='occupied')fs.rmdirSync(store);
+    fs.unlinkSync(executable);assert.equal(await f.teardown(),true);
+  }
+});
+
+test('acquisition failure summary allowlists categories and never forwards private or raw fields',()=>{
+  const safety={...explorerPreflightSafety,reason:secret,cleanup:secret,recovery:secret,limit:secret,
+    evidence:{...explorerPreflightSafety.evidence,phase:secret,stages:[secret],
+      acquisition:{stage:secret,reason:secret,scratchInitialization:secret,recoveryPreflight:secret,helperLaunched:secret,helperExit:secret,helperOutcome:secret,cleanupRecovery:secret}},
+    privatePath:secret} as unknown as CanaryResult;
+  const text=acquisitionFailureSummary(safety);sanitized(text);
+  assert.match(text,/unreported/);assert.doesNotMatch(text,/privatePath|stages|diagnosticsDiscarded/);
+  const absent=JSON.parse(acquisitionFailureSummary(explorerPreflightSafety).slice('Acquisition failure: '.length));
+  assert.equal(absent.helperLaunched,null);assert.equal(absent.scratchInitialization,'unreported');
+});
+
+test('Refresh reports a refused preflight once without IO; reporting errors cannot bypass publication',async()=>{
+  const stat=fs.lstatSync,start=CanarySession.prototype.start;let touched=0;
+  try{
+    Reflect.set(fs,'lstatSync',()=>{touched++;throw new Error(secret);});syncBuiltinESMExports();
+    CanarySession.prototype.start=()=>{touched++;assert.fail('No helper permitted');};
+    for(const throws of [false,true]){
+      const o=personal();if(o.selection.kind!=='personal')throw 0;o.selection.private.consent=false as never;
+      const output:string[]=[];
+      const result=await acquirePersonalSnapshot(o,new AbortController().signal,()=>assert.fail('No discovery'),true,text=>{
+        output.push(text);if(throws)throw new Error(secret);
+      });
+      assert.equal(output.length,1);assert.match(output[0]!,/^Acquisition failure: /);sanitized(output);
+      assert.deepEqual(result,{failure:'acquisition'});assert.equal(touched,0);
+    }
+  }finally{Reflect.set(fs,'lstatSync',stat);syncBuiltinESMExports();CanarySession.prototype.start=start;}
+});
 
 for(const missing of ['consent','actual','title','browser','json','hook','phase-hook','closure-hook','cleanup-hook',
   'frame-hook','spawn-hook','qualification-hook','exit-uncertainty','fault'] as const)
@@ -296,7 +486,16 @@ test('protected title-index profile '+shape,empirical,async()=>{
     const original=shape==='missing-index'?undefined:fs.readFileSync(f.sessionIndex);
     const r=await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState,sessionIndex:f.sessionIndex},
       ...(shape==='cleanup-recovery'?{cleanupFault:()=>{throw new Error('Synthetic cleanup refusal');}}:{})}));
-    if(shape==='cleanup-recovery'){assert.equal(r.snapshot,undefined);assert.equal(r.safety.cleanup,'residual');}
+    if(shape==='cleanup-recovery'){
+      assert.equal(r.snapshot,undefined);assert.equal(r.safety.cleanup,'residual');
+      const store=join(f.run.root,'recovery'),root=f.scratches[0]!.root!;
+      const paths=[...['key','record'].map(n=>join(store,n)),join(root,'owner'),...['acquisition','analysis'].flatMap(area=>
+        ['database.sqlite','database.sqlite-wal','database.sqlite-shm','global-state.json','session-index.jsonl'].map(n=>join(root,area,n)))];
+      const save=()=>paths.map(path=>{const s=fs.lstatSync(path,{bigint:true});return {dev:s.dev,ino:s.ino,size:s.size,mtime:s.mtimeNs,bytes:fs.readFileSync(path)};});
+      const before=save(),diagnostic=await diagnoseCanaryRecovery({store,executable:options(f).executable,synthetic:true});
+      assert.equal(diagnostic.status,'verified');assert.equal(diagnostic.deletionAuthorized,false);sanitized(diagnostic);
+      assert.deepEqual(save(),before);assert.equal(fs.existsSync(store),true);
+    }
     else{assert.equal(r.safety.status,'passed');assert.equal(r.safety.cleanup,'removed');assert.equal(r.safety.recovery,'removed');
       assert.equal(r.safety.files,['missing-index','missing-registry'].includes(shape)?4:5);
       const d=r.snapshot!.take()!;assert.equal(d.threads.length,4);

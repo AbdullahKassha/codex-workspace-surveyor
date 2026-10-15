@@ -228,6 +228,7 @@ test('stored rendering is reversible, controls/bidi are visible and HTML stays t
   assert.equal(explorerHtml.includes(secret),false);assert.equal(/localStorage|sessionStorage|readText|WebSocket|sendBeacon/.test(clientCode),false);
 });
 class Element {
+  open=false;ontoggle:(()=>void)|undefined;
   attributes:Record<string,string>={};setAttribute(name:string,value:string){this.attributes[name]=value;}
   children:Element[]=[];textContent='';className='';ariaPressed='';type='';value='';onclick:(()=>void)|undefined;oninput:((event:{target:{value:string}})=>void)|undefined;
   get childElementCount(){return this.children.length;}append(...children:Element[]){this.children.push(...children);}replaceChildren(...children:Element[]){this.children=children;}
@@ -263,13 +264,15 @@ test('browser DOM renders hostile strings as text, unknown membership, details a
     AbortController,addEventListener(){},fetch:async()=>({ok:true,json:async()=>data()})};
   runInNewContext(clientCode,context);await done;
   assert.ok(get('notices').children.some(e=>e.textContent.includes('unavailable')));
-  get('diagnostics').onclick!();const unclassified=get('relationships').children.find(e=>e.children[0]?.textContent==='Unresolved records (1)')!;
-  const group=unclassified.children[1]!;
+  get('diagnostics').onclick!();const content=get('relationships').children.find(e=>Reflect.get(e,'id')==='diagnostic-content')!;
+  const unclassified=content.children.find(e=>e.children[0]?.textContent==='Unresolved records (1)')!;
+  unclassified.open=true;unclassified.ontoggle?.();
   const selectRow=(e:Element):Element|undefined=>e.className.includes('entity-select')?e:e.children.map(selectRow).find(Boolean);
-  const record=selectRow(group)!;record.onclick!();
-  const evidence=get('relationships').children.find(e=>e.className==='diagnostic-evidence')!;
-  assert.ok(evidence.children.some(e=>e.textContent.includes('\\u{202e}')));
-  assert.equal(evidence.children.some(e=>e.textContent===secret),true);
+  const record=selectRow(unclassified)!;record.onclick!();
+  const evidence=get('relationships').children.find(e=>Reflect.get(e,'id')==='diagnostic-content')!.children.find(e=>e.className==='diagnostic-evidence')!;
+  const evidenceTexts=(e:Element):string[]=>[e.textContent,...e.children.flatMap(evidenceTexts)];
+  assert.ok(evidenceTexts(evidence).some(value=>value.includes('\\u{202e}')));
+  assert.equal(evidenceTexts(evidence).includes(secret),true);
   assert.equal(Reflect.get(get('details'),'hidden'),true);assert.equal(get('layout').className,'layout');
   get('workspace').onclick!();assert.ok(get('notices').children.some(e=>e.textContent.includes('unavailable')));
   await get('close').onclick!();assert.equal(get('relationships').childElementCount,0);
@@ -544,6 +547,9 @@ test('browser uses generic labels for unqualified title previews and retains cou
   await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},
     location:{hash:'#synthetic-token',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
   get('diagnostics').onclick!();const all=(e:Element):Element[]=>[e,...e.children.flatMap(all)];
+  const unresolved=all(get('relationships')).find(e=>e.children[0]?.textContent==='Unresolved records (2)')!;
+  assert.equal(unresolved.open,false);assert.equal(all(get('relationships')).some(e=>e.textContent==='Thread a'),false);
+  unresolved.open=true;unresolved.ontoggle?.();
   assert.ok(all(get('relationships')).some(e=>e.textContent==='Thread a'));assert.ok(all(get('relationships')).some(e=>e.textContent==='Thread b'));
   assert.equal(all(get('relationships')).some(e=>e.textContent.includes('Preview')),false);
   assert.ok(all(get('relationships')).some(e=>e.textContent.includes('"shortenedTitles":1')));

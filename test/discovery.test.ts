@@ -261,6 +261,7 @@ test('cancellation during inspection stops further dispatch and preserves Codex 
 });
 
 class Element {constructor(readonly tag=''){} children:Element[]=[];textContent='';className='';attributes:Record<string,string>={};onclick:(()=>void)|undefined;oninput:((event:{target:{value:string}})=>void)|undefined;
+  open=false;ontoggle:(()=>void)|undefined;
   setAttribute(name:string,value:string){this.attributes[name]=value;}
   append(...children:Element[]){this.children.push(...children);}replaceChildren(...children:Element[]){this.children=children;}get childElementCount(){return this.children.length;}}
 test('browser preserves numbered components and shows folder status, Git evidence, native find surfaces and Details',async()=>{
@@ -272,11 +273,11 @@ test('browser preserves numbered components and shows folder status, Git evidenc
     await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:()=>new Element(),createElementNS:()=>new Element()},location:{hash:'#synthetic',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>d})});
     const texts=(e:Element):string[]=>[e.textContent,...e.children.flatMap(texts)];
     const find=(e:Element,value:string):Element|undefined=>e.onclick&&(e.textContent===value||e.children.some(c=>c.textContent===value))?e:e.children.map(c=>find(c,value)).find(Boolean);
-    assert.ok(texts(get('relationships')).includes('Workspace group 1'));assert.ok(texts(get('relationships')).includes('Worktree'));
+    assert.ok(get('relationships').children.some(e=>e.attributes['data-workspace-group']==='1'));assert.ok(texts(get('relationships')).includes('Worktree'));
     assert.ok(texts(get('relationships')).includes('Missing folder'));
-    find(get('relationships'),'Repository')!.onclick!();assert.ok(texts(get('details')).includes('Common Git directory'));assert.ok(texts(get('details')).includes('Linked worktrees'));
+    find(get('relationships'),'Repository')!.onclick!();assert.ok(texts(get('details')).includes('Git metadata folder'));assert.equal(texts(get('details')).includes('Common Git directory'),false);assert.equal(texts(get('details')).includes('Linked worktrees'),false);assert.ok(texts(get('details')).includes('Main repository'));
     get('expand-threads').onclick!();assert.ok(texts(get('relationships')).includes('plain'));assert.ok(texts(get('relationships')).includes('main'));
-    find(get('relationships'),'plain')!.onclick!();assert.ok(texts(get('details')).includes('Exists'));
+    find(get('relationships'),'plain')!.onclick!();assert.ok(texts(get('details')).includes(plain));assert.equal(texts(get('details')).includes('Folder status'),false);
     get('close').onclick!();assert.equal(get('relationships').childElementCount,0);assert.equal(get('details').childElementCount,0);
     assert.ok(plain);
   }finally{f.cleanup();}
@@ -288,7 +289,7 @@ const nodes=(e:Element):Element[]=>[e,...e.children.flatMap(nodes)];
 async function browser(data:ExplorerData){
   const elements=new Map<string,Element>(),get=(id:string)=>{let e=elements.get(id);if(!e){e=new Element();elements.set(id,e);}return e;};
   await runInNewContext(clientCode,{AbortController,document:{getElementById:get,createElement:(tag:string)=>new Element(tag),createElementNS:(_ns:string,tag:string)=>new Element(tag)},location:{hash:'#synthetic',pathname:'/'},history:{replaceState(){}},addEventListener(){},fetch:async()=>({ok:true,json:async()=>data})});
-  return {get,groups:()=>get('relationships').children.filter(e=>e.children.some(c=>/^Workspace group \d+$/.test(c.textContent)))};
+  return {get,groups:()=>get('relationships').children.filter(e=>e.attributes['data-workspace-group']!==undefined)};
 }
 
 test('Git Details explain verified common identity and location evidence without asserting a Codex boundary',async()=>{
@@ -298,14 +299,14 @@ test('Git Details explain verified common identity and location evidence without
     const child=f.mkdir(join(linked,'working')),d=await discover(empty([{id:'p',label:'Atlas',roots:[main]}],[thread('linked',child)],['linked']),f.root);
     const before=JSON.stringify(d),ui=await browser(d);
     find(ui.get('relationships'),'Thread linked')!.onclick!();
-    assert.ok(texts(ui.get('details')).includes('The stored working directory lies within this verified Git working tree by lexical path comparison.'));
-    assert.ok(find(ui.get('details'),'View worktree →'));assert.equal(find(ui.get('details'),'View repository →'),undefined);
-    find(ui.get('details'),'View worktree →')!.onclick!();
-    for(const value of ['Linked worktree','Verified Git metadata links these checkouts to the same repository.',
-      'The effective Codex discovery boundary has not been established.'])assert.ok(texts(ui.get('details')).includes(value));
-    find(ui.get('relationships'),'Atlas')!.onclick!();assert.ok(find(ui.get('details'),'View repository →'));
-    find(ui.get('details'),'View repository →')!.onclick!();assert.ok(texts(ui.get('details')).includes('Main repository'));
-    assert.ok(texts(ui.get('details')).includes('Verified Git metadata links these checkouts to the same repository.'));
+    assert.equal(texts(ui.get('details')).some(v=>v.includes('lexical path comparison')),false);
+    assert.equal(find(ui.get('details'),'View worktree →'),undefined);assert.equal(find(ui.get('details'),'View repository →'),undefined);
+    find(ui.get('relationships'),'Worktree')!.onclick!();
+    for(const value of ['Linked worktree','Git verification','verified','Administrative directory','Common Git directory'])assert.ok(texts(ui.get('details')).includes(value));
+    assert.ok(nodes(ui.get('details')).some(e=>e.tag==='details'&&texts(e).includes('Technical information')));
+    find(ui.get('relationships'),'Atlas')!.onclick!();assert.equal(find(ui.get('details'),'View repository →'),undefined);
+    find(ui.get('relationships'),'Repository')!.onclick!();assert.ok(texts(ui.get('details')).includes('Main repository'));
+    assert.ok(texts(ui.get('details')).some(s=>s.includes('not Codex Project membership or an effective instruction boundary')));
     assert.deepEqual(d.memberships,['projectless']);assert.equal(ui.groups().length,1);assert.equal(JSON.stringify(d),before);
   }finally{f.cleanup();}
 });
@@ -318,14 +319,13 @@ test('unverified Git links preserve missing, inaccessible and unsupported eviden
     for(const state of ['unsupported','missing','inaccessible'] as const){
       const d={...observed,discovery:{...observed.discovery!,git:observed.discovery!.git.map(g=>({...g,state,
         detail:'Invented '+state+' inspection result'}))}},before=JSON.stringify(d),ui=await browser(d);
-      find(ui.get('relationships'),'Atlas')!.onclick!();assert.ok(find(ui.get('details'),'View Git evidence →'));
+      find(ui.get('relationships'),'Atlas')!.onclick!();assert.equal(find(ui.get('details'),'View Git evidence →'),undefined);
       assert.equal(find(ui.get('details'),'View repository →'),undefined);assert.equal(find(ui.get('details'),'View worktree →'),undefined);
-      find(ui.get('details'),'View folder →')!.onclick!();assert.ok(find(ui.get('details'),'View Git evidence →'));
-      find(ui.get('details'),'View Git evidence →')!.onclick!();
-      for(const value of ['Git metadata '+state,'Git repository identity was not established from the inspected metadata.',
-        'The effective Codex discovery boundary has not been established.'])assert.ok(texts(ui.get('details')).includes(value));
-      assert.equal(texts(ui.get('details')).some(v=>/invalid repository|marker.*(present|exists)|boundary.*selected/i.test(v)),false);
-      find(ui.get('details'),'View diagnostic details')!.onclick!();assert.ok(texts(ui.get('relationships')).includes('Invented '+state+' inspection result'));
+      find(ui.get('relationships'),'Git '+state)!.onclick!();
+      for(const value of ['Unverified Git metadata','Git metadata '+state+'. Repository identity was not verified.','Git verification',state])assert.ok(texts(ui.get('details')).includes(value));
+      const normal=(e:Element):string[]=>[e.textContent,...e.children.filter(child=>child.tag!=='details').flatMap(normal)];
+      assert.equal(normal(ui.get('details')).some(v=>/invalid repository|marker.*(present|exists)|boundary.*selected/i.test(v)),false);
+      find(ui.get('details'),'Inspect evidence')!.onclick!();assert.ok(texts(ui.get('relationships')).includes('Invented '+state+' inspection result'));
       assert.equal(JSON.stringify(d),before);
     }
   }finally{f.cleanup();}
@@ -337,14 +337,15 @@ test('group Source branch preserves Git nesting and declares only actual registe
     run(main,'init','--initial-branch=fixture-main');run(main,'commit','--allow-empty','-m','Invented fixture');run(main,'worktree','add','-b','fixture-linked',linked);
     for(const roots of [[main],[linked],[main,linked]]){
       const d=await discover(empty([{id:'p',label:'Invented Project',roots}],[thread('main',main),thread('linked',linked)],['main','linked']),f.root);
-      const ui=await browser(d),group=ui.groups()[0]!,tree=group.children[1]!,source=tree.children.find(e=>e.className==='source-folders')!;
+      const ui=await browser(d),group=ui.groups()[0]!,tree=group.children.find(e=>e.className==='relationship-tree')!,source=tree.children.find(e=>e.className==='source-folders')!;
       assert.ok(source);assert.equal(nodes(group).filter(e=>e.className==='location-row').length,2);
       assert.equal(nodes(tree.children.find(e=>e.className==='project-block')!).some(e=>e.className==='source-folders'),false);
       const mainRow=nodes(group).find(e=>e.className==='location-row'&&find(e,'main'))!,worktrees=mainRow.children.find(e=>e.className==='worktree-list')!;
       assert.ok(worktrees);assert.ok(find(worktrees,'linked'));assert.ok(texts(worktrees).includes('Worktree'));
       for(const row of nodes(group).filter(e=>e.className==='location-row')){
         const path=texts(row).includes('main')&&!texts(row).includes('linked')?main:row===mainRow?main:linked;
-        assert.equal(row.children.some(e=>e.className==='source-projects'),roots.includes(path));
+        assert.equal(row.children.some(e=>e.className==='source-projects'),false);
+        assert.equal(workspacePresentation(d)[0]!.locations.find(l=>locationKey(l.path)===locationKey(path))!.projects.includes(0),roots.includes(path));
       }
       if(roots.includes(main))assert.ok(nodes(source).includes(mainRow));else{assert.equal(nodes(source).includes(mainRow),false);assert.ok(find(source,'linked'));}
       if(roots.length===2)assert.equal(nodes(source).some(e=>e.className.includes('root-reference')),false);
@@ -382,7 +383,7 @@ test('standalone branch has one location without child-directory UI and contiguo
     assert.equal(shown.length,2);assert.ok(shown.some(c=>c.folders.includes(folder(d,standalone))));
     assert.ok(shown.some(c=>c.folders.includes(folder(d,single))));
     assert.equal(shown.some(c=>c.folders.includes(folder(d,join(standalone,'outputs')))),false);
-    const ui=await browser(d);assert.deepEqual(ui.groups().map(g=>g.children[0]!.textContent),['Workspace group 1','Workspace group 2']);
+    const ui=await browser(d);assert.deepEqual(ui.groups().map(g=>g.attributes['data-workspace-group']),['1','2']);
     const group=ui.groups().find(g=>find(g,'new-chat'))!;
     assert.ok(texts(group).includes('dated-container'));const projected=shown.find(c=>c.locations.some(l=>l.path===standalone))!;
     assert.equal(standaloneParent(d,shown,projected,projected.locations[0]!)!.path,join(f.root,'dated-container'));
@@ -408,7 +409,10 @@ test('missing outside-scope Project existence remains exact evidence; internal r
     assert.equal(ui.groups().some(g=>texts(g).includes(internal.title!)),false);
     assert.ok(texts(ui.get('relationships')).includes('Missing folder'));
     find(ui.get('relationships'),'project')!.onclick!();assert.ok(texts(ui.get('details')).includes('This path was checked; surrounding folders were not scanned.'));
-    ui.get('diagnostics').onclick!();assert.ok(texts(ui.get('relationships')).includes('Internal records (1)'));assert.ok(find(ui.get('relationships'),'Thread internal'));
+    ui.get('diagnostics').onclick!();assert.ok(texts(ui.get('relationships')).includes('Internal records (1)'));
+    const internalRecords=nodes(ui.get('relationships')).find(e=>e.children[0]?.textContent==='Internal records (1)')!;
+    assert.equal(internalRecords.open,false);assert.equal(find(ui.get('relationships'),'Thread internal'),undefined);
+    internalRecords.open=true;internalRecords.ontoggle?.();assert.ok(find(ui.get('relationships'),'Thread internal'));
     assert.deepEqual(workspacePresentation(d).find(c=>c.threads.includes(0))!.projects,[]);
   }finally{f.cleanup();}
 });
@@ -426,7 +430,7 @@ test('verified nested Git identities and linked worktrees stay meaningful while 
     assert.notEqual(component(d,project),component(d,main));
     const ui=await browser(d);assert.equal(ui.groups().length,3);const group=ui.groups().find(g=>find(g,'main')||find(g,'nested-repository'))!;
     assert.ok(texts(group).includes('Worktree'));assert.equal(find(group,'src'),undefined);
-    find(ui.get('relationships'),'Nested workspace')!.onclick!();assert.ok(find(ui.get('details'),'View repository →'));
+    find(ui.get('relationships'),'Nested workspace')!.onclick!();assert.equal(find(ui.get('details'),'View repository →'),undefined);
     find(ui.get('relationships'),'workspace')!.onclick!();assert.ok(find(ui.get('relationships'),'Repository')!.className.includes('related'));
   }finally{f.cleanup();}
 });
@@ -447,7 +451,10 @@ test('access denial, attribute service failure and contents-enumeration errors r
     assert.equal(failed.discovery!.folders[folder(failed,target)]!.state,'inspection-error');
     assert.ok(failed.discovery!.diagnostics.some(d=>d.path===target&&d.reason==='inspection-error'&&d.stage==='managed-attributes'&&d.at==='target'));
     const ui=await browser(failed);assert.ok(texts(ui.get('notices')).some(t=>t.includes('working folders')));find(ui.get('relationships'),'workspace')!.onclick!();
-    find(ui.get('details'),'View diagnostic details')!.onclick!();assert.ok(texts(ui.get('relationships')).includes('Inspection stage'));assert.ok(texts(ui.get('relationships')).includes('managed-attributes · target'));
+    find(ui.get('details'),'Inspect evidence')!.onclick!();
+    const problems=nodes(ui.get('relationships')).find(e=>e.children[0]?.textContent.startsWith('Inspection problems ·'))!;
+    Reflect.set(problems,'open',true);(Reflect.get(problems,'ontoggle') as ()=>void)();
+    assert.ok(texts(ui.get('relationships')).includes('Inspection stage'));assert.ok(texts(ui.get('relationships')).includes('managed-attributes · target'));
     const ancestor=await discover(base,f.root,{attributes:async p=>p===f.owner?'inspection-error':16});
     assert.ok(ancestor.discovery!.diagnostics.some(d=>d.path===target&&d.stage==='managed-attributes'&&d.at==='ancestor'));
     for(const code of ['EIO','EACCES']){
@@ -472,7 +479,7 @@ test('standalone parent context needs a single observed containment edge and nev
     const project=groups.find(c=>c.projects.includes(0))!;assert.equal(standaloneParent(d,groups,project,project.locations[0]!),null);
     const missingEdge={...d,discovery:{...d.discovery!,relations:d.discovery!.relations.filter(r=>r.kind!=='directory-containment')}};assert.equal(standaloneParent(missingEdge,groups,one,one.locations[0]!),null);
     assert.equal(JSON.stringify(d),before);assert.equal(one.projects.length,0);assert.equal(one.threads.length,0);
-    const ui=await browser(d);assert.equal(ui.groups().length,groups.length);assert.deepEqual(ui.groups().map(g=>g.children[0]!.textContent),groups.map(g=>'Workspace group '+g.number));
+    const ui=await browser(d);assert.equal(ui.groups().length,groups.length);assert.deepEqual(ui.groups().map(g=>g.attributes['data-workspace-group']),groups.map(g=>String(g.number)));
     assert.equal(find(ui.groups().find(g=>texts(g).includes('first-container'))!,'outputs'),undefined);assert.notEqual(component(d,first),component(d,second));
   }finally{f.cleanup();}
 });

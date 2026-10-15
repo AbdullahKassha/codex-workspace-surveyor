@@ -9,7 +9,7 @@ import childProcess, { spawnSync, spawn } from 'node:child_process';
 import { createHmac, randomUUID } from 'node:crypto';
 import { SyntheticRun } from './support/synthetic-acquisition.js';
 import { CanaryScratch, canaryLimits, contains, forgetRecoveredSyntheticResidual, inspectCanaryAnalysis,
-  parseCanaryFrame, retryCanaryCleanup, runCanary, selectedPaths, recoverCanary, CanarySession } from './support/personal-canary.js';
+  parseCanaryFrame, retryCanaryCleanup, runCanary, selectedPaths, recoverCanary, diagnoseCanaryRecovery, CanarySession } from './support/personal-canary.js';
 import type { CanaryOptions, CanaryResult, CanaryFault } from './support/personal-canary.js';
 
 const enabled=process.platform==='win32'&&process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION==='1';
@@ -340,6 +340,138 @@ async function leaveCopies(f:ReturnType<typeof fixture>):Promise<string>{
   privateFree(r);assert.equal(r.cleanup,'residual');assert.equal(r.recovery,'available');assert.equal(r.evidence.stages.includes('copied'),true);
   return join(f.run.root,'recovery');
 }
+for(const defect of ['intact','authentication','envelope','control-inventory','store-identity','ownership','scratch-inventory','security','busy','protocol','delete-command','exit-confirmation',
+  'absent-root','scratch-count','scratch-size','scratch-disappeared','scratch-unsafe','scratch-inspection','scratch-ambiguous'] as const)
+test('non-destructive recovery diagnostic classifies '+defect+' and authorizes no deletion',empirical,async()=>{
+  const f=fixture();const send=CanarySession.prototype.send,finish=CanarySession.prototype.finish,stat=fs.lstatSync;
+  let undo=()=>{},fd:number|undefined,inspecting=false,rootChecks=0;
+  try{
+    const store=await leaveCopies(f),root=f.scratches[0]!.root!;
+    const key=readFileSync(join(store,'key')),record=readFileSync(join(store,'record'));
+    const save=(paths:string[])=>paths.map(path=>{const s=lstatSync(path,{bigint:true});return {
+      path,dev:s.dev,ino:s.ino,size:s.size,mtime:s.mtimeNs,bytes:readFileSync(path)};});
+    if(defect==='authentication'){writeFileSync(join(store,'key'),Buffer.alloc(32));undo=()=>writeFileSync(join(store,'key'),key);}
+    if(defect==='envelope'){writeFileSync(join(store,'record'),'{}');undo=()=>writeFileSync(join(store,'record'),record);}
+    if(defect==='store-identity'){
+      const envelope=JSON.parse(record.toString()),payload=JSON.parse(envelope.payload);payload.store.ino='1';
+      envelope.payload=JSON.stringify(payload);envelope.mac=createHmac('sha256',key).update(envelope.payload).digest('hex');
+      writeFileSync(join(store,'record'),JSON.stringify(envelope));undo=()=>writeFileSync(join(store,'record'),record);
+    }
+    if(defect==='ownership'){writeFileSync(join(root,'owner'),'00000000-0000-0000-0000-000000000000');undo=()=>writeFileSync(join(root,'owner'),f.scratches[0]!.nonce);}
+    if(defect==='control-inventory'||defect==='scratch-inventory'){
+      const extra=join(defect==='control-inventory'?store:root,'invented-extra');writeFileSync(extra,'invented');undo=()=>fs.unlinkSync(extra);
+    }
+    if(defect==='security'){
+      const saved=join(f.run.sources,'saved-key');fs.renameSync(join(store,'key'),saved);writeFileSync(join(store,'key'),key);
+      undo=()=>{fs.unlinkSync(join(store,'key'));fs.renameSync(saved,join(store,'key'));};
+    }
+    if(defect==='busy')fd=openSync(join(store,'record'),'r');
+    if(defect==='absent-root')assert.equal(f.scratches[0]!.cleanup(),'removed');
+    if(defect==='scratch-count'){
+      const extras=Array.from({length:8},(_,i)=>join(root,'invented-extra-'+i));
+      for(const path of extras)writeFileSync(path,'invented');undo=()=>{for(const path of extras)fs.unlinkSync(path);};
+    }
+    if(defect==='exit-confirmation')CanarySession.prototype.finish=async function(){await finish.call(this);return false;};
+    // Snapshot after deliberate fixture damage; diagnostics must preserve that exact state.
+    const paths=[join(store,'key'),join(store,'record'),join(root,'owner'),...['acquisition','analysis'].map(a=>join(root,a,'database.sqlite')),f.source].filter(existsSync);
+    const before=save(paths);const commands:string[]=[];
+    CanarySession.prototype.send=function(value:object){
+      const command=(value as {command:string}).command;commands.push(command);
+      assert.notEqual(command,'delete-recovery');
+      return send.call(this,defect==='protocol'&&command==='verify-recovery'?{command:'invented-invalid'}:
+        defect==='delete-command'&&command==='release'?{command:'delete-recovery',name:'owner'}:value);
+    };
+    Reflect.set(fs,'lstatSync',((path:fs.PathLike,...args:unknown[])=>{
+      if(inspecting&&String(path)===root&&++rootChecks>1){
+        if(['scratch-disappeared','scratch-inspection','scratch-ambiguous'].includes(defect)){
+          const error=new Error('SYNTHETIC_PRIVATE_ENOENT');
+          if(defect!=='scratch-ambiguous')Object.assign(error,{code:defect==='scratch-disappeared'?'ENOENT':'EIO'});
+          throw error;
+        }
+        if(defect==='scratch-unsafe')return new Proxy(Reflect.apply(stat,fs,[path,...args]),{
+          get:(target,key)=>key==='isSymbolicLink'?()=>true:Reflect.get(target,key)});
+      }
+      const value=Reflect.apply(stat,fs,[path,...args]);
+      if(inspecting&&defect==='scratch-size'&&String(path)===join(root,'acquisition','database.sqlite')&&!((args[0] as {bigint?:boolean})?.bigint)){
+        return new Proxy(value,{get:(target,key)=>key==='size'?canaryLimits.file+1:Reflect.get(target,key)});
+      }
+      return value;
+    }) as typeof fs.lstatSync);syncBuiltinESMExports();
+    inspecting=true;
+    const result=await diagnoseCanaryRecovery({store,executable:options(f).executable,synthetic:true});inspecting=false;
+    privateFree(result);assert.equal(result.deletionAuthorized,false);assert.notEqual(result.status,'removed');
+    assert.equal(result.status,defect==='intact'||defect==='absent-root'?'verified':defect==='busy'?'busy':defect==='exit-confirmation'?'residual':'refused');
+    const expected={intact:'none',authentication:'authentication',envelope:'structural-inventory','control-inventory':'structural-inventory',
+      'store-identity':'identity-ownership',ownership:'identity-ownership','scratch-inventory':'scratch-inventory',security:'access-security',busy:'access-security',
+      protocol:'helper-protocol','delete-command':'helper-protocol','exit-confirmation':'lifetime-unconfirmed','absent-root':'none','scratch-count':'scratch-limit',
+      'scratch-size':'scratch-limit','scratch-disappeared':'scratch-entry-disappeared','scratch-unsafe':'path-safety','scratch-inspection':'scratch-inspection','scratch-ambiguous':'scratch-inspection'};
+    assert.equal(result.category,expected[defect]);assert.equal(result.helperExit,defect==='control-inventory'?'not-launched':'confirmed');
+    assert.deepEqual(save(paths),before);assert.equal(existsSync(store),true);assert.equal(existsSync(root),defect!=='absent-root');
+    if(defect==='intact'||defect==='absent-root')assert.deepEqual(commands,['verify-recovery','release']);
+    if(defect==='protocol')assert.equal(commands.includes('release'),false);
+  }finally{
+    inspecting=false;Reflect.set(fs,'lstatSync',stat);syncBuiltinESMExports();
+    CanarySession.prototype.send=send;CanarySession.prototype.finish=finish;if(fd!==undefined)closeSync(fd);undo();assert.equal(f.run.cleanup().status,'removed');
+  }
+});
+
+test('non-destructive recovery diagnostic refuses personal access without its new authorization gate',async()=>{
+  const saved=process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC,stat=fs.lstatSync,start=CanarySession.prototype.start;
+  let touched=0;
+  try{
+    delete process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC;
+    Reflect.set(fs,'lstatSync',()=>{touched++;throw new Error('SYNTHETIC_PRIVATE_DIAGNOSTIC');});syncBuiltinESMExports();
+    CanarySession.prototype.start=()=>{touched++;assert.fail('No helper permitted');};
+    const result=await diagnoseCanaryRecovery({executable:'C:\\Invented\\pwsh.exe',store:'C:\\Invented\\recovery',synthetic:false});
+    assert.deepEqual(result,{status:'refused',check:'selection',category:'selection',helperExit:'not-launched',deletionAuthorized:false});assert.equal(touched,0);privateFree(result);
+  }finally{
+    Reflect.set(fs,'lstatSync',stat);syncBuiltinESMExports();CanarySession.prototype.start=start;
+    if(saved===undefined)delete process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC;else process.env.WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC=saved;
+  }
+});
+
+test('recovery diagnostic fields are strictly allowlisted and refused outside recovery protocol',()=>{
+  const nonce=randomUUID(),frame={stage:'finished',run:nonce,outcome:'io',closed:true,copied:false,phase:'recovery',fault:'none',partialWritten:false,opened:0,
+    recoveryCheck:'authentication',refusal:'authentication'};
+  assert.doesNotThrow(()=>parseCanaryFrame(JSON.stringify(frame),nonce,undefined,true));
+  for(const refusal of ['scratch-inventory','scratch-limit','scratch-entry-disappeared','scratch-inspection','path-safety']){
+    assert.doesNotThrow(()=>parseCanaryFrame(JSON.stringify({...frame,recoveryCheck:'scratch-validation',refusal}),nonce,undefined,true));
+  }
+  assert.throws(()=>parseCanaryFrame(JSON.stringify(frame),nonce));
+  for(const update of [{refusal:'SYNTHETIC_PRIVATE_RAW'},{recoveryCheck:'SYNTHETIC_PRIVATE_RAW'},{private:'SYNTHETIC_PRIVATE_RAW'}]){
+    assert.throws(()=>parseCanaryFrame(JSON.stringify({...frame,...update}),nonce,undefined,true),e=>{privateFree(String(e));return true;});
+  }
+});
+
+test('scratch helper classification preserves specific evidence and leaves ambiguous errors generic',empirical,()=>{
+  // Load only the pure classifier from the repository AST; never execute the helper's entry or inspect a store.
+  const script=`$ErrorActionPreference='Stop'
+$taskTokens=$null;$taskErrors=$null
+$taskAst=[Management.Automation.Language.Parser]::ParseFile('test/support/personal-canary-helper.ps1',[ref]$taskTokens,[ref]$taskErrors)
+if($taskErrors.Count -ne 0){throw 'Parser refused'}
+$taskFunction=$taskAst.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Recovery-RefusalCategory'},$true)
+. ([scriptblock]::Create($taskFunction.Extent.Text))
+$taskResults=@(
+  (Recovery-RefusalCategory ([Exception]::new('entries')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('limit')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([IO.FileNotFoundException]::new('SYNTHETIC_PRIVATE')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([IO.DirectoryNotFoundException]::new('SYNTHETIC_PRIVATE')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('scope')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('metadata-unavailable')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([IO.IOException]::new('SYNTHETIC_PRIVATE')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('SYNTHETIC_PRIVATE_ENOENT')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([UnauthorizedAccessException]::new('SYNTHETIC_PRIVATE')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('ownership')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('authentication')) 'scratch-validation' 'io')
+  (Recovery-RefusalCategory ([Exception]::new('entries')) 'authentication' 'io')
+)
+[Console]::WriteLine(($taskResults | ConvertTo-Json -Compress))`;
+  const result=spawnSync(process.env.WORKSPACE_SURVEYOR_HELPER_PWSH!,['-NoLogo','-NoProfile','-NonInteractive','-Command',script],
+    {encoding:'utf8',windowsHide:true,timeout:5000});
+  assert.equal(result.status,0);assert.equal(result.stderr,'');privateFree(result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout),['scratch-inventory','scratch-limit','scratch-entry-disappeared','scratch-entry-disappeared','path-safety',
+    'scratch-inspection','scratch-inspection','scratch-inspection','access-security','identity-ownership','authentication','structural-inventory']);
+});
 test('runner and helper lifetime handles block recovery; concurrent recoveries serialize',empirical,async()=>{
   const f=fixture();let checked=false;
   try{

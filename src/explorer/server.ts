@@ -77,6 +77,7 @@ export async function serveReusableExplorer(session:ExplorerSession):Promise<Loc
       if(req.url==='/close'){void session.close();res.once('finish',()=>{void close();});res.end('closing');return;}
       if(['closing','closed'].includes(session.state().phase))return reject(410);
       if(req.url==='/refresh'){const result=session.refresh();res.writeHead(result==='accepted'?202:409);res.end(result);return;}
+      if(req.url==='/recover'){const result=session.recover();res.writeHead(result==='accepted'?202:409);res.end(result);return;}
       if(req.url==='/cancel'){session.cancel();res.end('cancelling');return;}
       if(req.url==='/activity'){session.touch();res.end('active');return;}
       return reject(404);

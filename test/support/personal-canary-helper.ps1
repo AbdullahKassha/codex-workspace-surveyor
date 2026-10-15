@@ -11,6 +11,8 @@ $fileLimit = 16777216
 $sid = $null
 $outcome = 'io'
 $phase = 'input'
+$recoveryCheck = 'selection'
+$refusal = 'none'
 $faultReached = 'none'
 $partialWritten = $false
 $opened = 0
@@ -46,7 +48,12 @@ function Receive-Line {
 function Check-Object([string]$path, [bool]$directory) {
     $item = if ($directory) { [System.IO.DirectoryInfo]::new($path) } else { [System.IO.FileInfo]::new($path) }
     $item.Refresh()
-    if (-not $item.Exists -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'scope' }
+    if (-not $item.Exists) {
+        # Exists can suppress access/IO errors or describe the wrong type. It is not proof of disappearance.
+        if($operation -in @('recover','diagnose-recovery') -and $recoveryCheck -eq 'scratch-validation'){throw 'metadata-unavailable'}
+        throw 'scope'
+    }
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'scope' }
     if (-not $directory -and $item.Length -gt $fileLimit) { throw 'limit' }
     return $item
 }
@@ -190,9 +197,12 @@ function Recovery-Payload {
     if ($entries.Count -ne 2 -or @($entries | Where-Object { [IO.Path]::GetFileName($_) -notin @('key','record') }).Count) {throw 'entries'}
     $key=Read-Control $keyLease 32
     if($key.Length -ne 32){throw 'key'}
-    $record=[Text.Encoding]::UTF8.GetString((Read-Control $lease 8192)) | ConvertFrom-Json
-    if((@($record.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'mac,payload' -or
-       $record.payload -isnot [string] -or $record.mac -cnotmatch '^[a-f0-9]{64}$'){throw 'record'}
+    $recordBytes=Read-Control $lease 8192
+    try {
+        $record=[Text.Encoding]::UTF8.GetString($recordBytes) | ConvertFrom-Json
+        if((@($record.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'mac,payload' -or
+           $record.payload -isnot [string] -or $record.mac -cnotmatch '^[a-f0-9]{64}$'){throw 'record'}
+    } catch { throw 'record' }
     $expected=Mac $key $record.payload
     $difference=0;for($j=0;$j -lt 64;$j++){$difference=$difference -bor ([int]$record.mac[$j] -bxor [int]$expected[$j])}
     if($difference -ne 0){throw 'authentication'}
@@ -209,6 +219,23 @@ function Recovery-Exists([string]$path) {
         if($errorObject -is [IO.FileNotFoundException] -or $errorObject -is [IO.DirectoryNotFoundException]){return $false}
         throw
     }
+}
+function Recovery-RefusalCategory($exception, [string]$check, [string]$result) {
+    # Fixed vocabulary only; specific evidence takes precedence over the stage fallback.
+    if($result -in @('acl-refused','sharing-refused') -or $exception -is [UnauthorizedAccessException]){return 'access-security'}
+    if($exception.Message -ceq 'authentication'){return 'authentication'}
+    if($exception.Message -ceq 'ownership'){return 'identity-ownership'}
+    if($exception.Message -in @('protocol','deadline','eof','input-limit')){return 'helper-protocol'}
+    if($exception.Message -in @('key','record','control-limit')){return 'structural-inventory'}
+    if($exception.Message -ceq 'scope'){return 'path-safety'}
+    if($check -eq 'scratch-validation'){
+        if($exception.Message -ceq 'entries'){return 'scratch-inventory'}
+        if($exception.Message -ceq 'limit'){return 'scratch-limit'}
+        if($exception -is [IO.FileNotFoundException] -or $exception -is [IO.DirectoryNotFoundException]){return 'scratch-entry-disappeared'}
+        return 'scratch-inspection'
+    }
+    if($exception.Message -ceq 'entries'){return 'structural-inventory'}
+    return 'io'
 }
 function Verify-RecoveryScratch($inventory) {
     $entryLimit=if($inventory.version -eq 2){13}else{9}
@@ -278,6 +305,7 @@ function Delete-RecoveryScratch($inventory) {
     Verify-RecoveryScratch $inventory
     if(Recovery-Exists $root){throw 'residual'}
 }
+. (Join-Path $PSScriptRoot 'legacy-preservation-helper.ps1')
 try {
     if (-not $IsWindows -or $PSVersionTable.PSVersion.Major -ne 7) { throw 'host' }
     $request=(Receive-Line) | ConvertFrom-Json
@@ -285,32 +313,115 @@ try {
     $operation=$request.operation
     $identity=[System.Security.Principal.WindowsIdentity]::GetCurrent()
     try { $sid=$identity.User } finally { $identity.Dispose() }
-    if($operation -eq 'locate'){
+    if($operation -in @('locate','locate-original','locate-original-explorer')){
         if((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'nonce,operation'){throw 'protocol'}
+        if($operation -eq 'locate-original' -and $env:WORKSPACE_SURVEYOR_LEGACY_PRESERVATION -ne '1'){throw 'protocol'}
         $phase='location'
         $location=[Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
         if([string]::IsNullOrEmpty($location)){throw 'location'}
-        Send-Frame @{stage='location';run=$nonce;store=[IO.Path]::Combine($location,'WorkspaceSurveyor-Canary-Recovery')}
+        $original=[IO.Path]::Combine($location,'WorkspaceSurveyor-Canary-Recovery')
+        $paths=Legacy-Paths $original
+        if($operation -eq 'locate' -and (Recovery-Exists $paths.seal)){
+            $legacy=Open-Legacy $original $false
+            Send-Frame @{stage='location';run=$nonce;store=$paths.active;legacy=$legacy}
+        }else{
+            if($operation -eq 'locate' -and (Recovery-Exists $paths.active)){throw 'scope'}
+            Send-Frame @{stage='location';run=$nonce;store=$original}
+        }
         $outcome='ok';return
     }
-    if($operation -eq 'recover'){
+    if($operation -in @('dispose-legacy','preview-legacy')){
         if((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'mode,nonce,operation,probe,store' -or
-            $request.mode -notin @('synthetic','personal') -or $request.probe -notin @('none','short','slow') -or
+           $request.mode -notin @('synthetic','personal') -or $request.probe -cne 'none' -or
+           ($request.mode -eq 'synthetic' -and $env:WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION -ne '1') -or
+           ($request.mode -eq 'personal' -and ($env:WORKSPACE_SURVEYOR_PERSONAL_CANARY -ne '1' -or
+            $env:WORKSPACE_SURVEYOR_LEGACY_PRESERVATION -ne '1' -or
+            ($operation -eq 'dispose-legacy' -and $env:WORKSPACE_SURVEYOR_LEGACY_DISPOSAL -ne '1') -or
+            ($operation -eq 'preview-legacy' -and $env:WORKSPACE_SURVEYOR_LEGACY_INSPECTION -ne '1')))){throw 'protocol'}
+        $phase='recovery';$store=[IO.Path]::GetFullPath($request.store)
+        if($request.mode -eq 'personal' -and $store -cne [IO.Path]::Combine(
+            [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),'WorkspaceSurveyor-Canary-Recovery')){throw 'scope'}
+        Dispose-Legacy $store ($operation -eq 'preview-legacy');return
+    }
+    if($operation -in @('retire-legacy','validate-legacy')){
+        if((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'mode,nonce,operation,probe,store' -or
+           $request.mode -notin @('synthetic','personal') -or $request.probe -cne 'none' -or
+           ($request.mode -eq 'personal' -and $operation -eq 'retire-legacy' -and $env:WORKSPACE_SURVEYOR_LEGACY_RETIREMENT -ne '1') -or
+           ($request.mode -eq 'synthetic' -and $env:WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION -ne '1')){throw 'protocol'}
+        $phase='recovery';$store=[IO.Path]::GetFullPath($request.store)
+        if($request.mode -eq 'personal' -and $store -cne [IO.Path]::Combine(
+            [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),'WorkspaceSurveyor-Canary-Recovery')){throw 'scope'}
+        $retained=Open-Legacy $store ($operation -eq 'validate-legacy') ($operation -eq 'retire-legacy')
+        Send-Frame @{stage='legacy-held';run=$nonce;payload=$retained}
+        if($operation -eq 'validate-legacy'){Command 'release';$outcome='ok';return}
+        Command 'verify-legacy-absence'
+        $value=$retained | ConvertFrom-Json;$paths=Legacy-Paths $store
+        if(@($value.entries | Where-Object {-not $_.registered}).Count){throw 'ownership'}
+        if((Recovery-Exists $store) -or (Recovery-Exists $value.root.path) -or (Recovery-Exists $paths.active)){throw 'residual'}
+        Command 'release';$outcome='ok';return
+    }
+    if($operation -in @('recover','diagnose-recovery','preserve-legacy')){
+        if((@($request.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'mode,nonce,operation,probe,store' -or
+            $request.mode -notin @('synthetic','personal','explorer') -or $request.probe -notin @('none','short','slow') -or
+            ($request.mode -eq 'explorer' -and ($operation -ne 'preserve-legacy' -or $request.probe -ne 'none')) -or
             ($request.mode -eq 'personal' -and $request.probe -ne 'none') -or
+            ($operation -eq 'diagnose-recovery' -and $request.probe -ne 'none') -or
+            ($operation -eq 'preserve-legacy' -and ($request.probe -ne 'none' -or ($request.mode -ne 'explorer' -and $env:WORKSPACE_SURVEYOR_LEGACY_PRESERVATION -ne '1'))) -or
+            ($operation -eq 'diagnose-recovery' -and $request.mode -eq 'personal' -and $env:WORKSPACE_SURVEYOR_RECOVERY_DIAGNOSTIC -ne '1') -or
             ($request.mode -eq 'synthetic' -and $env:WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION -ne '1')){throw 'protocol'}
         $phase='recovery';$store=[IO.Path]::GetFullPath($request.store)
-        Verify-Security $store $true
+        if($request.mode -eq 'explorer' -and $store -cne [IO.Path]::Combine(
+            [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),'WorkspaceSurveyor-Canary-Recovery')){throw 'scope'}
+        $recoveryCheck='control-security';Verify-Security $store $true
         $lease=Open-Control ([IO.Path]::Combine($store,'record')) ([IO.FileShare]::None)
         $keyLease=Open-Control ([IO.Path]::Combine($store,'key')) ([IO.FileShare]::Read)
-        $payload=Recovery-Payload
+        $recoveryCheck='authentication';$payload=Recovery-Payload
         Send-Frame @{stage='recovery-held';run=$nonce;payload=$payload}
+        if($operation -eq 'preserve-legacy'){
+            $preliminary=(Receive-Line) | ConvertFrom-Json
+            if((@($preliminary.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'command,payload' -or
+               $preliminary.command -cne 'prepare-legacy' -or $preliminary.payload -isnot [string] -or
+               [Text.Encoding]::UTF8.GetByteCount($preliminary.payload) -gt 3072){throw 'protocol'}
+            $pre=$preliminary.payload | ConvertFrom-Json
+            $oldInventory=$payload | ConvertFrom-Json
+            if($pre.original -cne $store -or $pre.root.path -cne $oldInventory.root.path -or $pre.nonce -cne $oldInventory.nonce){throw 'ownership'}
+            Legacy-RegisteredInventory $pre $oldInventory
+            Legacy-Scratch $pre $true
+            $writer=Prepare-LegacySeal $store
+            Frame 'legacy-prepared'
+            $binding=(Receive-Line) | ConvertFrom-Json
+            if((@($binding.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'command,payload' -or
+               $binding.command -cne 'persist-legacy' -or $binding.payload -isnot [string] -or
+               [Text.Encoding]::UTF8.GetByteCount($binding.payload) -gt 3072){throw 'protocol'}
+            $legacy=$binding.payload | ConvertFrom-Json
+            if($legacy.version -ne 1 -or $legacy.status -cne 'preserved-unverified' -or $legacy.original -cne $store){throw 'record'}
+            $inventory=$payload | ConvertFrom-Json
+            if($legacy.root.path -cne $inventory.root.path -or $legacy.nonce -cne $inventory.nonce){throw 'ownership'}
+            if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($payload))).ToLowerInvariant() -cne $legacy.recordHash){throw 'authentication'}
+            Legacy-RegisteredInventory $legacy $inventory
+            Legacy-Scratch $legacy $false
+            $paths=Legacy-Paths $store
+            $sealKey=Legacy-Control ([IO.Path]::Combine($paths.seal,'key')) ([IO.FileShare]::Read)
+            $bytes=[Text.Encoding]::UTF8.GetBytes((@{payload=$binding.payload;mac=(Mac (Read-Control $sealKey 32) $binding.payload)} | ConvertTo-Json -Compress))
+            if($bytes.Length -gt 8192){throw 'control-limit'}
+            $writer.Write($bytes,0,$bytes.Length);$writer.Flush($true);Close-Stream $writer
+            $sealRecord=Legacy-Control ([IO.Path]::Combine($paths.seal,'record')) ([IO.FileShare]::Read)
+            if((Legacy-ReadEnvelope $sealRecord $sealKey) -cne $binding.payload){throw 'record'}
+            Frame 'legacy-ready';Command 'release';$outcome='ok';return
+        }
         # Node authenticates the fixed layout/identities before permitting descriptor reads.
-        Command 'verify-recovery'
+        $recoveryCheck='protocol';Command 'verify-recovery'
         $inventory=$payload | ConvertFrom-Json
         $root=$inventory.root.path
-        Verify-RecoveryScratch $inventory
+        $recoveryCheck='scratch-validation';Verify-RecoveryScratch $inventory
         Frame 'recovery-verified'
+        # Distinct operation: release without entering deletion or retiring controls.
+        if($operation -eq 'diagnose-recovery'){
+            $recoveryCheck='release';Command 'release';$outcome='ok';return
+        }
+        $recoveryCheck='deletion'
         Delete-RecoveryScratch $inventory
+        $recoveryCheck='release'
         Command 'release';$outcome='ok';return
     }
     $script:explorer=(@($request.PSObject.Properties.Name) -contains 'profile')
@@ -329,6 +440,15 @@ try {
     }
     $root=[System.IO.Path]::GetFullPath($request.root)
     $source=[System.IO.Path]::GetFullPath($request.source)
+    $legacyPayload=$null
+    if($request.store.EndsWith('-Active',[StringComparison]::Ordinal)){
+        $original=$request.store.Substring(0,$request.store.Length-7)
+        if($request.mode -eq 'personal' -and $original -cne [IO.Path]::Combine(
+            [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),'WorkspaceSurveyor-Canary-Recovery')){throw 'scope'}
+        $legacyPayload=Open-Legacy $original $true
+        Send-Frame @{stage='legacy-held';run=$nonce;payload=$legacyPayload}
+        Command 'accept-legacy'
+    }
     if ($request.mode -eq 'personal') {
         if ($request.writers.Count -lt 1 -or $request.writers.Count -gt 12) { throw 'closure' }
         foreach ($name in $request.writers) { if ($name -cnotmatch '^[A-Za-z0-9_.-]{1,64}$') { throw 'closure' } }
@@ -446,6 +566,7 @@ try {
         $streams.Add($check);[void](Read-Stream $check $manifest[$i] $true);Close-Stream $check
     }
     Verify-Scratch;Closure
+    if($null -ne $legacyPayload){Legacy-Scratch ($legacyPayload | ConvertFrom-Json) $false}
     if($request.fault -eq 'diagnostic') {
         $faultReached='diagnostic';[Console]::Error.WriteLine("SYNTHETIC_PRIVATE_CANARY $root");throw 'diagnostic'
     }
@@ -456,11 +577,19 @@ try {
     $exception=$_.Exception
     while($null -ne $exception.InnerException){$exception=$exception.InnerException}
     if($exception.HResult -eq -2147024864){$outcome='sharing-refused'}
+    if($operation -in @('recover','diagnose-recovery','preserve-legacy','retire-legacy','validate-legacy','dispose-legacy','preview-legacy')){
+        # Never emit exception text. Only existing fixed refusal tokens/types select a category.
+        $refusal=Recovery-RefusalCategory $exception $recoveryCheck $outcome
+    }
 } finally {
     foreach($stream in $streams){try{$stream.Dispose()}catch{$closed=$false}}
     if ($outcome -eq 'ok' -and $operation -eq 'acquire') { try { Closure } catch { $outcome='closure-refused' } }
+    foreach($control in $legacyStreams){try{$control.Dispose()}catch{$closed=$false}}
     # Lifetime handles are last: no source/copy work follows their release.
     if($closed){foreach($control in @($keyLease,$lease)){if($null -ne $control){try{$control.Dispose()}catch{$closed=$false}}}}
-    Send-Frame @{stage='finished';run=$nonce;outcome=$outcome;closed=$closed;copied=$copied;phase=$phase;
+    if($closed){for($i=$legacyLifetime.Count-1;$i -ge 0;$i--){try{$legacyLifetime[$i].Dispose()}catch{$closed=$false}}}
+    $finalFrame=@{stage='finished';run=$nonce;outcome=$outcome;closed=$closed;copied=$copied;phase=$phase;
         fault=$faultReached;partialWritten=$partialWritten;opened=$opened}
+    if($operation -in @('recover','diagnose-recovery','preserve-legacy','retire-legacy','validate-legacy','dispose-legacy','preview-legacy')){$finalFrame.recoveryCheck=$recoveryCheck;$finalFrame.refusal=$refusal}
+    Send-Frame $finalFrame
 }

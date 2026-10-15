@@ -1,7 +1,9 @@
 import { locationKey, windowsPathKey } from './model.js';
 import { bookmarkSelection, restoreSelection } from './selection.js';
 import { displayTitle, friendlyTitle, folderContains, folderCoverage, folderStatus, membershipStatus, projectThreads,
-  membershipExplanation, cwdExplanations, sourceFolderExplanation, folderExplanations, gitLinkLabel, gitExplanation,
+  membershipExplanation, cwdExplanations, sourceFolderExplanation, folderExplanations, gitLinkLabel, gitExplanation, instructionPresentation, instructionEntryText,
+  readablePath, pathName, threadDetailsNotes, folderDetailsNotes,
+  technicalHelp, diagnosticRelationGroups,
   workspaceLocations, workspacePresentation, locationPlacement, discoveryNotice, hasExpandableThreads, standaloneParent } from './presentation.js';
 export { displayTitle } from './presentation.js';
 
@@ -44,6 +46,14 @@ const sourceFolderExplanation=${sourceFolderExplanation.toString()};
 const folderExplanations=${folderExplanations.toString()};
 const gitLinkLabel=${gitLinkLabel.toString()};
 const gitExplanation=${gitExplanation.toString()};
+const instructionPresentation=${instructionPresentation.toString()};
+const instructionEntryText=${instructionEntryText.toString()};
+const readablePath=${readablePath.toString()};
+const pathName=${pathName.toString()};
+const threadDetailsNotes=${threadDetailsNotes.toString()};
+const folderDetailsNotes=${folderDetailsNotes.toString()};
+const technicalHelp=${technicalHelp.toString()};
+const diagnosticRelationGroups=${diagnosticRelationGroups.toString()};
 const projectThreads=${projectThreads.toString()};
 const workspaceLocations=${workspaceLocations.toString()};
 const workspacePresentation=${workspacePresentation.toString()};
@@ -54,6 +64,7 @@ const standaloneParent=${standaloneParent.toString()};
 const threadLink=${threadLink.toString()};
 const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
 let data=null,groups=[],view='workspace',allThreads=false,closed=false,selection=null,returnFocus=null;
+let diagnosticSections=[];
 const expanded=new Set(),snapshotLoad=new AbortController();
 const byId=id=>document.getElementById(id);
 const text=(tag,value,className)=>{const e=document.createElement(tag);e.textContent=displayText(String(value));if(className)e.className=className;return e;};
@@ -104,63 +115,98 @@ function dismissDetails(){
  if(closed)return;const focus=returnFocus;selection=null;returnFocus=null;byId('details').replaceChildren();byId('details').hidden=true;byId('layout').className='layout';render();
  if(focus?.isConnected)focus.focus?.();else if(focus?.id)byId(focus.id).focus?.();
 }
-function field(panel,label,value,copyLabel){
- panel.append(text('h3',label),text('p',value,'exact'));if(copyLabel)panel.append(button(copyLabel,async()=>{
+function helpControl(label,topic,state){
+ const help=document.createElement('details');help.className='context-help';help.open=false;const toggle=text('summary','ⓘ');toggle.setAttribute('aria-label','About '+label+(state?' ('+state+')':''));help.append(toggle,text('p',technicalHelp(topic,state),'help-text'));
+ const sources=topic==='Git verification'||topic==='Git metadata folders'?[['Git repository layout','https://git-scm.com/docs/gitrepository-layout']]:topic==='Root-marker assumption'?[['Reviewed Codex root-marker documentation','https://learn.chatgpt.com/docs/config-file/config-advanced#project-root-detection']]:topic==='Instruction files'?[['Reviewed Codex instruction-discovery documentation','https://learn.chatgpt.com/docs/agent-configuration/agents-md#how-codex-discovers-guidance']]:[];
+ sources.forEach(([label,url])=>{const link=text('a',label);link.href=url;link.target='_blank';link.rel='noopener noreferrer';help.append(link);});return help;
+}
+function fieldHeading(panel,label,topic,state){const row=document.createElement('div');row.className='field-heading';row.append(text('h3',label));if(topic)row.append(helpControl(label,topic,state));panel.append(row);}
+function disclosure(panel,label,render){const section=document.createElement('details');section.className='evidence-group';section.open=false;section.append(text('summary',label));panel.append(section);
+ diagnosticSections.push(section);if(render){let loaded=false;section.ontoggle=()=>{if(!closed&&data&&section.open&&!loaded){loaded=true;render(section);}};}return section;}
+function toggleDiagnosticSections(open){if(closed||!data)return;for(const section of diagnosticSections){section.open=open;section.ontoggle?.();}
+ const help=node=>{if(node.className==='context-help')node.open=open;for(const child of node.children)help(child);};help(byId('diagnostic-content'));
+}
+function pagedRows(panel,rows,render){if(!rows.length)return;let shown=0,last;
+ const more=button('Show next 25',()=>{if(closed||!data)return;append();if(more.hidden)last.focus?.();else more.focus?.();},'show-more');
+ const remaining=button('Show all remaining',()=>{if(closed||!data)return;append(rows.length);last.focus?.();},'show-more');
+ const progress=text('p','','muted');progress.hidden=rows.length<=25;progress.setAttribute('role','status');panel.append(progress,more,remaining);
+ function append(limit=25){const end=Math.min(shown+limit,rows.length),batch=document.createElement('section');batch.tabIndex=-1;batch.setAttribute('aria-label','Entries '+(shown+1)+'–'+end);for(let i=shown;i<end;i++)render(batch,rows[i]);panel.append(batch);last=batch;shown=end;more.hidden=remaining.hidden=shown>=rows.length;more.textContent='Show next '+Math.min(25,rows.length-shown)+' ('+(rows.length-shown)+' remaining)';remaining.textContent='Show all remaining ('+(rows.length-shown)+')';progress.textContent=counted(shown,'entry','entries')+' shown of '+rows.length;}
+ append();
+}
+const counted=(count,singular,plural=singular+'s')=>count+' '+(count===1?singular:plural);
+function relationEvidence(panel){const relations=diagnosticRelationGroups(data,selection),count=relations.reduce((n,g)=>n+g.rows.length,0);if(!count)return;
+ const section=document.createElement('section');section.className='relationship-evidence';fieldHeading(section,'Relationships','Path relationships');panel.append(section);
+ relations.forEach(group=>{const body=document.createElement('section');body.className='relationship-summary';section.append(body);body.append(text('h4',group.label));
+  const related=new Set(group.rows.flatMap(row=>row.related)).size;
+  body.append(text('p',(related?counted(related,'related entity','related entities')+' · ':'')+counted(group.rows.length,'observation'),'muted'));
+  const labels=[...new Set(group.rows.map(row=>row.text))];pagedRows(body,labels,(batch,label)=>batch.append(text('p',label,'relationship-label')));
+  disclosure(body,'Exact relationship evidence · '+counted(group.rows.length,'observation'),raw=>pagedRows(raw,group.rows,(page,row)=>page.append(text('p',row.raw,'exact'))));
+ });
+}
+function gitMetadataFields(panel,g){if(g.admin&&g.common&&locationKey(g.admin)===locationKey(g.common))field(panel,'Git metadata folder',readablePath(g.admin),undefined,'Git metadata folders');
+ else{if(g.admin)field(panel,'Administrative directory',readablePath(g.admin),undefined,'Git metadata folders');if(g.common)field(panel,'Common Git directory',readablePath(g.common));}}
+function field(panel,label,value,copyLabel,topic,state){
+ fieldHeading(panel,label,topic,state);
+ if(!copyLabel){panel.append(text('p',value,'exact'));return;}
+ const row=document.createElement('div');row.className='value-row';row.append(text('p',value,'exact'));panel.append(row);if(copyLabel){const copy=button('⧉',async()=>{
   if(closed||!data)return;const status=text('p','','copy-status');panel.append(status);
+  status.setAttribute('role','status');
   try{if(typeof navigator==='undefined'||!navigator.clipboard?.writeText)throw 0;await navigator.clipboard.writeText(value);if(!closed)status.textContent='Copied';}
   catch{if(!closed)status.textContent='Copy unavailable. Select the value above and copy it manually.';}
- }));
+ },'copy-icon');copy.setAttribute('aria-label',copyLabel);copy.setAttribute('title',copyLabel);row.append(copy);}
 }
+function pathField(panel,label,value){field(panel,label,readablePath(value),'Copy '+label.toLowerCase(),label==='Working folder'?'Working folder':undefined);}
+function technicalInformation(panel){const section=document.createElement('details');section.className='technical-information';section.open=false;section.append(text('summary','Technical information'));panel.append(section);return section;}
+function entityType(){return selection.kind==='git'?(data.discovery.git[selection.index].state==='verified'?(data.discovery.git[selection.index].kind==='linked'?'Linked worktree':'Main repository'):'Unverified Git metadata'):selection.kind==='location'?'Folder':selection.kind==='thread'?'Thread':'Project';}
+function entityHeading(){return selection.kind==='thread'?friendlyTitle(data.threads[selection.index]).label:selection.kind==='project'?data.projects[selection.index].label||'Unnamed Project':selection.kind==='location'?name(selection.path):name(data.discovery.folders[data.discovery.git[selection.index].folder].path);}
 function relatedButton(panel,kind,value,label){panel.append(button(label+' →',()=>select(kind,value)));}
 function threadOpen(i,label='Open in Codex ↗'){
  const href=threadLink(data.threads[i].id);if(!href||data.visibility[i]!=='inferred')return null;
  const link=text('a',label,label==='↗'?'open-thread':'primary-action');link.href=href;link.setAttribute('aria-label','Open '+displayText(friendlyTitle(data.threads[i]).label)+' in Codex');return link;
 }
 function appendStatus(panel,value){if(value)panel.append(text('p',value,'warning'));}
-function locationRelationships(panel,l){
- if(!l)return;folderExplanations(data,l).forEach(value=>panel.append(text('p',value,'muted')));
- if(l.projects.length){panel.append(text('h3','Projects declaring this folder'));l.projects.forEach(i=>relatedButton(panel,'project',i,data.projects[i].label||'Unnamed Project'));}
- if(l.threads.length){panel.append(text('h3','Threads reporting this working directory'));l.threads.forEach(i=>relatedButton(panel,'thread',i,friendlyTitle(data.threads[i]).label));}
- if(!l.projects.length&&!l.threads.length&&!l.git.length)panel.append(text('p','No associated Project or Thread found in this snapshot.','muted'));
-}
-function locatedGit(panel,index,subject){
- panel.append(text('p',subject+' lies within this verified Git working tree by lexical path comparison.','muted'));
- relatedButton(panel,'git',index,gitLinkLabel(data.discovery.git[index]));
+function exceptionalGitLinks(panel,path,indices){
+ const own=groups.find(c=>c.locations.some(l=>locationKey(l.path)===locationKey(path)));
+ indices.forEach(index=>{if(!own?.locations.some(l=>l.git.includes(index))){const g=data.discovery.git[index];
+  relatedButton(panel,'git',index,(g.state==='verified'?(g.kind==='linked'?'Worktree: ':'Repository: '):'Git evidence: ')+name(data.discovery.folders[g.folder].path));}});
 }
 function renderDetails(){
  if(closed||!data||!selection)return;const panel=byId('details');panel.hidden=false;panel.replaceChildren();byId('layout').className='layout has-selection';
- const top=document.createElement('div');top.className='detail-top';top.append(text('small',selection.kind==='git'?'Git':selection.kind==='location'?'Folder':selection.kind==='thread'?'Thread':'Project'),button('Back',dismissDetails,'detail-back'));panel.append(top);
- let heading;if(selection.kind==='thread')heading=friendlyTitle(data.threads[selection.index]).label;else if(selection.kind==='project')heading=data.projects[selection.index].label||'Unnamed Project';else if(selection.kind==='location')heading=name(selection.path);else heading=name(data.discovery.folders[data.discovery.git[selection.index].folder].path);
- const title=text('h2',heading);title.id='details-heading';title.tabIndex=-1;panel.append(title);
+ const top=document.createElement('div');top.className='detail-top';top.append(text('small',entityType()),button('Back',dismissDetails,'detail-back'));panel.append(top);
+ const title=text('h2',entityHeading());title.id='details-heading';title.tabIndex=-1;panel.append(title);
  if(selection.kind==='thread'){
-  const i=selection.index,t=data.threads[i],resolved=friendlyTitle(t),assigned=data.relations.find(r=>r.kind==='assigned-project'&&r.subject===i),open=threadOpen(i);if(open)panel.append(open);
-  appendStatus(panel,membershipStatus(data.memberships[i]));if(resolved.qualification==='unavailable')panel.append(text('p','Friendly title unavailable','muted'));
-  panel.append(text('h3','Project'));if(assigned)relatedButton(panel,'project',assigned.target,data.projects[assigned.target].label||'Unnamed Project');else panel.append(text('p',data.memberships[i]==='projectless'?'Projectless':membershipStatus(data.memberships[i])||'Unknown membership'));
-  panel.append(text('p',membershipExplanation(data,i),'muted'));
-  field(panel,'Stored working directory',t.cwd||'Unavailable',t.cwd?'Copy path':undefined);
-  cwdExplanations(data,i).forEach(value=>panel.append(text('p',value,'muted')));
-  if(t.cwd){const l=locationAt(t.cwd);if(l){appendStatus(panel,folderStatus(l.folder===null?undefined:data.discovery.folders[l.folder]));relatedButton(panel,'location',l.path,'View folder');}
-   data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='thread'&&r.subject.index===i).forEach(r=>locatedGit(panel,r.target.index,'The stored working directory'));}
-  field(panel,'Thread ID',t.id,'Copy ID');
+  const i=selection.index,t=data.threads[i],open=threadOpen(i);if(open)panel.append(open);
+  if(t.cwd)pathField(panel,'Working folder',t.cwd);else field(panel,'Working folder','Unavailable');
+  threadDetailsNotes(data,i).forEach(value=>panel.append(text('p',value,'muted')));
+  if(t.cwd){const l=locationAt(t.cwd);if(l)appendStatus(panel,folderStatus(l.folder===null?undefined:data.discovery.folders[l.folder]));
+   exceptionalGitLinks(panel,t.cwd,data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='thread'&&r.subject.index===i).map(r=>r.target.index)||[]);}
+  const instructions=instructionPresentation(data,i);fieldHeading(panel,'Possible project instructions','Root-marker assumption');
+  instructions.files.forEach(path=>{const note=text('p',name(path)+' found in '+name(path.slice(0,-name(path).length-1))+'.','muted');note.setAttribute('title',displayText(readablePath(path)));panel.append(note);});
+  instructions.explanations.forEach(value=>panel.append(text('p',value,'muted')));
+  if(instructions.additional)panel.append(text('p',instructions.additional+' more files in Diagnostics.','muted'));
+  const technical=technicalInformation(panel);field(technical,'Thread ID',t.id,'Copy Thread ID');if(t.cwd&&readablePath(t.cwd)!==t.cwd)field(technical,'Original stored path',t.cwd,'Copy original stored path','Stored working directory');
  }else if(selection.kind==='project'){
   const i=selection.index,p=data.projects[i];if(!p.roots.length)appendStatus(panel,'Root unavailable');
-  p.roots.forEach(path=>{field(panel,'Source folder',path,'Copy path');panel.append(text('p',sourceFolderExplanation(data,i),'muted'));const l=locationAt(path);appendStatus(panel,folderStatus(l?.folder==null?undefined:data.discovery.folders[l.folder]));if(l){relatedButton(panel,'location',l.path,'View folder');l.git.forEach(g=>relatedButton(panel,'git',g,gitLinkLabel(data.discovery.git[g])));}});
-  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='project'&&r.subject.index===i&&!p.roots.some(path=>locationAt(path)?.git.includes(r.target.index))).forEach(r=>locatedGit(panel,r.target.index,'A declared Source folder'));
-  const threads=projectThreads(data,i);panel.append(text('h3','Threads'));if(!threads.length)panel.append(text('p','No qualifying assigned Threads observed','muted'));threads.forEach(t=>relatedButton(panel,'thread',t,friendlyTitle(data.threads[t]).label));
+  p.roots.forEach(path=>{pathField(panel,'Source folder',path);const l=locationAt(path);appendStatus(panel,folderStatus(l?.folder==null?undefined:data.discovery.folders[l.folder]));
+   if(l&&l.projects.length>1)panel.append(text('p','Source folder shared with '+l.projects.filter(j=>j!==i).map(j=>data.projects[j].label||'Unnamed Project').join(', ')+'.','muted'));});
+  if(p.roots.length)exceptionalGitLinks(panel,p.roots[0],data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='project'&&r.subject.index===i).map(r=>r.target.index)||[]);
+  const technical=technicalInformation(panel);field(technical,'Project ID',p.id,'Copy Project ID');p.roots.filter(path=>readablePath(path)!==path).forEach(path=>field(technical,'Original Source-folder spelling',path));
  }else if(selection.kind==='location'){
-  const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];field(panel,'Path',selection.path,'Copy path');panel.append(text('h3','Folder status'),text('p',f?.state==='exists'?(folderStatus(f)||'Exists'):folderStatus(f)));
+  const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];pathField(panel,'Path',selection.path);appendStatus(panel,folderStatus(f));
   if(f&&data.discovery&&!folderContains(f.path,data.discovery.root))panel.append(text('p',f.state==='uninspected'?'Outside discovery scope; this path was not checked.':'This path was checked; surrounding folders were not scanned.','muted'));
-  locationRelationships(panel,l);l?.git.forEach(i=>relatedButton(panel,'git',i,gitLinkLabel(data.discovery.git[i])));
-  data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='folder'&&r.subject.index===l?.folder&&!l.git.includes(r.target.index)).forEach(r=>locatedGit(panel,r.target.index,'This folder'));
+  if(l)folderDetailsNotes(data,l).forEach(value=>panel.append(text('p',value,'muted')));
+  exceptionalGitLinks(panel,selection.path,data.discovery?.relations.filter(r=>r.kind==='inside-git-tree'&&r.subject.kind==='folder'&&r.subject.index===l?.folder).map(r=>r.target.index)||[]);
+  if(f||readablePath(selection.path)!==selection.path){const technical=technicalInformation(panel);if(readablePath(selection.path)!==selection.path)field(technical,'Original path',selection.path);if(f)field(technical,'Inspection coverage',folderCoverage(f,data.discovery.root),undefined,'Inspection status',f.state);}
  }else{
-  const i=selection.index,g=data.discovery.git[i],path=data.discovery.folders[g.folder].path;field(panel,'Working root',path,'Copy path');panel.append(text('h3','Type'),text('p',g.state==='verified'?(g.kind==='linked'?'Linked worktree':'Main repository'):'Git metadata '+g.state));appendStatus(panel,folderStatus(data.discovery.folders[g.folder]));if(g.common)field(panel,'Common Git directory',g.common,'Copy path');
-  panel.append(text('p',gitExplanation(data,i),'muted'),text('p','The effective Codex discovery boundary has not been established.','muted'));
+  const i=selection.index,g=data.discovery.git[i],path=data.discovery.folders[g.folder].path;pathField(panel,'Working root',path);appendStatus(panel,folderStatus(data.discovery.folders[g.folder]));
+  if(g.state!=='verified')appendStatus(panel,'Git metadata '+g.state+'. Repository identity was not verified.');
   if(g.state==='verified'){
    const related=data.discovery.git.flatMap((other,j)=>j!==i&&other.state==='verified'&&other.commonIdentity===g.commonIdentity?[j]:[]);if(g.kind==='linked'&&!related.some(j=>data.discovery.git[j].kind==='main'))appendStatus(panel,'Main location unavailable');
-   if(related.length){panel.append(text('h3',g.kind==='linked'?'Related repository and worktrees':'Linked worktrees'));related.forEach(j=>relatedButton(panel,'git',j,name(data.discovery.folders[data.discovery.git[j].folder].path)));}
-   const exact=locationAt(path);data.discovery.relations.filter(r=>r.kind==='inside-git-tree'&&r.target.index===i&&(r.subject.kind==='project'||r.subject.kind==='thread')&&!(r.subject.kind==='project'?exact?.projects:exact?.threads)?.includes(r.subject.index)).forEach(r=>relatedButton(panel,r.subject.kind,r.subject.index,r.subject.kind==='project'?data.projects[r.subject.index].label||'Unnamed Project':friendlyTitle(data.threads[r.subject.index]).label));
-  }locationRelationships(panel,locationAt(path));
- }panel.append(button('View diagnostic details',openDiagnostics,'technical-link'));
+   exceptionalGitLinks(panel,path,related);
+  }
+  const technical=technicalInformation(panel);field(technical,'Git verification',g.state,undefined,'Git verification',g.state);gitMetadataFields(technical,g);
+ }
+ panel.append(button('Inspect evidence',openDiagnostics,'technical-link'));
 }
 function sameOwner(a,b){return a?.kind===b?.kind&&(a?.kind==='location'?locationKey(a.path)===locationKey(b.path):a?.index===b?.index);}
 function appendTreeLocations(parent,c,owner){
@@ -188,11 +234,14 @@ function locationRow(l,c){
   const facet=entity(g.kind==='linked'?'worktree':'repository',label,'git:'+i,()=>select('git',i,facet));facet.className+=' git-facet';facet.id='git-'+i;line.append(facet);
   if(g.state==='verified'&&g.kind==='linked'&&!c.locations.some(other=>other.git.some(j=>data.discovery.git[j].state==='verified'&&data.discovery.git[j].kind==='main'&&data.discovery.git[j].commonIdentity===g.commonIdentity)))appendStatus(line,'Main location unavailable');});
  row.append(line,text('p',shortPath(l.path),'path-preview'));
- if(l.projects.length){const refs=document.createElement('div');refs.className='source-projects';l.projects.forEach(i=>refs.append(button(data.projects[i].label||'Unnamed Project',()=>select('project',i),'uses-location')));row.append(refs);}
+ if(l.projects.length&&(c.projects.length>1||l.projects.some(i=>!c.projects.includes(i)))){const refs=document.createElement('div');refs.className='source-projects';l.projects.forEach(i=>refs.append(button(data.projects[i].label||'Unnamed Project',()=>select('project',i),'uses-location')));row.append(refs);}
  appendStatus(row,folderStatus(l.folder===null?undefined:data.discovery.folders[l.folder]));appendTreeLocations(row,c,{kind:'location',path:l.path});return row;
 }
 function componentCard(c){
- const section=document.createElement('section');section.className='component';section.append(text('h2','Workspace group '+c.number));const tree=document.createElement('div');tree.className='relationship-tree';
+ const section=document.createElement('section');section.className='component';section.setAttribute('data-workspace-group',String(c.number));
+ const title=c.threads.length?friendlyTitle(data.threads[c.threads[0]]):null;
+ const identity=c.projects.length?'Project '+(data.projects[c.projects[0]].label||'Unnamed Project'):title?(title.qualification==='unavailable'?'':'Thread ')+title.label:'Folder '+name(c.locations[0]?.path||'unavailable');
+ section.setAttribute('aria-label',displayText(identity+' relationships'));const tree=document.createElement('div');tree.className='relationship-tree';
  c.projects.forEach(i=>{const p=data.projects[i],project=document.createElement('section');project.className='project-block';const line=document.createElement('div');line.className='project-line';const b=entity('project',p.label||'Unnamed Project','project:'+i,()=>select('project',i,b));b.id='project-'+i;line.append(b,text('small','Codex Project','entity-type'));project.append(line);
   const branches=document.createElement('div');branches.className='project-branches';
   const threads=projectThreads(data,i).filter(t=>c.threads.includes(t)),list=document.createElement('div');list.className='member-list';if(threads.length)list.append(text('small','Threads','source-label'));else list.append(text('p','No qualifying assigned Threads observed','muted'));threadList(list,threads,c,i);branches.append(list);
@@ -204,23 +253,63 @@ function componentCard(c){
   const context=document.createElement('div');context.className='folder-context';const line=document.createElement('div');line.className='location-line';line.setAttribute('aria-label','Parent folder '+displayText(name(parent.path)));line.append(icon('folder'),text('span',name(parent.path),'entity-name'));const child=document.createElement('div');child.className='location-branch';child.append(locationRow(l,c));context.append(line,child);tree.append(context);});
  section.append(tree);return section;
 }
-function diagnosticThreads(parent,title,indexes){if(!indexes.length)return;const section=document.createElement('details');section.append(text('summary',title+' ('+indexes.length+')'));indexes.forEach(i=>section.append(threadRow(i)));parent.append(section);}
+function diagnosticThreads(parent,title,indexes){if(!indexes.length)return;disclosure(parent,title+' ('+indexes.length+')',section=>pagedRows(section,indexes,(batch,i)=>batch.append(threadRow(i))));}
+function instructionEvidence(box){
+ const i=selection.index,d=data.instructionScope,t=data.threads[i],finding=instructionPresentation(data,i);
+ fieldHeading(box,'Possible project instructions','Root-marker assumption');finding.files.forEach(path=>box.append(text('p',readablePath(path),'relationship-label')));
+ finding.explanations.forEach(value=>box.append(text('p',value,'muted')));
+ if(finding.additional)box.append(text('p',counted(finding.additional,'more observed file')+' in exact instruction checks.','muted'));
+ if(!d)return;
+ const row=d.cwds.find(row=>t.cwd&&locationKey(row.cwd)===locationKey(t.cwd));
+ const entries=row?row.ancestry.flatMap(directory=>[directory.directory,...(directory.marker===undefined?[]:[directory.marker]),...directory.instructions].map(index=>d.entries[index])):[];
+ disclosure(box,'Exact instruction checks · '+counted(entries.length,'observation'),instructions=>{
+  field(instructions,'Root-marker assumption','Documented default .git rule; effective settings unknown',undefined,'Root-marker assumption');
+  field(instructions,'Instruction observation interval (UTC)',d.from+' → '+d.through);fieldHeading(instructions,'Instruction files','Instruction files');
+  if(row){field(instructions,'Instruction stopping reason',row.stop+' · '+readablePath(row.stoppedAt),undefined,'Search stopping reason',row.stop);
+   field(instructions,'Instruction coverage',row.complete?'Complete to candidate marker':'Incomplete',undefined,'Instruction coverage',row.complete?'complete':'partial');
+   pagedRows(instructions,entries,(batch,e)=>{const display={...e,path:readablePath(e.path),...(e.obstruction?{obstruction:readablePath(e.obstruction)}:{})};
+    field(batch,e.purpose+' check',instructionEntryText(display));batch.append(text('p',JSON.stringify(e),'exact'));});
+  }else field(instructions,'Instruction coverage',!t.cwd?'Stored working directory unavailable':data.visibility[i]!=='inferred'?'Record does not qualify for instruction inspection':'CWD limit; this location was not inspected',undefined,'Instruction coverage','partial');
+ });
+}
 function renderDiagnostics(list){
+ diagnosticSections=[];
  list.append(text('h2','Diagnostics'),text('p','Technical observations for this snapshot.','muted'));
- if(selection){const box=document.createElement('section');box.className='diagnostic-evidence';const heading=text('h3','Selected entity evidence');heading.id='diagnostic-heading';heading.tabIndex=-1;box.append(button('Back to Workspace',returnWorkspace,'detail-back'),heading);
-  if(selection.kind==='thread'){const t=data.threads[selection.index];for(const [label,value] of [['Thread ID',t.id],['Stored working directory',t.cwd||'Unavailable'],['Visibility',data.visibility[selection.index]],['Membership',data.memberships[selection.index]],['Title source',t.titleSource||'unavailable'],['Title resolution',t.titleResolution||'unavailable'],['Display qualification',friendlyTitle(t).qualification]])field(box,label,value);}
-  else if(selection.kind==='project')field(box,'Project ID',data.projects[selection.index].id);
-  else if(selection.kind==='location'){const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];if(f){field(box,'Inspection coverage',folderCoverage(f,data.discovery.root));field(box,'Selection evidence',f.origin);data.discovery.diagnostics.filter(n=>locationKey(n.path)===locationKey(f.path)).forEach(n=>{field(box,'Inspection result',n.reason);if(n.stage)field(box,'Inspection stage',n.stage+(n.at?' · '+n.at:''));});}}
-  else{const g=data.discovery.git[selection.index];if(g.admin)field(box,'Administrative directory',g.admin);field(box,'Git evidence',g.detail);}list.append(box);
+ const controls=document.createElement('div');controls.className='diagnostic-controls';
+ for(const [label,open] of [['Expand all',true],['Collapse all',false]]){const control=button(label,()=>toggleDiagnosticSections(open));control.setAttribute('aria-controls','diagnostic-content');control.setAttribute('title',label+' evidence sections; large lists remain paginated');controls.append(control);}list.append(controls);
+ const content=document.createElement('section');content.id='diagnostic-content';content.setAttribute('aria-label','Diagnostic summaries and evidence');list.append(content);list=content;
+ if(selection){const box=document.createElement('section');box.className='diagnostic-evidence';const heading=text('h3','Technical evidence — '+entityHeading()+' ('+entityType()+')');heading.id='diagnostic-heading';heading.tabIndex=-1;box.append(button('Back to Workspace',returnWorkspace,'detail-back'),heading);
+  if(selection.kind==='thread'){const t=data.threads[selection.index];field(box,'Working folder',t.cwd?readablePath(t.cwd):'Unavailable');threadDetailsNotes(data,selection.index).forEach(value=>box.append(text('p',value,'muted')));}
+  else if(selection.kind==='project')data.projects[selection.index].roots.forEach(path=>field(box,'Source folder',readablePath(path)));
+  else if(selection.kind==='location'){field(box,'Folder',readablePath(selection.path));const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];appendStatus(box,folderStatus(f));if(l)folderDetailsNotes(data,l).forEach(value=>box.append(text('p',value,'muted')));}
+  else{const g=data.discovery.git[selection.index];field(box,'Working root',readablePath(data.discovery.folders[g.folder].path));box.append(text('p',gitExplanation(data,selection.index),'muted'));if(g.state!=='verified')appendStatus(box,'Git metadata '+g.state+'. Repository identity was not verified.');}
+  const record=disclosure(box,'Record metadata');
+  if(selection.kind==='thread'){const t=data.threads[selection.index];field(record,'Thread ID',t.id,'Copy Thread ID');
+   field(record,'Working-folder source','Stored CWD in acquired Thread data',undefined,'Stored working directory');
+   for(const [label,value] of [['Visibility',data.visibility[selection.index]],['Membership',data.memberships[selection.index]],['Title source',t.titleSource||'unavailable'],['Title resolution',t.titleResolution||'unavailable']])field(record,label,value,undefined,label,value);
+   field(record,'Display qualification',friendlyTitle(t).qualification,undefined,'Display qualification',friendlyTitle(t).qualification);
+   if(t.cwd&&readablePath(t.cwd)!==t.cwd)field(record,'Original stored path',t.cwd);
+  }else if(selection.kind==='project'){const p=data.projects[selection.index];field(record,'Project ID',p.id,'Copy Project ID');}
+  else if(selection.kind==='location'){const l=locationAt(selection.path),f=l?.folder==null?undefined:data.discovery.folders[l.folder];
+   if(f){field(record,'Inspection status',f.state,undefined,'Inspection status',f.state);field(record,'Inspection coverage',folderCoverage(f,data.discovery.root));field(record,'Path source',f.origin,undefined,'Path source',f.origin);
+    disclosure(box,'Exact folder observation',raw=>field(raw,'Observation',JSON.stringify(f)));
+    const results=data.discovery.diagnostics.filter(n=>locationKey(n.path)===locationKey(f.path));if(results.length)disclosure(box,'Inspection problems · '+results.length,body=>pagedRows(body,results,(batch,n)=>{field(batch,'Inspection result',n.reason);if(n.stage)field(batch,'Inspection stage',n.stage+(n.at?' · '+n.at:''));field(batch,'Checked path',readablePath(n.path));}));
+   }
+  }else{const g=data.discovery.git[selection.index];field(record,'Git verification',g.state,undefined,'Git verification',g.state);gitMetadataFields(record,g);
+   field(record,'Git evidence',g.detail);disclosure(box,'Exact Git observation',raw=>field(raw,'Observation',JSON.stringify(g)));
+  }
+  relationEvidence(box);
+  if(selection.kind==='thread')instructionEvidence(box);list.append(box);
  }
  diagnosticThreads(list,'Unresolved records',data.threads.flatMap((t,i)=>data.visibility[i]==='unknown'?[i]:[]));diagnosticThreads(list,'Internal records',data.threads.flatMap((t,i)=>data.visibility[i]==='internal'?[i]:[]));diagnosticThreads(list,'Archived records',data.threads.flatMap((t,i)=>data.visibility[i]==='archived'?[i]:[]));
- const coverage=document.createElement('details');coverage.append(text('summary','Coverage and methodology'));field(coverage,'Observation interval',data.provenance.from+' → '+data.provenance.through);field(coverage,'Source namespace',data.provenance.namespace);field(coverage,'Source coverage',JSON.stringify(data.coverage));field(coverage,'Disconnected references',data.danglingAssignments+' dangling assignments; '+data.staleProjectless+' stale projectless references');data.limitations.forEach(v=>coverage.append(text('p',v,'muted')));
- if(data.discovery){const d=data.discovery;field(coverage,'Discovery scope',d.root);field(coverage,'Discovery coverage',d.status+' · '+d.folders.length+' observations · '+d.entries+' entries · '+d.operations+' operations');field(coverage,'Discovery limits',JSON.stringify(d.limits));}list.append(coverage);
- const assignments=data.assignments.filter(a=>!data.threads.some(t=>t.id===a.threadId)||a.projectKind!=='local'||!data.projects.some(p=>p.id===a.projectId));if(assignments.length||data.staleProjectless){const refs=document.createElement('details');refs.append(text('summary','Unresolved and stale references'));assignments.forEach(a=>refs.append(text('p',a.threadId+' → '+a.projectId,'exact')));if(data.staleProjectless)refs.append(text('p',data.staleProjectless+' stale projectless references'));list.append(refs);}
- if(data.discovery?.diagnostics.length){const warnings=document.createElement('details');warnings.append(text('summary','Discovery warnings'));data.discovery.diagnostics.forEach(n=>warnings.append(text('p',n.path+' · '+n.reason+(n.stage?' · '+n.stage+(n.at?' ('+n.at+')':''):''),'exact')));list.append(warnings);}
+ const coverage=disclosure(list,'Coverage and methodology');fieldHeading(coverage,'About snapshot coverage','Snapshot coverage');field(coverage,'Observation interval',data.provenance.from+' → '+data.provenance.through);field(coverage,'Source namespace',data.provenance.namespace);field(coverage,'Source coverage',JSON.stringify(data.coverage));field(coverage,'Disconnected references',data.danglingAssignments+' dangling assignments; '+data.staleProjectless+' stale projectless references');data.limitations.forEach(v=>coverage.append(text('p',v,'muted')));
+ if(data.discovery){const d=data.discovery;field(coverage,'Discovery scope',d.root);field(coverage,'Discovery coverage',d.status+' · '+counted(d.folders.length,'observation')+' · '+counted(d.entries,'entry','entries')+' · '+counted(d.operations,'operation'));field(coverage,'Discovery limits',JSON.stringify(d.limits));}
+ if(data.instructionScope){const d=data.instructionScope;field(coverage,'Instruction scope',d.root);field(coverage,'Instruction coverage',d.status+' · '+d.cwds.length+'/'+d.qualifyingCwds+' CWDs · '+d.entries.length+' checks · '+d.operations+' operations');field(coverage,'Instruction limits',JSON.stringify(d.limits));}
+ const assignments=data.assignments.filter(a=>!data.threads.some(t=>t.id===a.threadId)||a.projectKind!=='local'||!data.projects.some(p=>p.id===a.projectId));if(assignments.length||data.staleProjectless)disclosure(list,'Unresolved and stale references',refs=>{pagedRows(refs,assignments,(batch,a)=>batch.append(text('p',a.threadId+' → '+a.projectId,'exact')));if(data.staleProjectless)refs.append(text('p',data.staleProjectless+' stale projectless references'));});
+ if(data.discovery?.diagnostics.length)disclosure(list,'Discovery warnings',warnings=>pagedRows(warnings,data.discovery.diagnostics,(batch,n)=>batch.append(text('p',n.path+' · '+n.reason+(n.stage?' · '+n.stage+(n.at?' ('+n.at+')':''):''),'exact'))));
 }
 function render(){
- if(closed||!data)return;const list=byId('relationships'),notices=byId('notices');list.replaceChildren();notices.replaceChildren();byId('workspace').ariaPressed=String(view==='workspace');byId('diagnostics').ariaPressed=String(view==='diagnostics');byId('view-heading').textContent=view==='workspace'?'Workspace':'Diagnostics';
+ if(closed||!data)return;diagnosticSections=[];const list=byId('relationships'),notices=byId('notices');list.replaceChildren();notices.replaceChildren();byId('workspace').ariaPressed=String(view==='workspace');byId('diagnostics').ariaPressed=String(view==='diagnostics');byId('view-heading').textContent=view==='workspace'?'Workspace':'Diagnostics';
  byId('expand-threads').hidden=view!=='workspace'||!hasExpandableThreads(data,groups);byId('expand-threads').textContent=allThreads?'Collapse all Threads':'Show all Threads';byId('expand-threads').setAttribute('aria-pressed',String(allThreads));
  byId('details').hidden=view==='diagnostics'||!selection;byId('layout').className=view==='workspace'&&selection?'layout has-selection':'layout';
  if(view==='diagnostics'){renderDiagnostics(list);return;}if(data.provenance.namespace.startsWith('synthetic-'))notices.append(text('p','Invented demonstration','muted'));
@@ -230,7 +319,7 @@ function render(){
  let count=0;groups.forEach(c=>{list.append(componentCard(c));count++;});
  if(review.length){const section=document.createElement('section');section.className='needs-review';section.append(text('h2','Needs review'));review.forEach(i=>section.append(threadRow(i)));list.append(section);count++;}if(!count)list.append(text('p','No meaningful workspace entities found.','empty-state'));
 }
-function closeLocal(){if(closed)return false;closed=true;snapshotLoad.abort();data=null;groups=[];selection=null;returnFocus=null;expanded.clear();byId('expand-threads').hidden=true;byId('relationships').replaceChildren();byId('details').replaceChildren();byId('details').hidden=true;byId('notices').replaceChildren();byId('layout').className='layout';byId('coverage').textContent='Session closed; browser memory is not a secure-erasure guarantee.';return true;}
+function closeLocal(){if(closed)return false;closed=true;snapshotLoad.abort();data=null;groups=[];diagnosticSections=[];selection=null;returnFocus=null;expanded.clear();byId('expand-threads').hidden=true;byId('relationships').replaceChildren();byId('details').replaceChildren();byId('details').hidden=true;byId('notices').replaceChildren();byId('layout').className='layout';byId('coverage').textContent='Session closed; browser memory is not a secure-erasure guarantee.';return true;}
 async function closeView(){if(!closeLocal())return;try{await fetch('/close',{method:'POST',headers:{'X-Surveyor-Session':token},cache:'no-store',keepalive:true});}catch{}}
 byId('workspace').onclick=returnWorkspace;byId('diagnostics').onclick=openDiagnostics;byId('expand-threads').onclick=()=>{if(closed||!data||!hasExpandableThreads(data,groups))return;allThreads=!allThreads;if(!allThreads)expanded.clear();render();};byId('close').onclick=closeView;
 addEventListener('pagehide',()=>{void closeView();});addEventListener('keydown',event=>{if(event.key==='Escape'){if(view==='diagnostics')returnWorkspace();else dismissDetails();}});
@@ -242,10 +331,12 @@ export const explorerHtml = `<!doctype html><html lang="en"><head><meta charset=
 <header><div class="brand">Workspace Surveyor <span>for Codex</span></div><nav aria-label="Views"><button id="workspace" aria-pressed="true">Workspace</button><button id="diagnostics" aria-pressed="false">Diagnostics</button><button id="close">Close session</button></nav></header>
 <main><div class="workspace-top"><h1 id="view-heading">Workspace</h1><button id="expand-threads" class="show-more" aria-pressed="false" hidden>Show all Threads</button></div><div id="notices" role="status"></div><div id="layout" class="layout"><div id="relationships"></div><aside id="details" aria-label="Entity details" hidden></aside></div><footer><p id="coverage" role="status">Loading snapshot…</p></footer></main><script src="/client.js" defer></script></body></html>`;
 export const explorerCss = `
+details:not([open])>:not(summary){display:none}
+.diagnostic-controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.diagnostic-controls button{font-size:12px}.relationship-summary{margin:14px 0}.relationship-label{font-size:12px;line-height:1.5;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr;margin:6px 0}
 :root{font-family:system-ui,-apple-system,sans-serif;color:#252b2e;background:#fafaf8;color-scheme:light}*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 32px;border-bottom:1px solid #e6e8e4;background:#fff}.brand{font-size:17px;font-weight:600;letter-spacing:-.3px}.brand span{font-size:12px;font-weight:400;color:#727a7b;margin-left:7px}nav{display:flex;gap:4px}main{max-width:1100px;padding:26px 32px;margin:auto}
-button{font:inherit;color:inherit}button{cursor:pointer;border:0;background:transparent;border-radius:6px;padding:7px 9px}button:hover,a:hover{background:#edf0ec}button:focus-visible,a:focus-visible{outline:2px solid #25856c;outline-offset:3px}nav button{font-size:12px;color:#697271}nav button[aria-pressed=true]{color:#263d35;background:#eaf0ea}.workspace-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:21px}h1{font-size:22px;font-weight:600;letter-spacing:-.4px;margin:0}h2{font-size:13px;font-weight:500}h3{font-size:12px;font-weight:500}
+button{font:inherit;color:inherit}button{cursor:pointer;border:0;background:transparent;border-radius:6px;padding:7px 9px}button:hover,a:hover{background:#edf0ec}button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid #25856c;outline-offset:3px}nav button{font-size:12px;color:#697271}nav button[aria-pressed=true]{color:#263d35;background:#eaf0ea}.workspace-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:21px}h1{font-size:22px;font-weight:600;letter-spacing:-.4px;margin:0}h2{font-size:13px;font-weight:500}h3{font-size:12px;font-weight:500}
 .layout{display:block}.layout.has-selection{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:35px}.layout>*{min-width:0}.component{border-top:1px solid #e3e7e1;padding:15px 0 18px}.component>h2{color:#68716f;margin:0 0 10px}.relationship-tree{display:block}.project-block+.project-block,.relationship-tree>.thread-row+.thread-row{margin-top:12px}.entity-select{display:inline-flex;align-items:center;gap:8px;text-align:left;max-width:100%;padding:5px 7px;margin-left:-7px;font-size:14px;min-width:0;vertical-align:middle}.entity-icon{width:18px;height:18px;flex:none}.icon-project{color:#6474aa}.icon-thread{color:#32836c}.icon-folder{color:#b28c3d}.icon-repository{color:#617180}.icon-worktree{color:#927293}.entity-name{overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr}.project-line>.entity-select{font-weight:600}.entity-select.related{background:#f0f4ee}.entity-select[aria-pressed=true]{background:#e2eee5;color:#1e513b}.entity-type{font-size:10px;color:#79807e;margin-left:8px}.project-line,.thread-line,.location-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}.project-branches,.location-branch,.worktree-list{margin:3px 0 0 8px;padding-left:22px;border-left:1px solid #d9e1d6}.member-list>.thread-row,.source-folders>.location-row,.location-branch>.location-row,.worktree-list>.location-row{position:relative}.member-list>.thread-row:before,.source-folders>.location-row:before,.location-branch>.location-row:before,.worktree-list>.location-row:before{content:'';position:absolute;left:-22px;top:16px;width:15px;border-top:1px solid #d9e1d6}.thread-row{padding:2px 0}.thread-line .entity-name{font-size:13px}.open-thread{color:#728078;font-size:14px;padding:3px 6px;text-decoration:none;border-radius:4px}.uses-location{font-size:11px;color:#687c70;padding:3px 6px;overflow-wrap:anywhere}.member-list{margin:0}.source-folders{margin-top:9px}.source-folders>.location-line,.folder-context>.location-line{font-size:14px;gap:8px;padding:5px 0}.source-label{display:block;font-size:10px;color:#79807e;margin:0 0 2px}.source-projects{margin-left:20px}.root-reference{display:block;margin:3px 0}.show-more{font-size:11px;color:#597565;margin:4px 0}.location-row{padding:5px 0 7px;min-width:0}.path-preview{font-size:11px;color:#7a817d;margin:0 0 0 26px;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr}.git-facet{font-size:10px;color:#738077;margin-left:6px;padding:3px 5px}.git-facet .entity-icon{width:14px;height:14px}.muted,small{color:#79817b}.muted{font-size:11px}.warning{color:#966126;font-size:11px;margin:5px 0}.notice-action{color:#946c36;text-align:left;font-size:11px;padding-left:0}.needs-review{border-top:1px solid #e6decf;padding:15px 0}.empty-state{padding:25px 0;color:#727b74;font-size:13px}
-aside{align-self:start;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;border-left:1px solid #e0e5de;padding:5px 0 18px 24px}aside h2{font-size:18px;line-height:1.45;margin:14px 0;overflow-wrap:anywhere}aside h3{color:#788079;font-size:11px;margin:18px 0 5px}aside .quiet{font-size:11px;padding-left:0;display:block;color:#597361}.detail-top{display:flex;align-items:center;justify-content:space-between}.detail-top small{font-size:11px}.detail-back{font-size:11px;color:#728178}.exact{white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr;font-family:ui-monospace,monospace;font-size:11px;margin:6px 0}.primary-action{display:inline-block;padding:8px 11px;border-radius:6px;background:#e5eee5;color:#2d6342;font-size:12px;text-decoration:none}.technical-link{margin-top:20px;font-size:10px;color:#7d8b80;padding-left:0}.copy-status{font-size:11px;color:#5d7764}details{border-top:1px solid #e0e5df;margin-top:12px;padding:7px 0}summary{cursor:pointer;font-size:12px;color:#68786c;padding:7px 0}.diagnostic-evidence{border-left:2px solid #bdcabd;padding-left:15px}.diagnostic-evidence h3{font-size:11px;color:#728674}footer{font-size:10px;color:#819081;margin-top:15px}footer:has(p:empty){display:none}
+.field-heading{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}.field-heading h3{margin-bottom:5px}.context-help{border:0;margin:0;padding:0}.context-help summary{list-style:none;padding:4px 6px;min-width:28px;min-height:28px;font-size:12px}.context-help summary::-webkit-details-marker{display:none}.context-help[open]{flex-basis:100%}.context-help .help-text{font-size:12px;line-height:1.5;max-width:65ch;margin:6px 0;padding:8px 12px;border-left:2px solid #bdcabd}.context-help a{display:block;font-size:11px;margin:6px 0}.evidence-group>summary{line-height:1.5;overflow-wrap:anywhere}.evidence-group .evidence-group{margin-left:12px}.value-row{display:flex;align-items:flex-start;gap:5px;min-width:0}.value-row .exact{flex:1;min-width:0}.copy-icon{flex:none;padding:4px 6px;min-width:28px;min-height:28px;color:#728178}.technical-information{margin-top:18px}.technical-information summary{font-size:11px}.technical-information .technical-link{margin-top:8px}.instruction-checks{border-top:1px solid #e0e5df;margin-top:14px}.diagnostic-evidence h4{font-size:12px;margin:18px 0 8px;overflow-wrap:anywhere}aside{align-self:start;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;border-left:1px solid #e0e5de;padding:5px 0 18px 24px}aside h2{font-size:18px;line-height:1.45;margin:14px 0;overflow-wrap:anywhere}aside h3{color:#788079;font-size:11px;margin:18px 0 5px}aside .quiet{font-size:11px;padding-left:0;display:block;color:#597361}.detail-top{display:flex;align-items:center;justify-content:space-between}.detail-top small{font-size:11px}.detail-back{font-size:11px;color:#728178}.exact{white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:isolate;direction:ltr;font-family:ui-monospace,monospace;font-size:11px;margin:6px 0}.primary-action{display:inline-block;padding:8px 11px;border-radius:6px;background:#e5eee5;color:#2d6342;font-size:12px;text-decoration:none}.technical-link{margin-top:20px;font-size:10px;color:#7d8b80;padding-left:0}.copy-status{font-size:11px;color:#5d7764}details{border-top:1px solid #e0e5df;margin-top:12px;padding:7px 0}summary{cursor:pointer;font-size:12px;color:#68786c;padding:7px 0}.diagnostic-evidence{border-left:2px solid #bdcabd;padding-left:15px}.diagnostic-evidence h3{font-size:11px;color:#728674}footer{font-size:10px;color:#819081;margin-top:15px}footer:has(p:empty){display:none}
 @media(max-width:899px){header{padding:14px 18px;flex-wrap:wrap;gap:9px}.brand span{display:none}main{padding:20px 18px}.workspace-top{align-items:flex-start;flex-direction:column;gap:13px}.layout.has-selection{display:block}.layout.has-selection #relationships{display:none}aside{position:static;max-height:none;border-left:0;padding:0}.project-branches,.location-branch,.worktree-list{padding-left:18px}.member-list>.thread-row:before,.source-folders>.location-row:before,.location-branch>.location-row:before,.worktree-list>.location-row:before{left:-18px;width:12px}.entity-type{margin-left:0}}
 .session-header{display:grid;grid-template-columns:minmax(0,1fr) auto}.header-navigation{display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-width:0}.header-navigation nav{flex-wrap:wrap}.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap;min-width:0;font-size:12px}.session-menu{position:relative;margin:0;padding:0 0 0 16px;border-top:0;border-left:1px solid #e6e8e4}.session-menu summary{padding:7px 9px;border-radius:6px;color:#697271}.session-menu summary:hover{background:#edf0ec}.session-menu summary:focus-visible{outline:2px solid #25856c;outline-offset:3px}.session-popover{position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:232px;max-width:calc(100vw - 36px);padding:12px;border:1px solid #e0e5df;border-radius:6px;background:#fff}.session-popover p{margin:0 0 8px;font-size:11px;color:#727a7b;overflow-wrap:anywhere}.session-popover button{width:100%;text-align:left}.refresh-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}.refresh-status p{margin:0;min-width:0;overflow-wrap:anywhere}.refresh-status button{font-size:11px;color:#597565}
 @media(max-width:520px){.session-header{grid-template-columns:minmax(0,1fr);gap:12px}.header-navigation{gap:9px}.header-actions{justify-self:end}}
@@ -269,10 +360,10 @@ let connected=false,connectionWarning='Connecting to local session…';
 const eventsAbort=new AbortController();
 function forgetCredential(){try{sessionStorage.removeItem(storageKey);}catch{}}
 function finishView(message){const menu=byId('session-menu'),restoreFocus=menu.open||document.activeElement===byId('cancel');menu.open=false;
- closeLocal();forgetCredential();token='';clearInterval(ageTimer);byId('refresh').disabled=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;byId('session-status').textContent=message;
+ closeLocal();forgetCredential();token='';clearInterval(ageTimer);byId('refresh').disabled=true;byId('recover').disabled=true;byId('recover').hidden=true;byId('recovery-note').hidden=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;byId('session-status').textContent=message;
  if(restoreFocus)byId('session-status').focus?.();}
 function disconnected(){if(closed)return;connected=false;connectionWarning='Connection unavailable; the displayed snapshot may be stale. Reload to reconnect.';
- byId('session-status').textContent=connectionWarning;byId('refresh').disabled=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;
+ byId('session-status').textContent=connectionWarning;byId('refresh').disabled=true;byId('recover').disabled=true;byId('cancel').disabled=true;byId('cancel').hidden=true;byId('close').disabled=true;
  if(document.activeElement===byId('cancel'))byId('session-status').focus?.();}
 function showStatus(){
  if(!latestState||closed)return;
@@ -282,10 +373,19 @@ function showStatus(){
  let message=stages[s.phase]||'Session closing.';
  if(s.phase==='idle'&&a?.outcome==='failure')message=failures[a.failure]||failures.unavailable;
  if(s.phase==='idle'&&a?.outcome==='cancelled')message=a.failure==='cleanup'?failures.cleanup:'Refresh cancelled.';
+ if(s.recoveryAvailable)message='Temporary copies need attention. Recover them before trying Refresh again.';
+ if(s.recoveryAction==='running')message='Recovering temporary copies; waiting for verification and cleanup.';
+ if(s.recoveryAction==='removed')message='Temporary copies were recovered and cleanup confirmed. Use Refresh to acquire a new snapshot.';
+ if(s.recoveryAction==='preserved')message='Temporary copies remain protected and unresolved. Close this session and launch Surveyor again to continue.';
+ if(s.recoveryAction==='blocked')message='Recovery could not finish safely. Close session and use the documented incident procedure; do not delete files manually.';
  if(data&&(s.phase!=='idle'||a?.outcome!=='success'||currentRevision!==s.revision))message+=' Showing the previous successful snapshot.';
+ byId('legacy-notice').hidden=s.legacyUnresolved!==true;
  byId('session-status').textContent=connected?message:connectionWarning;
  byId('coverage').textContent=data?snapshotUpdatedLabel(currentUpdatedAt):'No successful snapshot yet. Use Refresh when Desktop is closed.';
- const active=connected&&['acquiring','discovery'].includes(s.phase);byId('refresh').disabled=!connected||s.phase!=='idle';byId('cancel').disabled=!active;byId('cancel').hidden=!active;byId('close').disabled=!connected;
+ const active=connected&&['acquiring','discovery'].includes(s.phase)&&s.recoveryAction!=='running';byId('refresh').disabled=!connected||s.phase!=='idle'||s.recoveryAvailable===true||['preserved','blocked'].includes(s.recoveryAction);
+ byId('recover').hidden=s.recoveryAvailable!==true;byId('recover').disabled=!connected||s.phase!=='idle';byId('recovery-note').hidden=s.recoveryAvailable!==true;
+ byId('cancel').disabled=!active;byId('cancel').hidden=!active;byId('close').disabled=!connected;
+ if(byId('recover').hidden&&document.activeElement===byId('recover'))byId('session-status').focus?.();
  if(!active&&document.activeElement===byId('cancel'))byId('session-status').focus?.();
 }
 async function control(path){
@@ -316,7 +416,8 @@ async function loadSnapshot(revision,scope,updatedAt){
 function receiveState(s){
  if(!s||!Number.isSafeInteger(s.version)||s.version<=latestVersion)return;latestVersion=s.version;latestState=s;connected=true;
  if(s.phase==='closing'||s.phase==='closed'){finishView(s.phase==='closing'?'Session closing; waiting for protected cleanup.':
-   s.attempt?.failure==='cleanup'?'Session closed. Cleanup or recovery was not confirmed; see the console and documented recovery procedure.':'Session closed.');if(s.phase==='closed')eventsAbort.abort();return;}
+   s.recoveryAction==='preserved'?'Session closed. Legacy copies remain protected and unresolved. Launch Surveyor again to continue.':
+   s.attempt?.failure==='cleanup'&&s.recoveryAction!=='removed'?'Session closed. Cleanup or recovery was not confirmed; see the console and documented recovery procedure.':'Session closed.');if(s.phase==='closed')eventsAbort.abort();return;}
  if(closed)return;latestRevision=s.revision;showStatus();if(currentRevision!==s.revision)void loadSnapshot(s.revision,s.scope,s.updatedAt);
 }
 async function followState(){
@@ -332,6 +433,7 @@ async function followState(){
 byId('workspace').onclick=()=>{if(data)returnWorkspace();};byId('diagnostics').onclick=()=>{if(data)openDiagnostics();};
 byId('expand-threads').onclick=()=>{if(closed||!data||!hasExpandableThreads(data,groups))return;allThreads=!allThreads;if(!allThreads)expanded.clear();render();};
 byId('refresh').onclick=()=>{byId('refresh').disabled=true;void control('/refresh');};byId('cancel').onclick=()=>{void control('/cancel');};
+byId('recover').onclick=()=>{byId('recover').disabled=true;void control('/recover');};
 byId('close').onclick=async()=>{if(await control('/close')&&!closed)finishView('Session closing; waiting for protected cleanup.');};
 function activity(event){if(!event.isTrusted||closed||Date.now()-lastActivity<30000)return;lastActivity=Date.now();void control('/activity');}
 addEventListener('click',event=>{activity(event);if(byId('session-menu').open&&event.target&&!byId('session-menu').contains(event.target))byId('session-menu').open=false;});
@@ -343,4 +445,4 @@ addEventListener('pagehide',()=>{snapshotLoad.abort();eventsAbort.abort();clearI
 if(/^[a-f0-9]{64}$/.test(token))void followState();else finishView('Local session refused. Open it using Workspace Surveyor.cmd.');
 `;
 export const reusableExplorerHtml=explorerHtml.replace(/<header>[\s\S]*?<\/header>/,`<header class="session-header"><div class="header-navigation"><div class="brand">Workspace Surveyor <span>for Codex</span></div><nav aria-label="Views"><button id="workspace" aria-pressed="true">Workspace</button><button id="diagnostics" aria-pressed="false">Diagnostics</button></nav></div><div class="header-actions"><button id="refresh">Refresh</button><details id="session-menu" class="session-menu"><summary id="session-toggle">Session</summary><div class="session-popover"><p id="session-close-note">Closing the session disconnects all connected tabs.</p><button id="close" aria-describedby="session-close-note">Close session</button></div></details></div></header>`)
-  .replace('<div id="notices"','<div class="refresh-status"><p id="session-status" class="muted" role="status" tabindex="-1">Starting local session…</p><button id="cancel" hidden disabled>Cancel refresh</button></div><div id="notices"');
+  .replace('<div id="notices"','<div class="refresh-status"><p id="session-status" class="muted" role="status" tabindex="-1">Starting local session…</p><button id="cancel" hidden disabled>Cancel refresh</button><button id="recover" hidden disabled aria-describedby="recovery-note">Recover temporary copies</button></div><p id="recovery-note" class="muted" hidden>Recover authenticated Surveyor copies. If their inventory cannot be verified, preserve one protected incident instead (up to 65 MiB). Original Codex files are not changed.</p><p id="legacy-notice" role="status" hidden>Legacy private copies remain preserved and unresolved. Snapshot cleanup does not resolve that incident.</p><div id="notices"');

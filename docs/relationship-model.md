@@ -1,5 +1,11 @@
 # Conceptual relationship model
 
+## Instruction Discovery Scope supplement, 2026-10-12
+
+The approved conditional metadata slice adds optional memory-only `instructionScope` evidence to the Explorer snapshot. It retains exact entry checks (purpose, state/type, instruction-file size where ordinary, and target/ancestor obstruction), ordered stored-CWD ancestry with entry references, stopping reason, conditional boundary coverage, observation interval and separate work limits. Effective policy is explicitly unknown; the only interpretation assumes the documented `.git` policy under DOC-005/DOC-006.
+
+Only qualifying Workspace CWDs nominate checks. Ordinary `.git` occurrence does not depend on Git identity. Completed negative checks in every nearer directory support a candidate; a gap withholds it. Absence at a checked target differs from failure to reach that target. Candidate coverage does not establish file selection or effective Codex root selection. Observations create no entities, relation edges or components; stored assignment/projectlessness, visibility, physical/Git relationships and numbered placement are retained. Original raw stored relations remain available. Configuration, fallback names, global guidance and loaded instructions remain unobserved. See [validation](research/explorer-local-read-only-validation.md#instruction-scope-2026-10-12).
+
 ## Implemented relationship subset, 2026-10-10
 
 The [accepted explorer](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) keeps Project registry identity, stored assignment, explicit projectlessness, stored CWD, physical existence, containment and Git common identity separate. Project membership requires qualified assignment evidence; matching CWD/root paths can connect a Workspace component without establishing membership. Shared broad ancestors never union components. Source folders are roles of deduplicated locations, not additional physical objects.

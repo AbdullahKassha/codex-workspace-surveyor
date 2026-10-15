@@ -10,6 +10,17 @@ export type ProjectClaim = Readonly<{ id: string; label: string | null; roots: r
 export type AssignmentClaim = Readonly<{ threadId: string; projectId: string; projectKind?:string }>;
 export type Membership = 'stored-assignment' | 'projectless' | 'no-assignment-observed' | 'unknown' | 'conflicting' | 'dangling';
 export type Visibility = 'inferred'|'unknown'|'internal'|'archived';
+export type InstructionEntry = Readonly<{path:string; purpose:'directory'|'marker'|'instruction';
+  state:'present'|'absent'|'inaccessible'|'uninspected'|'error'; type?:'file'|'directory'|'other'; size?:number;
+  reason?:string; obstruction?:string; at?:'target'|'ancestor'}>;
+export type InstructionCwd = Readonly<{cwd:string; ancestry:readonly Readonly<{path:string;directory:number;marker?:number;instructions:readonly number[]}>[];
+  stop:'marker'|'scope-boundary'|'outside-scope'|'invalid-cwd'|'cwd-limit'|'depth-limit'|'obstruction'|'operations-limit'|'time-limit'|'cancelled'|'inspection-error';
+  stoppedAt:string; complete:boolean; candidate?:string}>;
+export type InstructionScopeObservation = Readonly<{root:string;from:string;through:string;
+  policy:Readonly<{effective:'unknown';assumption:'documented-git';evidence:readonly ['DOC-005','DOC-006']}>;
+  entries:readonly InstructionEntry[];cwds:readonly InstructionCwd[];qualifyingCwds:number;
+  status:'complete'|'partial'|'cancelled'|'unavailable';operations:number;
+  limits:Readonly<{cwds:number;depth:number;operations:number;milliseconds:number}>}>;
 export type FolderObservation = Readonly<{path:string; aliases:readonly string[]; origin:'discovery'|'declared'|'git-metadata';
   identity?:Readonly<{device:string;file:string}>;
   state:'exists'|'missing'|'inaccessible'|'inspection-error'|'reparse'|'not-directory'|'uninspected';
@@ -35,7 +46,7 @@ export type ExplorerData = Readonly<{ provenance: Provenance; projectNamespace: 
   locations: readonly string[]; memberships: readonly Membership[]; relations: readonly Relation[];
   projectlessIds:readonly string[]; visibility:readonly Visibility[]; staleProjectless:number;
   components:readonly Readonly<{projects:readonly number[];threads:readonly number[];folders?:readonly number[];git?:readonly number[]}>[];
-  discovery?:DiscoveryObservation;
+  discovery?:DiscoveryObservation; instructionScope?:InstructionScopeObservation;
   danglingAssignments: number; limitations: readonly string[] }>;
 
 // Lexical comparison only. Refuse ambiguous Win32/device components; never touch paths.

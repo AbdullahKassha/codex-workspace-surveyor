@@ -1,4 +1,4 @@
-import { locationKey, windowsPathKey, type ExplorerData, type FolderObservation, type GitObservation, type ThreadClaim } from './model.js';
+import { locationKey, windowsPathKey, type ExplorerData, type FolderObservation, type GitObservation, type ThreadClaim, type InstructionEntry } from './model.js';
 
 // Existing inert link-label normalization. This is formatting, not qualification.
 export function displayTitle(t:{title:string|null;titleSource?:string}):string {
@@ -108,6 +108,157 @@ export function gitExplanation(data:ExplorerData,index:number):string {
 }
 export function projectThreads(data:ExplorerData,index:number):number[] {
   return data.relations.flatMap(r=>r.kind==='assigned-project'&&r.target===index&&data.visibility[r.subject]==='inferred'?[r.subject]:[]);
+}
+// Display/copy only. Leave device/UNC, long and ambiguous spellings untouched.
+export function readablePath(raw:string):string {
+  if(!/^\\\\\?\\[A-Za-z]:\\/.test(raw))return raw;
+  const conventional=raw.slice(4);
+  return conventional.length<260&&!/[\p{Cf}\p{Cs}\x7f-\x9f]/u.test(raw)&&
+    conventional.split('\\').every(part=>part.length<=255)&&windowsPathKey(raw)!==null&&
+    windowsPathKey(raw)===windowsPathKey(conventional)?conventional:raw;
+}
+export function pathName(path:string):string {return readablePath(path).split(/[\\/]/).filter(Boolean).at(-1)||readablePath(path);}
+export function threadDetailsNotes(data:ExplorerData,index:number):string[] {
+  const result:string[]=[],assigned=data.relations.find(r=>r.kind==='assigned-project'&&r.subject===index);
+  const membership=data.memberships[index];
+  if(membership!=='stored-assignment')result.push(membership==='projectless'?'No Project assigned.':
+    membership==='conflicting'?'Project membership is conflicting.':membership==='dangling'?'The assigned Project is unavailable.':'Project membership is unknown.');
+  const matches=data.relations.filter(r=>r.subject===index&&(r.kind==='matches-exact-root'||r.kind==='matches-normalized-root'));
+  if(assigned&&data.threads[index]!.cwd!==null){const project=data.projects[assigned.target]!;
+    if(project.roots.length&&!matches.some(r=>r.target===assigned.target))
+      result.push('Working folder differs from '+(project.label||'the assigned Project')+"'s Source folders.");
+    else if(!project.roots.length)result.push('Source folders for the assigned Project are unavailable.');
+  }
+  const other=matches.filter(r=>!assigned||r.target!==assigned.target);
+  if(other.length)result.push('This folder is also declared by '+other.map(r=>data.projects[r.target]!.label||'Unnamed Project').join(', ')+'. Folder sharing does not establish Project membership.');
+  return result;
+}
+export function folderDetailsNotes(data:ExplorerData,location:WorkspaceLocation):string[] {
+  const result:string[]=[];
+  if(location.projects.length>1)result.push('Shared Source folder for '+location.projects.map(i=>data.projects[i]!.label||'Unnamed Project').join(', ')+'.');
+  if(folderExplanations(data,location).includes('Sharing this folder does not establish Project membership.'))
+    result.push('Folder sharing does not establish Project membership.');
+  if(!location.projects.length&&!location.threads.length&&!location.git.length)result.push('No associated Project or Thread found in this snapshot.');
+  return result;
+}
+export function instructionPresentation(data:ExplorerData,index:number):{explanations:string[];files:string[];additional:number} {
+  const observation=data.instructionScope,cwd=data.threads[index]?.cwd;
+  if(!observation||!cwd)return {explanations:['Instruction locations were not checked.'],files:[],additional:0};
+  if(data.visibility[index]!=='inferred')return {explanations:['Instruction locations were not checked for this record.'],files:[],additional:0};
+  const row=observation.cwds.find(row=>locationKey(row.cwd)===locationKey(cwd));
+  if(!row)return {explanations:['Instruction locations were not checked; the working-folder limit was reached.'],files:[],additional:0};
+  const entries=row.ancestry.slice().reverse().flatMap(directory=>directory.instructions.map(i=>observation.entries[i]!));
+  const files=entries.filter(entry=>entry.state==='present'&&entry.type==='file');
+  const explanations:string[]=[];
+  if(row.candidate)explanations.push('Under the documented default rule, Codex may stop searching for parent instructions at '+pathName(row.candidate)+' because this folder contains .git.');
+  else if(row.stop==='scope-boundary'&&locationKey(row.stoppedAt)===locationKey(observation.root)&&row.ancestry.length>0&&
+    locationKey(row.ancestry[0]!.path)===locationKey(row.cwd)&&locationKey(row.ancestry.at(-1)!.path)===locationKey(observation.root)&&
+    row.ancestry.every((directory,index)=>{
+      const folder=observation.entries[directory.directory],marker=directory.marker===undefined?undefined:observation.entries[directory.marker];
+      return (index===0||locationKey(row.ancestry[index-1]!.path).replace(/[\\/][^\\/]+$/,'')===locationKey(directory.path))&&
+        folder?.state==='present'&&folder.type==='directory'&&marker?.state==='absent'&&marker.at==='target';
+    }))explanations.push('No .git marker found in the folders checked. Folders above '+pathName(observation.root)+' were not checked.');
+  else {
+    const reasons:Record<string,string>={'scope-boundary':'Parent folders were not fully checked; inspection reached its scope boundary.',
+      'outside-scope':'Working folder is outside the inspection scope.','invalid-cwd':'Working folder could not be checked.',
+      'cwd-limit':'Working-folder limit reached.','depth-limit':'Parent folders were not fully checked; the folder-depth limit was reached.',
+      obstruction:'Search incomplete: a folder or .git entry could not be checked.',
+      'operations-limit':'Search incomplete: the check limit was reached.','time-limit':'Search incomplete: the time limit was reached.',
+      cancelled:'Instruction search was cancelled.','inspection-error':'Instruction search could not finish.'};
+    explanations.push(reasons[row.stop]||'Instruction search is incomplete.');
+  }
+  if(!files.length)explanations.push(row.ancestry.length>0&&row.ancestry.every(directory=>directory.instructions.length===2&&
+    directory.instructions.every(i=>{const entry=observation.entries[i]!;return entry.state==='absent'||
+      entry.state==='present'&&(entry.type==='directory'||entry.type==='other');}))?
+    'No instruction files found in the folders checked.':'Instruction-file checks are incomplete.');
+  if(entries.some(e=>!['present','absent'].includes(e.state))||row.ancestry.some(directory=>directory.instructions.length!==2))
+    if(files.length)explanations.push('Some instruction-file checks are incomplete.');
+  explanations.push('Actual Desktop settings have not been checked.');
+  return {explanations,files:files.slice(0,4).map(e=>e.path),additional:Math.max(0,files.length-4)};
+}
+export function instructionEntryText(entry:InstructionEntry):string {
+  // The shared probe records the failed lookup path even for ordinary ENOENT.
+  // For a completed target absence this is the checked target, not a blocker.
+  if(entry.state==='absent'&&entry.at==='target'&&entry.reason==='missing'&&
+    (!entry.obstruction||entry.obstruction===entry.path))return entry.path+' · Absent · target checked';
+  return entry.path+' · '+entry.state+(entry.type?' · '+entry.type:'')+(entry.size===undefined?'':' · '+entry.size+' bytes')+
+    (entry.reason?' · '+entry.reason:'')+(entry.obstruction?' · '+entry.at+' obstruction: '+entry.obstruction:'');
+}
+export function technicalHelp(topic:string,state=''):string {
+  if(topic==='Visibility')return ({inferred:'Surveyor considers this Thread eligible for Workspace based on stored Codex data. It has not directly confirmed that the Thread is currently visible inside Codex Desktop.',
+    internal:'Stored data identifies an internal or subagent record. Surveyor keeps it out of the ordinary Workspace; this is not a direct Desktop visibility check.',
+    archived:'The stored record is marked archived, so Surveyor keeps it out of the ordinary Workspace. This does not prove its current Desktop state.',
+    unknown:'The stored data is insufficient or conflicting for ordinary Workspace eligibility. The record remains available for troubleshooting.'} as Record<string,string>)[state]||'Workspace eligibility comes from stored record classification, not a direct Desktop visibility check.';
+  if(topic==='Membership')return ({'stored-assignment':"Codex's stored Project assignment associates this Thread with the named Codex Project. This is not guessed from the working-folder name or location.",
+    projectless:'Codex data explicitly records no Project assignment. A matching Source folder does not assign the Thread to that Project.',
+    conflicting:'Stored assignment or identity evidence conflicts, so Surveyor cannot resolve a single Project membership.',
+    dangling:'An assignment names a Project that is unavailable in this snapshot. It does not prove that the Project has been deleted.',
+    'no-assignment-observed':'No assignment was observed. Surveyor keeps membership unknown rather than treating the Thread as explicitly projectless.',
+    unknown:'Project data, correspondence or assignment evidence is insufficient to establish membership.'} as Record<string,string>)[state]||'Project membership is determined from stored assignment evidence.';
+  if(topic==='Title source')return state==='session-index'?'The displayed Thread title came from Codex\'s session index, rather than its folder name. The usual location is %USERPROFILE%\\.codex\\session_index.jsonl; this snapshot does not retain the actual source path.':
+    state==='sqlite'?'Title metadata came from the acquired SQLite copy. Surveyor only displays qualified friendly titles; other text stays unavailable to prevent exposing prompt contents.':'A qualified friendly title was not available in the acquired snapshot.';
+  if(topic==='Title resolution')return ({latest:'One latest valid session-index name was matched to this retained Thread ID. This qualifies the displayed name, not Workspace visibility.',
+    missing:'No matching session-index name was found in the records checked.',conflict:'Competing latest names prevented a single qualified title.',
+    invalid:'The matching name did not pass the title checks.',limit:'The bounded title lookup did not complete within its limits.',
+    unavailable:'Session-index title enrichment was unavailable.'} as Record<string,string>)[state]||'No session-index title resolution was recorded.';
+  if(topic==='Display qualification')return state==='session-index'?'A valid latest session-index name qualified the friendly display title.':state==='skill-link'?'A narrowly qualified skill-link title supplied the display label. Its link destination was not followed and other SQLite text is not exposed.':'No friendly title passed the display checks; Surveyor uses a generic Thread label.';
+  if(topic==='Path source')return state==='declared'?'This path was nominated by a stored Source folder or qualifying Thread working folder. It does not by itself establish that the folder exists.':state==='git-metadata'?'Supported Git metadata referenced this location. Its separate inspection and verification results determine what was established.':'Bounded folder discovery encountered this path within the selected scope. This does not assign it to a Codex Project.';
+  if(topic==='Stored working directory'||topic==='Working folder')return 'CWD means working directory: the folder path stored with the Thread in Codex data. It is not a measurement of a running process, current folder existence or Project membership.';
+  if(topic==='Git verification')return state==='verified'?'Surveyor verified its supported subset of ordinary Git metadata, including reciprocal links for linked worktrees. This establishes the reported repository/worktree association, not Codex Project membership or an effective instruction boundary. Source: DOC-025, official Git layout/worktree documentation.':
+    state==='unsupported'?'This metadata layout is outside the supported verification subset. It is not a judgment that the repository is invalid, and does not independently prove a root marker exists.':
+    state==='inaccessible'?'Access prevented Git verification. This does not prove a repository or root marker is present or absent.':'Required Git metadata was not found in the inspected locations. Git identity remains unverified; independent marker checks are separate.';
+  if(topic==='Root-marker assumption')return 'This interpretation assumes the documented default .git marker. Marker presence is observed independently of Git repository validity. Custom markers or disabled parent search could change the result; effective Desktop configuration was not inspected. A candidate requires ordinary marker presence and completed negative checks at all nearer folders. Source: DOC-005 and DOC-006, reviewed official Codex documentation.';
+  if(topic==='Search stopping reason')return ({marker:'The first ordinary .git file or folder was reached after negative checks at every nearer folder. Higher ancestors were not inspected.',
+    'scope-boundary':'Inspection reached the permitted folder boundary. Higher ancestors were not checked, so this is not a completed search with no root.',
+    obstruction:'A folder or marker could not be checked as an ordinary entry. The exact failure location is retained below.',
+    'outside-scope':'The stored working folder is outside the approved inspection scope, so no ancestry was inspected.',
+    'invalid-cwd':'The stored working folder did not qualify as a safe local inspection target.',
+    'depth-limit':'The maximum number of ancestor folders was checked; remaining parents are unknown.',
+    'operations-limit':'The metadata-operation budget stopped further checks.', 'time-limit':'The dispatch deadline stopped new checks; it does not promise interruption of an outstanding operating-system call.',
+    cancelled:'Cancellation prevented further dispatch. Earlier checks remain recorded.', 'inspection-error':'Inspection could not finish; successfully acquired evidence remains retained.'} as Record<string,string>)[state]||'The recorded limit prevented further checks; remaining locations are uninspected.';
+  if(topic==='Instruction coverage')return state==='complete'?'Marker checks reached a candidate under the documented default assumption. Instruction-file checks can still be incomplete. File presence and size do not prove readability, selection, loading or historical behavior.':'Search coverage is incomplete for the recorded stopping reason. Unchecked ancestors or failed checks can change the candidate; reaching the discovery root is not evidence of a CWD-only boundary.';
+  if(topic==='Instruction files')return 'Only AGENTS.override.md and AGENTS.md metadata was checked. The documented order checks override first, then standard and configured fallback names; empty files and size limits can affect selection. Contents, fallback settings and global guidance were not inspected. No file is claimed selected, loaded or applied. Source: DOC-006.';
+  if(topic==='Inspection status')return state==='exists'?'Folder metadata was observed. The separate coverage describes whether direct children were enumerated; metadata success does not establish content readability.':
+    state==='missing'?'A completed check did not find the folder. This is different from being unable to reach or inspect it.':state==='reparse'?'The path was refused as a link or reparse point to preserve the inspection boundary. Its target was not followed.':
+    state==='inaccessible'?'Access prevented folder inspection. The result does not establish ordinary presence or absence.':state==='not-directory'?'The checked entry was not an ordinary directory.':'The folder check was unavailable or incomplete; technical results retain its reason and location.';
+  if(topic==='Path relationships')return 'These relationships compare path spellings or observed parent entries. A path-based relationship does not establish physical identity through links, Codex Project membership or instruction loading. Raw references remain available for debugging.';
+  if(topic==='Git metadata folders')return 'The administrative folder stores metadata for this checkout. The shared folder stores repository-wide metadata; they usually coincide for a main repository and differ for linked worktrees. Source: DOC-025.';
+  if(topic==='Snapshot coverage')return 'This snapshot contains bounded acquired records and separate filesystem observations, with their own time intervals and limits. A source namespace is an opaque identity for comparing snapshots, not a source path. Coverage and unresolved references do not prove that unobserved entities were deleted or that all Desktop state was captured.';
+  return '';
+}
+
+export type DiagnosticRelationGroup={label:string;rows:{text:string;raw:string;subject:string;target:string;related:string[]}[]};
+export function diagnosticRelationGroups(data:ExplorerData,selected:{kind:string;index?:number;path?:string}):DiagnosticRelationGroup[] {
+  const found=new Map<string,DiagnosticRelationGroup>();
+  const selectedRefs=new Set([selected.kind+':'+selected.index]);
+  if(selected.kind==='location'){
+    data.locations.forEach((path,index)=>{if(locationKey(path)===locationKey(selected.path||''))selectedRefs.add('location:'+index);});
+    data.discovery?.folders.forEach((folder,index)=>{if(locationKey(folder.path)===locationKey(selected.path||''))selectedRefs.add('folder:'+index);});
+  }
+  const ref=(kind:string,index:number):string=>kind==='project'?'Project '+(data.projects[index]?.label||'Unnamed Project'):
+    kind==='thread'?(data.threads[index]?((friendlyTitle(data.threads[index]!).qualification==='unavailable'?'':'Thread ')+friendlyTitle(data.threads[index]!).label):'Thread unavailable'):
+    kind==='git'?((data.discovery?.git[index]?.state==='verified'?(data.discovery.git[index]!.kind==='linked'?'Linked worktree ':'Main repository '):'Unverified Git metadata ')+readablePath(data.discovery?.folders[data.discovery.git[index]?.folder??-1]?.path||'unavailable')):
+    'Folder '+readablePath(kind==='location'?data.locations[index]||'unavailable':data.discovery?.folders[index]?.path||'unavailable');
+  const add=(key:string,label:string,text:string,raw:string,subject:string,target:string)=>{let group=found.get(key);if(!group){group={label,rows:[]};found.set(key,group);}group.rows.push({text,raw,subject,target,related:[...new Set([subject,target])].filter(ref=>!selectedRefs.has(ref))});};
+  for(const r of data.relations){
+    const subject=r.kind==='declares-root'?'project':'thread',target=['assigned-project','matches-exact-root','matches-normalized-root'].includes(r.kind)?'project':'location';
+    const relevant=selected.kind===subject&&selected.index===r.subject||selected.kind===target&&selected.index===r.target||
+      selected.kind==='location'&&target==='location'&&selected.path!==undefined&&locationKey(data.locations[r.target]||'')===locationKey(selected.path)||
+      selected.kind==='project'&&target==='project'&&selected.index===r.target;
+    if(!relevant)continue;
+    const verbs:Record<string,string>={'assigned-project':'Assigned Project','declares-root':'Declared Source folders','reports-cwd':'Reported working folders',
+      'shares-exact-cwd':'Shared stored working folders','matches-exact-root':'Exact Source-folder matches','matches-normalized-root':'Equivalent Windows path matches'};
+    add('stored:'+r.kind,verbs[r.kind]||r.kind,ref(subject,r.subject)+' → '+ref(target,r.target),r.kind+' · '+r.evidence+' · '+subject+':'+r.subject+' → '+target+':'+r.target,subject+':'+r.subject,target+':'+r.target);
+  }
+  const folder=selected.kind==='location'?data.discovery?.folders.findIndex(f=>locationKey(f.path)===locationKey(selected.path||'')):undefined;
+  for(const r of data.discovery?.relations||[]){
+    if(!(selected.kind===r.subject.kind&&selected.index===r.subject.index||selected.kind===r.target.kind&&selected.index===r.target.index||selected.kind==='location'&&(r.subject.kind==='folder'&&r.subject.index===folder||r.target.kind==='folder'&&r.target.index===folder)))continue;
+    const verbs:Record<string,string>={'physical-location':'Recorded folder associations','inside-git-tree':'Paths within Git working tree','same-git-repository':'Verified repository associations','directory-containment':'Observed parent-folder relationships'};
+    const groupTarget=r.target.kind==='git'?ref('git',r.target.index):'';
+    add('filesystem:'+r.kind+':'+(r.target.kind==='git'?r.target.index:''),(verbs[r.kind]||r.kind)+(groupTarget?' — '+groupTarget:''),
+      ref(r.subject.kind,r.subject.index)+' → '+ref(r.target.kind,r.target.index),r.kind+' · '+r.evidence+' · '+r.subject.kind+':'+r.subject.index+' → '+r.target.kind+':'+r.target.index,r.subject.kind+':'+r.subject.index,r.target.kind+':'+r.target.index);
+  }
+  return [...found.values()];
 }
 export function hasExpandableThreads(data:ExplorerData,groups:WorkspacePresentation[]):boolean {
   return groups.some(c=>c.projects.some(p=>projectThreads(data,p).filter(i=>c.threads.includes(i)).length>5));

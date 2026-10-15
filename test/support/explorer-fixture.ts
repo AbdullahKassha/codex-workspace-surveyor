@@ -10,7 +10,7 @@ export const inventedProjects={'local-projects':{
   'project-notes':{id:'project-notes',name:'Notes',rootPaths:['C:\\Synthetic\\notes']}},'thread-project-assignments':{
   'record-a':{projectKind:'local',projectId:'project-atlas'},'record-b':{projectKind:'local',projectId:'project-atlas'},
   'record-c':{projectKind:'local',projectId:'project-notes'}},'projectless-thread-ids':['record-d']};
-export function explorerFixture(build?:(db:DatabaseSync)=>void,wal=false,json:unknown=inventedProjects,indexContent?:string){
+export function explorerFixture(build?:(db:DatabaseSync)=>void,wal:boolean|'checkpointed'=false,json:unknown=inventedProjects,indexContent?:string){
   const run=new SyntheticRun('simulated-owner-restricted');const scratches:CanaryScratch[]=[];
   const source=join(run.sources,'standalone.sqlite'),globalState=join(run.sources,'metadata.json');
   const sessionIndex=join(run.sources,'session_index.jsonl');
@@ -50,8 +50,9 @@ export function explorerFixture(build?:(db:DatabaseSync)=>void,wal=false,json:un
         for(const row of [['record-a','C:\\Synthetic\\atlas','Fix parser boundaries'],['record-b','C:\\Synthetic\\atlas','Document acquisition'],
           ['record-c','C:\\Synthetic\\atlas\\docs','Review notes'],['record-d','C:\\Synthetic\\2026-10-01\\workspace','Untangle workspace naming']])insert.run(...row,'SYNTHETIC_UNCONSUMED');
       }
-      for(const suffix of wal?['','-wal','-shm']:[''])fs.copyFileSync(builder+suffix,source+suffix);
+      if(wal!=='checkpointed')for(const suffix of wal?['','-wal','-shm']:[''])fs.copyFileSync(builder+suffix,source+suffix);
     }finally{db.close();}
+    if(wal==='checkpointed')fs.copyFileSync(builder,source);
     fs.writeFileSync(globalState,JSON.stringify(json));
     if(indexContent!==undefined)fs.writeFileSync(sessionIndex,indexContent);
   }catch{

@@ -18,7 +18,7 @@ import { directoryFixture } from './support/discovery-fixture.js';
 import { SessionBroker } from './support/session-broker.js';
 import { explorerFixture } from './support/explorer-fixture.js';
 import { runSyntheticExplorer, explorerPreflightSafety } from './support/personal-canary.js';
-import { runReusableEntry } from './support/reusable-explorer-entry.js';
+import { runReusableEntry, finishExplorerRecovery } from './support/reusable-explorer-entry.js';
 import { completeExplorerRefresh } from './support/personal-explorer-entry.js';
 
 const scope='a'.repeat(64),token='b'.repeat(64),url='http://127.0.0.1:12345/#'+token;
@@ -32,6 +32,19 @@ function data(reverse=false):ExplorerData{
     reverse?threads.reverse():threads,reverse?projects.reverse():projects,[{threadId:'one',projectId:'alpha'},{threadId:'two',projectId:'beta'}]);
 }
 const snapshot=()=>new ExplorerSnapshot(data());
+
+test('application recovery preserves only an exact non-destructive inventory refusal and never creates another generation',async()=>{
+  const inventory={status:'refused',check:'scratch-validation',category:'scratch-inventory',helperExit:'confirmed',deletionAuthorized:false} as const;
+  let calls=0;const preserve=async()=>{calls++;return 'preserved' as const;};
+  assert.equal(await finishExplorerRecovery(inventory,preserve),'preserved');assert.equal(calls,1);
+  assert.equal(await finishExplorerRecovery(inventory),'blocked');
+  for(const change of [{helperExit:'unconfirmed' as const},{deletionAuthorized:true},{category:'identity-ownership' as const},
+    {status:'busy' as const},{check:'authentication' as const}]){
+    assert.equal(await finishExplorerRecovery({...inventory,...change},async()=>assert.fail('Do not preserve an unsafe refusal')),'blocked');
+  }
+  assert.equal(await finishExplorerRecovery({...inventory,status:'removed',category:'none',deletionAuthorized:true},
+    async()=>assert.fail('No preservation after recovery')),'removed');
+});
 
 test('session starts empty without acquisition; reads and subscriptions never inspect',async()=>{
   let runs=0;const session=new ExplorerSession({scope,acquire:async()=>{runs++;return {snapshot:snapshot()};}});
@@ -64,6 +77,46 @@ test('close blocks new work and waits for acquisition cleanup before finishing',
   session.refresh();const signal=await entered.promise;let finished=false;const closing=session.close().then(()=>{finished=true;});
   assert.equal(signal.aborted,true);assert.equal(session.refresh(),'closed');assert.equal(session.snapshot().data,null);await nextTurn();assert.equal(finished,false);
   const cap=snapshot();wait.resolve({snapshot:cap});await closing;assert.equal(cap.take(),undefined);assert.equal(session.state().phase,'closed');
+});
+
+for(const result of ['removed','preserved','blocked'] as const)
+test('explicit recovery '+result+' serializes with acquisition and closure without automatic Refresh',async()=>{
+  const wait=deferred<typeof result>();let acquisitions=0,recoveries=0;
+  const session=new ExplorerSession({scope,acquire:async()=>{acquisitions++;return {failure:'cleanup'};},
+    recover:()=>{recoveries++;return wait.promise;}});
+  try{
+    assert.equal(session.recover(),'unavailable');assert.equal(recoveries,0);
+    session.refresh();await session.settled();assert.equal(session.state().recoveryAvailable,true);
+    assert.equal(session.recover(),'accepted');assert.equal(session.recover(),'busy');assert.equal(session.refresh(),'busy');
+    await nextTurn();assert.equal(recoveries,1);assert.equal(session.state().recoveryAction,'running');
+    wait.resolve(result);await session.settled();assert.equal(acquisitions,1);assert.equal(session.state().recoveryAction,result);
+    assert.equal(session.state().legacyUnresolved,result==='preserved'?true:undefined);
+    assert.equal(session.recover(),'unavailable');
+    assert.equal(session.refresh(),result==='removed'?'accepted':'busy');await session.settled();
+  }finally{wait.resolve(result);await session.close();}
+});
+test('closing during explicit recovery waits for protected work and blocks further commands',async()=>{
+  const wait=deferred<'removed'>(),entered=deferred<void>();
+  const session=new ExplorerSession({scope,acquire:async()=>({failure:'cleanup'}),recover:()=>{entered.resolve();return wait.promise;}});
+  session.refresh();await session.settled();session.recover();await entered.promise;
+  let closed=false;const closing=session.close().then(()=>{closed=true;});await nextTurn();assert.equal(closed,false);
+  assert.equal(session.recover(),'closed');assert.equal(session.refresh(),'closed');wait.resolve('removed');await closing;
+  assert.equal(session.state().phase,'closed');
+});
+
+test('recovery endpoint retains browser authentication, origin and no-body requirements',async()=>{
+  let calls=0;const session=new ExplorerSession({scope,acquire:async()=>({failure:'cleanup'}),recover:async()=>{calls++;return 'removed';}});
+  const server=await serveReusableExplorer(session),u=new URL(server.url),headers={'X-Surveyor-Session':u.hash.slice(1),Origin:u.origin};
+  try{
+    session.refresh();await session.settled();
+    assert.equal((await fetch(u.origin+'/recover',{method:'POST'})).status,403);
+    assert.equal((await fetch(u.origin+'/recover',{method:'POST',headers:{...headers,Origin:'https://example.invalid'}})).status,403);
+    assert.equal((await fetch(u.origin+'/recover',{method:'POST',headers,body:'invented'})).status,403);
+    assert.equal((await fetch(u.origin+'/recover?path=invented',{method:'POST',headers})).status,404);
+    assert.equal(calls,0);assert.equal((await fetch(u.origin+'/recover',{method:'POST',headers})).status,202);
+    await session.settled();assert.equal(calls,1);
+    assert.equal((await fetch(u.origin+'/recover',{method:'POST',headers})).status,409);
+  }finally{await server.close();}
 });
 test('idle reads do not extend expiration; deliberate activity cannot extend absolute maximum',async t=>{
   t.mock.timers.enable({apis:['setTimeout']});const session=new ExplorerSession({scope,idleMs:100,maximumMs:250,acquire:async()=>({snapshot:snapshot()})});
@@ -149,6 +202,16 @@ class Element {
   setAttribute(key:string,value:string){this.attributes[key]=value;}focus(){this.focused=true;}contains(target:unknown){return all(this).includes(target as Element);}get childElementCount(){return this.children.length;}
 }
 const all=(element:Element):Element[]=>[element,...element.children.flatMap(all)];
+test('legacy unresolved notice remains visible across successful delivery, disconnect and closure without changing relationships',async()=>{
+  assert.match(reusableExplorerHtml,/<p id="legacy-notice" role="status" hidden>/);
+  const ui=await browser();try{
+    await ui.push(ui.state());assert.equal(ui.get('legacy-notice').hidden,true);
+    await ui.push(ui.state({version:2,legacyUnresolved:true}));assert.equal(ui.get('legacy-notice').hidden,false);
+    assert.ok(ui.get('relationships').children.length>0);assert.match(ui.get('session-status').textContent,/^Ready\./);
+    await ui.loseEvents('eof');assert.equal(ui.get('legacy-notice').hidden,false);
+    ui.stop();assert.equal(ui.get('legacy-notice').hidden,false);
+  }finally{ui.stop();}
+});
 async function browser(store=new Map<string,string>(),hash='#'+token,realTimers=false){
   const elements=new Map<string,Element>(),events=new Map<string,(event:unknown)=>void>(),requests:string[]=[];
   let stream!:ReadableStreamDefaultController<Uint8Array>,current={revision:1,scope,data:data()},hold=false,failedClose=false;
@@ -173,6 +236,22 @@ async function browser(store=new Map<string,string>(),hash='#'+token,realTimers=
   return {get,events,requests,credentials,store,state,push,loseEvents:async(kind:'error'|'eof')=>{if(kind==='error')stream.error(new Error('Invented stream loss'));else stream.close();await nextTurn();},replace:(revision:number,newData:ExplorerData,newScope=scope)=>{current={revision,scope:newScope,data:newData};},
     hold:()=>{hold=true;},release:()=>delivery.resolve(current),failClose:()=>{failedClose=true;},focus:(id:string)=>{document.activeElement=get(id);},stop:()=>events.get('pagehide')?.({})};
 }
+
+test('recovery control is contextual, keyboard accessible and explains protected preservation',async()=>{
+  assert.match(reusableExplorerHtml,/<button id="recover" hidden disabled aria-describedby="recovery-note">Recover temporary copies/);
+  const ui=await browser();try{
+    await ui.push(ui.state());assert.equal(ui.get('recover').hidden,true);
+    await ui.push(ui.state({version:2,recoveryAvailable:true}));assert.equal(ui.get('recover').hidden,false);
+    assert.equal(ui.get('refresh').disabled,true);assert.equal(ui.requests.includes('/recover'),false);
+    ui.focus('recover');ui.get('recover').onclick!();await nextTurn();assert.equal(ui.requests.filter(p=>p==='/recover').length,1);
+    await ui.push(ui.state({version:3,phase:'acquiring',recoveryAction:'running'}));
+    assert.equal(ui.get('cancel').hidden,true);assert.equal(ui.get('session-status').focused,true);
+    await ui.push(ui.state({version:4,recoveryAction:'preserved',legacyUnresolved:true}));
+    assert.match(ui.get('session-status').textContent,/Close this session and launch Surveyor again/);
+    assert.equal(ui.get('legacy-notice').hidden,false);assert.equal(ui.get('refresh').disabled,true);
+    await ui.loseEvents('eof');ui.get('recover').onclick!();await nextTurn();assert.equal(ui.requests.filter(p=>p==='/recover').length,1);
+  }finally{ui.stop();}
+});
 
 for(const kind of ['error','eof'] as const)test('event-stream '+kind+' stays disconnected through actual 30-second/repeated age ticks; authenticated reload reconnects without inspection',async t=>{
   const now=new Date(2026,9,11,15,0).getTime(),updatedAt=new Date(now-60000).toISOString();

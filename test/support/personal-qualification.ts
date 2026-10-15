@@ -29,7 +29,7 @@ export function inspectQualificationAnalysis(scratch: CanaryScratch, test?: Qual
   let db: DatabaseSync | undefined;
   try {
     scratch.entries();
-    db = new DatabaseSync(scratch.path('analysis', 0), { readOnly: true, allowExtension: false,
+    db = new DatabaseSync(scratch.sqliteLocation(), { readOnly: true, allowExtension: false,
       defensive: true, timeout: 0, enableDoubleQuotedStringLiterals: false,
       limits: { length: 1024 * 1024, sqlLength: 4096, column: 512, attach: 0 } });
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON');

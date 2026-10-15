@@ -4,7 +4,7 @@ import { realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runExplorerEntry } from './explorer-entry.js';
-import { runPersonalExplorer, explorerPreflightSafety, validPersonalMapSource, type CanaryOptions, type ExplorerDelivery } from './personal-canary.js';
+import { runPersonalExplorer, explorerPreflightSafety, validPersonalMapSource, type CanaryOptions, type CanaryResult, type ExplorerDelivery } from './personal-canary.js';
 import { serveLocalExplorer } from '../../src/explorer/server.js';
 import { escapeStored } from '../../src/explorer/view.js';
 import { enrichExplorerSnapshot, validDiscoveryRoot } from '../../src/explorer/discovery.js';
@@ -50,10 +50,33 @@ export async function preparePersonalExplorer(args:readonly string[],display:(te
 
 // Repeated invocations use the same reviewed operation. Cancellation withholds
 // delivery; it never interrupts the coordinator's disposal/recovery work.
+export function acquisitionFailureSummary(s:CanaryResult):string {
+  const category=(value:unknown,allowed:readonly string[])=>typeof value==='string'&&allowed.includes(value)?value:'unreported';
+  const reasons=['none','selection','closure','limit','containment','unstable','analysis','unsupported','helper','cleanup','io'];
+  const a=s.evidence.acquisition;
+  return 'Acquisition failure: '+JSON.stringify({
+    stage:category(a?.stage,['input','recovery-preflight','source-selection','scratch-initialization','recovery-initialization',
+      'helper-preparation','recovery-persistence','source-acquisition','copy-validation','analysis','source-verification','helper-release']),
+    reason:category(s.reason,reasons),acquisitionReason:category(a?.reason,reasons),
+    scratchInitialization:category(a?.scratchInitialization,['not-started','validating','creation-attempted','created']),
+    recoveryPreflight:category(a?.recoveryPreflight,['not-checked','clear','occupied']),
+    helperLaunched:typeof a?.helperLaunched==='boolean'?a.helperLaunched:null,
+    helperExit:category(a?.helperExit,['not-launched','confirmed','unconfirmed']),
+    helperPhase:category(s.evidence.phase,['input','closure','protect','persistence','open','held','copy','verify','release','location','recovery']),
+    helperOutcome:category(a?.helperOutcome,['ok','io','acl-refused','sharing-refused','closure-refused','unstable','not-reported']),
+    cleanupRecovery:category(a?.cleanupRecovery,['not-attempted','removed','busy','refused','residual','unavailable']),
+    cleanup:category(s.cleanup,['removed','residual']),recovery:category(s.recovery,['removed','available','unavailable']),
+    ...(s.limit?{limit:category(s.limit,['reader-rows','reader-id-bytes','reader-cwd-bytes','reader-required-text','project-count','project-text','json-bytes',
+      'source-file-bytes','source-total-bytes','scratch-file-bytes','scratch-total-bytes','scratch-entries','recovery-controls','recovery-entries'])}:{})});
+}
 export async function acquirePersonalSnapshot(options:CanaryOptions & {discoveryRoot?:string},signal:AbortSignal,
-  discovery:()=>void=()=>{},scoped=false):Promise<RefreshResult>{
+  discovery:()=>void=()=>{},scoped=false,report:(text:string)=>void=()=>{}):Promise<RefreshResult>{
   if(signal.aborted)return {failure:'unavailable'};
-  return completeExplorerRefresh(await runPersonalExplorer(options),options,signal,discovery,scoped);
+  const result=await runPersonalExplorer(options);
+  if(result.safety.status!=='passed'){
+    try{report(acquisitionFailureSummary(result.safety));}catch{/* Reporting never changes the publication gate. */}
+  }
+  return completeExplorerRefresh(result,options,signal,discovery,scoped);
 }
 // Shared publication gate also exercised through disposable protected acquisition.
 export async function completeExplorerRefresh(result:ExplorerDelivery,options:{discoveryRoot?:string;executable:string},signal:AbortSignal,

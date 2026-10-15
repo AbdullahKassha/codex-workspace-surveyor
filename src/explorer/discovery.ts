@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { ExplorerSnapshot, locationKey, windowsPathKey, type ExplorerData, type DiscoveryObservation, type DiscoveryDiagnostic,
   type FolderObservation, type GitObservation, type PhysicalRelation } from './model.js';
+import { observeInstructionScope } from './instruction-scope.js';
 
 export const discoveryLimits=Object.freeze({depth:4,folders:600,entries:6000,operations:30000,milliseconds:20000,git:100});
 const excluded=new Set(['.git','node_modules','dist','build','out','target','coverage','.next','.cache','.venv','venv','vendor','bin','obj']);
@@ -75,6 +76,43 @@ export function lstatPath(path:string):string {
   return process.platform==='win32'&&/^\\\\\?\\[A-Za-z]:\\$/.test(path)?path.slice(4):path;
 }
 
+export type MetadataResult={state:State;stat?:Awaited<ReturnType<typeof lstat>>;identity?:FolderObservation['identity'];
+  reason?:string;obstruction?:string;at?:'target'|'ancestor'};
+// Shared read-only primitive. Each caller owns its work budget and reader lifetime.
+export function createMetadataProbe(options:DiscoveryOptions,step:()=>void,
+  note:(path:string,reason:string,stage?:DiscoveryDiagnostic['stage'],at?:DiscoveryDiagnostic['at'])=>void=()=>{}) {
+  const service=process.platform==='win32'&&!options.attributes&&!options.signal?.aborted?
+    attributeReader(options.executable??join(process.env.ProgramFiles??'','PowerShell','7','pwsh.exe')):undefined;
+  const attributes=options.attributes??service?.read;
+  const check=async(path:string):Promise<MetadataResult>=>{
+    if(!validDiscoveryPath(path))return {state:'uninspected',reason:'invalid-path'};
+    if(options.access&&!options.access.metadataRoots.some(root=>insidePath(path,root))){note(path,'outside-approved-scope');return {state:'uninspected',reason:'outside-approved-scope'};}
+    const chain:string[]=[];let current=path;for(let i=0;;i++){
+      if(i>64)return {state:'uninspected',reason:'ancestor-limit'};chain.push(current);const parent=dirname(current);if(parent===current)break;current=parent;
+    }
+    let last:Awaited<ReturnType<typeof lstat>>|undefined;
+    for(const member of chain.reverse()){
+      const at=member===path?'target':'ancestor';
+      step();try{last=await lstat(lstatPath(member));}catch(error){const failure=filesystemFailure(error);if(failure.state!=='missing')note(path,failure.reason,'node-lstat',at);
+        return {state:failure.state,reason:failure.reason,obstruction:member,at};}
+      if(last.isSymbolicLink())return {state:'reparse',reason:'reparse-refused',obstruction:member,at};
+      if(attributes){step();const value=await attributes(member);if(typeof value!=='number'){
+        note(path,value===null?'attributes-unavailable':value,'managed-attributes',at);
+        return {state:value==='access-denied'?'inaccessible':value==='missing'?'missing':value==='inspection-error'?'inspection-error':'uninspected',
+          reason:value===null?'attributes-unavailable':value,obstruction:member,at};
+      }if(value&1024)return {state:'reparse',reason:'reparse-refused',obstruction:member,at};}
+      if(member!==path&&!last.isDirectory())return {state:'not-directory',reason:'not-directory',obstruction:member,at};
+    }
+    if(options.access&&last!.isDirectory()){
+      step();const precise=await lstat(lstatPath(path),{bigint:true});
+      if(!precise.isDirectory()||precise.isSymbolicLink()||Number(precise.dev)!==last!.dev||Number(precise.ino)!==last!.ino)return {state:'uninspected',reason:'identity-changed'};
+      return {state:'exists',stat:last!,identity:{device:String(precise.dev),file:String(precise.ino)}};
+    }
+    return {state:'exists',stat:last!};
+  };
+  return {check,close:async()=>{await service?.close();}};
+}
+
 // All findings stay in the one-use browser snapshot; no source/repository writes.
 export async function discoverRelationships(data:ExplorerData,options:DiscoveryOptions):Promise<ExplorerData>{
   if(!validDiscoveryRoot(options.root))throw new Error('Discovery root refused');
@@ -85,35 +123,10 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
   const folders:FolderObservation[]=[],git:GitObservation[]=[],relations:PhysicalRelation[]=[],diagnostics:DiscoveryDiagnostic[]=[];
   const folderByKey=new Map<string,number>(),examined=new Set<number>(),commonVisited=new Set<string>(),gitBoundaries=new Set<number>();
   let operations=0,entries=0,status:DiscoveryObservation['status']='complete';const started=Date.now(),from=new Date(started).toISOString();
-  const service=process.platform==='win32'&&!options.attributes&&!options.signal?.aborted?attributeReader(options.executable??join(process.env.ProgramFiles??'','PowerShell','7','pwsh.exe')):undefined;
-  const attributes=options.attributes??service?.read;
   const step=()=>{if(options.signal?.aborted){status='cancelled';throw new Stop();}
     if(operations>=limits.operations||Date.now()-started>limits.milliseconds){status='limited';throw new Stop();}operations++;};
   const note=(path:string,reason:string,stage?:DiscoveryDiagnostic['stage'],at?:DiscoveryDiagnostic['at'])=>{if(diagnostics.length<limits.folders)diagnostics.push({path,reason,...(stage?{stage}:{}),...(at?{at}:{})});};
-  const safeStat=async(path:string):Promise<{state:State;stat?:Awaited<ReturnType<typeof lstat>>;identity?:FolderObservation['identity']}>=>{
-    if(!validDiscoveryPath(path))return {state:'uninspected'};
-    if(options.access&&!options.access.metadataRoots.some(root=>insidePath(path,root))){note(path,'outside-approved-scope');return {state:'uninspected'};}
-    const chain:string[]=[];let current=path;for(let i=0;;i++){
-      if(i>64)return {state:'uninspected'};chain.push(current);const parent=dirname(current);if(parent===current)break;current=parent;
-    }
-    let last:Awaited<ReturnType<typeof lstat>>|undefined;
-    for(const member of chain.reverse()){
-      step();try{last=await lstat(lstatPath(member));}catch(error){const failure=filesystemFailure(error);if(failure.state!=='missing')note(path,failure.reason,'node-lstat',member===path?'target':'ancestor');return {state:failure.state};}
-      if(last.isSymbolicLink())return {state:'reparse'};
-      if(attributes){step();const value=await attributes(member);if(typeof value!=='number'){
-        note(path,value===null?'attributes-unavailable':value,'managed-attributes',member===path?'target':'ancestor');return {state:value==='access-denied'?'inaccessible':value==='missing'?'missing':value==='inspection-error'?'inspection-error':'uninspected'};
-      }if(value&1024)return {state:'reparse'};}
-      if(member!==path&&!last.isDirectory())return {state:'not-directory'};
-    }
-    // Node's numeric Windows file IDs can exceed its exact integer range.
-    // Capture the actual directory identity without rounding it for selection.
-    if(options.access&&last!.isDirectory()){
-      step();const precise=await lstat(lstatPath(path),{bigint:true});
-      if(!precise.isDirectory()||precise.isSymbolicLink()||Number(precise.dev)!==last!.dev||Number(precise.ino)!==last!.ino)return {state:'uninspected'};
-      return {state:'exists',stat:last!,identity:{device:String(precise.dev),file:String(precise.ino)}};
-    }
-    return {state:'exists',stat:last!};
-  };
+  const probe=createMetadataProbe(options,step,note),safeStat=probe.check;
   const directory=async(path:string)=>{const s=await safeStat(path);return s.state==='exists'&&!s.stat!.isDirectory()?{state:'not-directory' as const}:s;};
   const addFolder=async(path:string,origin:FolderObservation['origin']):Promise<number>=>{
     const key=locationKey(path),previous=folderByKey.get(key);
@@ -234,7 +247,7 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
     }
   }catch(error){if(!(error instanceof Stop))throw error;note(options.root,options.signal?.aborted?'cancelled':'discovery-limit');
     if(enumerating!==undefined)folders[enumerating]={...folders[enumerating]!,inspection:'entry-limit'};}
-  finally{await service?.close();}
+  finally{await probe.close();}
   // Containment is evidence only and never unions components. No broad ancestor
   // (or registry membership inference) can bridge unrelated Projects.
   const physical=(kind:'project'|'thread'|'folder',index:number,path:string)=>{
@@ -270,5 +283,7 @@ export async function discoverRelationships(data:ExplorerData,options:DiscoveryO
 function freeze<T>(value:T):T {if(value&&typeof value==='object'){Object.values(value).forEach(freeze);Object.freeze(value);}return value;}
 function declaredLocation(data:ExplorerData,path:string):boolean{return data.projects.some(p=>p.roots.some(r=>locationKey(r)===locationKey(path)))||data.threads.some((t,i)=>data.visibility[i]==='inferred'&&t.cwd!==null&&locationKey(t.cwd)===locationKey(path));}
 export async function enrichExplorerSnapshot(snapshot:ExplorerSnapshot,options:DiscoveryOptions):Promise<ExplorerSnapshot>{
-  const data=snapshot.take();if(!data)throw new Error('Explorer unavailable');return new ExplorerSnapshot(await discoverRelationships(data,options));
+  const data=snapshot.take();if(!data)throw new Error('Explorer unavailable');
+  const discovered=await discoverRelationships(data,options);
+  return new ExplorerSnapshot(freeze({...discovered,instructionScope:await observeInstructionScope(discovered,options)}));
 }
