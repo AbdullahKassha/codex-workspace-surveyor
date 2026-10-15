@@ -15,7 +15,9 @@
 | Before/after inspection | Before/After Audits |
 | Visual browsing | Workspace Explorer |
 
-These are descriptive capability names, not public APIs or authorization. The accepted relationship explorer implements bounded folder/Git/worktree observation. The approved Instruction Discovery Scope preparation adds conditional marker/standard instruction-file metadata explanations; effective configuration, loading and action capabilities remain deferred.
+These are descriptive capability names, not public APIs or authorization. The accepted relationship explorer implements bounded folder/Git/worktree observation. The delivered Instruction Discovery Scope slice adds conditional marker/standard instruction-file metadata explanations; effective configuration, loading and action capabilities remain deferred.
+
+**Priority reconciliation, 2026-10-15:** the [roadmap](roadmap.md#current-position-and-priorities-2026-10-15) records the delivered baseline and current ordering separately from these capability names and the retained early product vision below. Migration Guidance is [organic documentation only](index.md#qualified-manual-workflows); dedicated Health/Organization and Before/After systems are deferred, not implicit MVP or public-release prerequisites.
 
 ## Problem: founder-observed evidence
 
@@ -41,7 +43,7 @@ Principles:
 
 ## Current delivered experience and deferred outcomes
 
-**Accepted scope, reported 2026-10-10:** the local browser presents light vertical, numbered Workspace groups, assigned Threads, group-level Source folders, projectless Threads, deduplicated working locations, standalone folder context and verified Git/worktree relationships. Details and Diagnostics preserve useful uncertainty; native browser Find works with Thread expansion. Folder inventory, raw prompt titles and cleanup actions are absent. [Validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) and [compatibility](compatibility.md) qualify this bounded Windows experience. Evidence & Compatibility is the next priority.
+**Accepted scope, reported 2026-10-10:** the local browser presents light vertical, numbered Workspace groups, assigned Threads, group-level Source folders, projectless Threads, deduplicated working locations, standalone folder context and verified Git/worktree relationships. Details and Diagnostics preserve useful uncertainty; native browser Find works with Thread expansion. Folder inventory, raw prompt titles and cleanup actions are absent. [Validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) and [compatibility](compatibility.md) qualify this bounded Windows experience. Evidence & Compatibility was the next priority at that time.
 
 **Founder-approved presentation refinement, 2026-10-14:** the relationship tree remains the primary navigation surface. Details identifies the selected entity, shows useful full paths and exceptional status, and omits ordinary association lists and repeated navigation. Thread Details uses “Working folder,” short observed-file findings and a possible boundary explicitly based on the documented default `.git` assumption; effective Desktop settings remain unverified. Incomplete checks retain scoped explanations. Initially collapsed “Technical information” provides IDs, original paths and optional access to entity-specific Diagnostics, where relationship reasoning, negative checks, instruction limitations and provenance remain available. Only validated, short extended drive paths receive a conventional display/copy spelling; evidence and operational paths remain exact. Device, UNC, long and ambiguous spellings are preserved. This supersedes the dated normal-Details wording below without changing observations, interpretation or Workspace structure.
 

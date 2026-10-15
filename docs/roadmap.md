@@ -1,12 +1,31 @@
 # Milestone roadmap
 
-## Current position and next priority, 2026-10-10
+## Current position and priorities, 2026-10-15
+
+**Founder-reported accepted and independently delivered baseline:** `af5a9a6d7775dda37e0d3cf43a8611d3f5920780`. The recent Explorer, conditional Instruction Discovery Scope, recovery hardening and UX work is complete for its recorded scope. The M0–M4 definitions below remain the main product/release milestones; Explorer phases and named capabilities are incremental tracks, not replacement milestone numbers. The decisions here supersede broader optional-capability expectations in the historical definitions.
+
+| Priority | Next planning scope |
+| --- | --- |
+| 1 — Live-friendly Explorer | Assess whether a useful refreshed snapshot is possible while Desktop runs, using genuinely different, defensible approaches and explicit feasibility gates. Preserve the existing [NO-GO findings and limits](research/live-acquisition-feasibility.md#decision-no-go-under-the-accepted-safety-contract); closed-app Refresh remains required. |
+| 2 — Explorer Phase 2B | Reassess durable access authorization and reusable-session improvements against actual remaining founder friction and delivered Phase 2A behavior. Do not automatically implement the earlier proposed feature set. |
+
+The immediate follow-up is a separate, tightly scoped Plan Mode feasibility assessment for Priority 1. This priority change authorizes no experiments, implementation or bypass of Desktop-closure or source-integrity safeguards. Evidence & Compatibility remains ongoing maintenance of the existing catalog, matrix and records rather than the next standalone development priority. Historical research failures and unresolved fixture disclosures remain unchanged; the optional live-research group is not rerun by this decision.
+
+| Capability | Current decision |
+| --- | --- |
+| Migration Guidance | Organic documentation only under the [existing workflow maintenance policy](index.md#qualified-manual-workflows); no dedicated development or active-research milestone, embedded engine or new UI. |
+| Workspace Health & Organization Guidance | Defer a dedicated milestone. Use the relationship tree for manual inspection; consider lightweight contextual observations only when real usage demonstrates substantial value. No scores, warning proliferation or dashboard. |
+| Before/After Audits | Defer a dedicated snapshot-comparison system. Record observations naturally arising from actual migrations or organization changes; no proactive historical engine or checklist population. |
+
+[M4 public release readiness](#m4) remains a meaningful future milestone after important everyday usability, installation, compatibility, security and operational needs are addressed. Optional Health, Migration and Before/After features are not prerequisites without demonstrated need. Deferred infrastructure such as persisted snapshots/diff formats, exports, additional platform adapters, integrations and packaging remains separately scoped; these tracks are not automatically activated by the capability names or current priorities.
+
+### Earlier position, 2026-10-10
 
 **Founder-reported acceptance:** the Filesystem/Git Discovery and Workspace Relationship Explorer milestone is accepted and independently reviewed at `d15c78b121074c78a3b3492e369c3e89c85ca93e`. M0/M1 and the bounded M2 acquisition/metadata path are complete for their recorded scopes; M3’s compact relationship-browser slice is delivered. This does not complete proposed before/after audits, organization guidance or release readiness.
 
-**Next:** integrate Evidence & Compatibility into the existing catalog, matrix and research records. Preserve source provenance, applicability limits, current-versus-historical distinctions and material regression links. [Current validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) records the accepted scope; [compatibility](compatibility.md) separates founder observations and fixture results.
+**Priority at that time:** integrate Evidence & Compatibility into the existing catalog, matrix and research records. Preserve source provenance, applicability limits, current-versus-historical distinctions and material regression links. [Milestone validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) records that accepted scope; [compatibility](compatibility.md) separates founder observations and fixture results.
 
-Daily-use improvements and new discovery features follow separately. Potential leftovers, instruction/boundary diagnostics, migration executors, before/after audits, exports, live acquisition, new hosts and public release remain deferred. Roadmap outcomes do not authorize private reads or actions.
+At that point, daily-use improvements and new discovery features followed separately; potential leftovers, instruction/boundary diagnostics, migration executors, before/after audits, exports, live acquisition, new hosts and public release were deferred. The current priorities above supersede this ordering, not its evidence or authorization limits. Roadmap outcomes do not authorize private reads or actions.
 
 <a id="authorization-design-decision"></a>
 ## Historical milestone definitions and gates

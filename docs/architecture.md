@@ -1,6 +1,8 @@
 # Conceptual architecture
 
-## Current implementation, 2026-10-10
+**Current applicability, 2026-10-15:** the [accepted baseline and priorities](roadmap.md#current-position-and-priorities-2026-10-15) supersede earlier preparation-status wording below. Reusable Phase 2A sessions/explicit Refresh and conditional instruction-metadata enrichment are delivered; source acquisition still requires Desktop closure. Live-friendly feasibility is not an architecture commitment or a safety-gate change. Phase 2B will be reassessed against remaining friction, not automatically activated by 2A completion. Persisted audit/diff systems and optional integrations remain deferred technical tracks; distribution choices belong to M4 planning.
+
+## Accepted standalone slice, 2026-10-10
 
 The accepted path is selected sources → protected acquisition and separate analysis copies → bounded allowlisted readers → evidence-bearing reconciliation → optional bounded filesystem/Git enrichment → pure presentation → short-lived loopback browser. Enrichment and delivery occur after successful coordinator source verification, helper exit and authenticated copy cleanup. The browser snapshot lives in memory; no export, refresh or persistence is implemented.
 

@@ -1,8 +1,8 @@
 # Documentation index
 
-**Current accepted milestone, reported 2026-10-10:** Filesystem/Git Discovery and the Workspace Relationship Explorer were founder-accepted and independently reviewed at `d15c78b121074c78a3b3492e369c3e89c85ca93e`. [Current usage and validation](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) distinguishes supplied personal observations from disposable-fixture results. The CLI remains a synthetic demonstration; the separate local browser entry uses protected closed-app acquisition.
+**Current position, 2026-10-15:** the [canonical roadmap](roadmap.md#current-position-and-priorities-2026-10-15) records the accepted baseline, completed Explorer/instruction/recovery/UX scope and updated priorities. [Usage and validation](research/explorer-local-read-only-validation.md) distinguishes supplied personal observations from disposable-fixture results. The CLI remains a synthetic demonstration; the local browser uses protected closed-app acquisition.
 
-The next priority is **Evidence & Compatibility**. Start with the [catalog](research/evidence-catalog.md) for provenance and the [compatibility matrix](compatibility.md) for tested scenarios and limits. Preparation run sheets retain their dated scope; they do not describe current explorer launch requirements. Historical evidence and residual disclosures remain in their original records.
+The next planning task is Live-friendly Explorer feasibility; Phase 2B reassessment follows. The [catalog](research/evidence-catalog.md) and [compatibility matrix](compatibility.md) remain the sources for provenance, tested scenarios and limits. Preparation run sheets retain their dated scope; they do not describe current explorer launch requirements. Historical evidence and residual disclosures remain in their original records.
 
 ## Product and design
 
@@ -65,7 +65,7 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [Projectless CWD migration](workflows/projectless-cwd-migration.md).
 - [Managed worktree review](workflows/managed-worktree-review.md).
 
-These workflows preserve experimental guidance. M0 does not authorize running them.
+**Founder decision, 2026-10-15:** Migration Guidance is organic documentation only, with no dedicated development or active-research milestone. Maintain these guides only for a genuine user need, actual operation, naturally encountered issue or validated experience. Preserve empirical findings and their version/evidence limits. Do not invent scenarios, experiment with unneeded techniques, research alternatives to expand the library or create files to fill perceived gaps. Users may read the Markdown or provide it as context to ChatGPT/Codex; no embedded migration engine or new UI is planned. Documentation does not authorize executing a workflow.
 
 ## Reading claims
 
