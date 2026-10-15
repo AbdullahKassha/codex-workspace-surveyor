@@ -53,6 +53,40 @@ test('session starts empty without acquisition; reads and subscriptions never in
     assert.equal(session.state().revision,1);assert.equal(session.state().attempt?.outcome,'success');
   }finally{await session.close();}
 });
+test('reopen acquires only without a snapshot and never queues behind busy work',async()=>{
+  let runs=0,now=Date.parse('2026-10-15T09:00:00Z');const wait=deferred<RefreshResult>();
+  const session=new ExplorerSession({scope,now:()=>now,acquire:()=>++runs===1?wait.promise:Promise.resolve({snapshot:snapshot()})});
+  try{
+    assert.equal(session.reopen(),'accepted');assert.equal(session.reopen(),'busy');await nextTurn();assert.equal(runs,1);
+    wait.resolve({snapshot:snapshot()});await session.settled();
+    const state=session.state(),retained=session.snapshot().data;now+=60000;
+    assert.equal(session.reopen(),'retained');await session.settled();
+    assert.equal(runs,1);assert.equal(session.snapshot().data,retained);assert.deepEqual(session.state(),state);
+    assert.equal(session.refresh(),'accepted');await session.settled();assert.equal(runs,2);
+    assert.equal(session.state().updatedAt,new Date(now).toISOString());assert.equal(session.state().revision,2);
+  }finally{await session.close();}
+  assert.equal(session.reopen(),'closed');assert.equal(session.snapshot().data,null);
+});
+test('reopen never retries an unresolved recovery obligation; confirmed recovery allows an empty session to acquire',async()=>{
+  let runs=0,recoveries=0;const session=new ExplorerSession({scope,acquire:async()=>++runs===1?{failure:'cleanup'}:{snapshot:snapshot()},
+    recover:async()=>{recoveries++;return 'removed';}});
+  try{
+    session.refresh();await session.settled();const state=session.state();
+    assert.equal(session.reopen(),'busy');assert.deepEqual(session.state(),state);assert.equal(runs,1);assert.equal(recoveries,0);
+    assert.equal(session.recover(),'accepted');await session.settled();
+    assert.equal(runs,1);assert.equal(recoveries,1);
+    assert.equal(session.reopen(),'accepted');await session.settled();assert.equal(runs,2);assert.equal(recoveries,1);
+    assert.ok(session.snapshot().data);
+  }finally{await session.close();}
+});
+test('reopen after an empty closure refusal preserves normal acquisition when Desktop becomes absent',async()=>{
+  let runs=0;const session=new ExplorerSession({scope,acquire:async()=>++runs===1?{failure:'closure'}:{snapshot:snapshot()}});
+  try{
+    session.refresh();await session.settled();assert.equal(session.snapshot().data,null);
+    assert.equal(session.reopen(),'accepted');await session.settled();assert.equal(runs,2);
+    assert.equal(session.state().attempt?.outcome,'success');assert.ok(session.snapshot().data);
+  }finally{await session.close();}
+});
 for(const failure of ['closure','cleanup','discovery','acquisition','throw','cancel'] as const)test('refresh retains successful snapshot after '+failure,async()=>{
   let runs=0;const blocked=deferred<RefreshResult>();let discarded:ExplorerSnapshot|undefined;
   const session=new ExplorerSession({scope,acquire:async(signal,discovery)=>{
@@ -69,13 +103,15 @@ for(const failure of ['closure','cleanup','discovery','acquisition','throw','can
     assert.equal(session.state().attempt?.outcome,failure==='cancel'?'cancelled':'failure');assert.equal(discarded?.take(),undefined);
     if(failure==='cancel')assert.equal(session.state().attempt?.failure,'cleanup');
     assert.equal(JSON.stringify(session.state()).includes('SYNTHETIC_PRIVATE'),false);
+    const state=session.state();assert.equal(session.reopen(),'retained');await session.settled();
+    assert.equal(runs,2);assert.deepEqual(session.state(),state);assert.equal(session.snapshot().data,previous);
   }finally{await session.close();}
 });
 test('close blocks new work and waits for acquisition cleanup before finishing',async()=>{
   const wait=deferred<RefreshResult>(),entered=deferred<AbortSignal>();
   const session=new ExplorerSession({scope,acquire:signal=>{entered.resolve(signal);return wait.promise;}});
   session.refresh();const signal=await entered.promise;let finished=false;const closing=session.close().then(()=>{finished=true;});
-  assert.equal(signal.aborted,true);assert.equal(session.refresh(),'closed');assert.equal(session.snapshot().data,null);await nextTurn();assert.equal(finished,false);
+  assert.equal(signal.aborted,true);assert.equal(session.refresh(),'closed');assert.equal(session.reopen(),'closed');assert.equal(session.snapshot().data,null);await nextTurn();assert.equal(finished,false);
   const cap=snapshot();wait.resolve({snapshot:cap});await closing;assert.equal(cap.take(),undefined);assert.equal(session.state().phase,'closed');
 });
 
@@ -121,9 +157,9 @@ test('recovery endpoint retains browser authentication, origin and no-body requi
 test('idle reads do not extend expiration; deliberate activity cannot extend absolute maximum',async t=>{
   t.mock.timers.enable({apis:['setTimeout']});const session=new ExplorerSession({scope,idleMs:100,maximumMs:250,acquire:async()=>({snapshot:snapshot()})});
   t.mock.timers.tick(90);session.state();session.snapshot();session.touch();t.mock.timers.tick(90);session.touch();
-  t.mock.timers.tick(70);await nextTurn();assert.equal(session.state().phase,'closed');
+  t.mock.timers.tick(70);await nextTurn();assert.equal(session.state().phase,'closed');assert.equal(session.reopen(),'closed');
   const idle=new ExplorerSession({scope,idleMs:100,maximumMs:250,acquire:async()=>({snapshot:snapshot()})});
-  t.mock.timers.tick(90);idle.state();idle.snapshot();t.mock.timers.tick(10);await nextTurn();assert.equal(idle.state().phase,'closed');
+  t.mock.timers.tick(90);idle.state();idle.snapshot();t.mock.timers.tick(10);await nextTurn();assert.equal(idle.state().phase,'closed');assert.equal(idle.reopen(),'closed');
 });
 
 test('reusable HTTP authenticates commands, rejects paths/bodies and never acquires on reload/state/snapshot reads',async()=>{
@@ -512,6 +548,12 @@ test('reusable session launches empty then uses real protected refreshes; relaun
     const state=async()=>await (await fetch(base+'/state',{headers})).json() as SessionState;
     await waitFor(async()=> (await state()).attempt?.outcome==='success');assert.equal(runs,1);
     const previous=await (await fetch(base+'/snapshot',{headers})).json();assert.equal(previous.revision,1);
+    const successfulState=await state();closure='present';
+    assert.equal(await runReusableEntry({scope,channel,executable:executable(),write:text=>output.push(text),
+      openBrowser:async attached=>{assert.equal(attached,u.href);return true;},acquire:async()=>assert.fail('Attachment cannot acquire')}),0);
+    assert.equal(runs,1);assert.deepEqual(await state(),successfulState);
+    assert.deepEqual(await (await fetch(base+'/snapshot',{headers})).json(),previous);
+    closure='absent';
     hold=true;await fetch(base+'/refresh',{method:'POST',headers});await held.promise;
     const relaunch=await runReusableEntry({scope,channel,executable:executable(),write:text=>output.push(text),openBrowser:async attached=>{assert.equal(attached,u.href);return true;},acquire:async()=>assert.fail('Relaunch cannot create another inspector')});
     assert.equal(relaunch,0);assert.equal(runs,2);assert.equal((await (await fetch(base+'/snapshot',{headers})).json()).revision,1);

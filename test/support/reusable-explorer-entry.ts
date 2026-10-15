@@ -41,19 +41,19 @@ export async function runReusableEntry(options:SessionOptions & {executable:stri
   process.on('SIGINT',stop);process.on('SIGTERM',stop);
   try{
     const owner=await SessionBroker.start(options.executable,options.scope,()=>{
-      if(session.refresh()==='closed')throw new Error('Session closing');
+      if(session.reopen()==='closed')throw new Error('Session closing');
     },()=>{cancelled=true;options.write('Session coordination ended unexpectedly; closing after protected cleanup.');delivery.abort();void session.close();},options.channel);
     if(owner.kind==='attached'){
       await session.close();if(delivery.signal.aborted)return 1;
       await open(owner.url);
-      options.write('Existing session opened; one refresh requested, or the active refresh retained.');return cancelled?1:0;
+      options.write('Existing session opened. Any retained snapshot keeps its original update time; use Refresh for newer data.');return cancelled?1:0;
     }
     broker=owner.broker;if(delivery.signal.aborted)return 1;
     local=await serveReusableExplorer(session);await broker.ready(local.url);
     if(delivery.signal.aborted)return 1;
     options.write('Workspace ready. Refresh requires Codex and ChatGPT Desktop to be closed normally. Close session in the page or press Ctrl+C here.');
     await open(local.url);
-    if(!delivery.signal.aborted)session.refresh();
+    if(!delivery.signal.aborted&&!session.state().attempt)session.refresh();
     await local.closed;
     options.write('Local session closed; any active acquisition has settled.');
     if(session.state().recoveryAction==='preserved')options.write('Temporary copies remain protected and unresolved. Launch Surveyor again to use the independent acquisition lifecycle.');
@@ -80,7 +80,7 @@ export async function manualReusableExplorer(args:readonly string[],launch:{open
   if(legacyUnresolved)launch.write('Legacy private copies remain preserved and unresolved. This session uses a separate authenticated lifecycle; its cleanup does not resolve the legacy incident.');
   launch.write(options.discoveryRoot?'Folder discovery root: '+escapeStored(options.discoveryRoot)+'\nMetadata reads are limited to this approved invocation scope. External declared/Git locations remain uninspected.':
     'Standalone folder discovery is not enabled: %USERPROFILE%\\Documents\\Codex is unavailable. Project/Thread inspection remains enabled. No alternative root was searched.');
-  const scope=createHash('sha256').update(JSON.stringify({version:'session-2a-v1',repository:realpathSync(process.cwd()),options,
+  const scope=createHash('sha256').update(JSON.stringify({version:'session-2b-v1',repository:realpathSync(process.cwd()),options,
     ...(legacyUnresolved?{legacyUnresolved:true}:{})})).digest('hex');
   process.exitCode=await runReusableEntry({...launch,scope,executable,...(legacyUnresolved?{legacyUnresolved:true as const}:{}),
     recover:()=>recoverExplorerCopies(executable),acquire:(signal,discovery)=>acquirePersonalSnapshot(options,signal,discovery,true,launch.write)});

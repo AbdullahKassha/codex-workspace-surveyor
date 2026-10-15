@@ -262,9 +262,10 @@ console.log('SYNTHETIC_ACQUISITION '+JSON.stringify({cwd:process.cwd(),report,co
       if(mode==='containment'){
         assert.equal(observed.containmentReason,'containment');assert.equal(observed.report.status,'refused');
         assert.equal(observed.report.safety.evidence.opened,0);assert.deepEqual(observed.report.safety.evidence.stages,[]);
-        // Preserve the coordinator's conservative early-initialization cleanup
-        // report; the separate guard probe establishes the underlying refusal.
-        assert.equal(observed.report.safety.reason,'cleanup');
+        // Validation refused before creation: no scratch obligation was created.
+        assert.equal(observed.report.safety.reason,'containment');
+        assert.equal(observed.report.safety.cleanup,'removed');
+        assert.equal(observed.report.safety.evidence.acquisition.scratchInitialization,'validating');
       }
       return observed.report;
     };

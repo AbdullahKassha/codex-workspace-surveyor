@@ -33,6 +33,14 @@ export class ExplorerSession {
   #emit():void{this.#version++;for(const listener of this.#listeners){try{listener();}catch{/* Transport owns its errors. */}}}
   touch():void{if(['closing','closed'].includes(this.#phase))return;clearTimeout(this.#idle);
     this.#idle=setTimeout(()=>{void this.close();},this.options.idleMs??2*60*60*1000);this.#idle.unref();}
+  reopen():'retained'|'accepted'|'busy'|'closed'{
+    if(['closing','closed'].includes(this.#phase))return 'closed';
+    this.touch();
+    // Reopening is not Refresh. Keep freshness and any failed-attempt/recovery evidence intact.
+    if(this.#data)return 'retained';
+    if(this.#running||(this.#attempt?.failure==='cleanup'&&this.#recovery!=='removed'))return 'busy';
+    return this.refresh();
+  }
   refresh():'accepted'|'busy'|'closed'{
     if(['closing','closed'].includes(this.#phase))return 'closed';this.touch();if(this.#running)return 'busy';
     if(this.#recovery==='preserved'||this.#recovery==='blocked')return 'busy';

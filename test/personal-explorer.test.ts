@@ -132,6 +132,10 @@ for(const unknown of [false,true])test('guarded recovery resolution with real sy
     assert.equal(held.safety.cleanup,'residual');assert.equal(held.snapshot,undefined);
     const store=join(f.run.root,'recovery'),root=f.scratches[0]!.root!,record=fs.readFileSync(join(store,'record'));
     if(unknown){extra=join(root,'invented-unregistered');fs.writeFileSync(extra,'invented independently owned sentinel');}
+    const blocked=await runTitledExplorerPreparation(options(f,{closure:()=>assert.fail('Occupied recovery must precede process checking')}));
+    assert.equal(blocked.safety.reason,'cleanup');assert.equal(blocked.safety.evidence.acquisition?.recoveryPreflight,'occupied');
+    assert.equal(blocked.safety.evidence.acquisition?.scratchInitialization,'not-started');
+    assert.equal(fs.readFileSync(join(store,'record')).equals(record),true);
     const result=await resolveRecoveryBlocker({recover:()=>recoverCanaryWithEvidence({store,executable:options(f).executable,synthetic:true}),
       refresh:async()=>{refreshes++;return completeExplorerRefresh(await runTitledExplorerPreparation(options(f,{explorer:{globalState:f.globalState}})),
         {executable:options(f).executable},new AbortController().signal);}});
@@ -148,7 +152,7 @@ for(const unknown of [false,true])test('guarded recovery resolution with real sy
 });
 
 // Metadata-only regressions: no PowerShell child, protected acquisition or RECOVER dispatch.
-for(const fault of ['source','occupied','validation','containment','creation'] as const)
+for(const fault of ['source','occupied','desktop-present','desktop-unknown','validation','containment','creation'] as const)
 test('initial refresh distinguishes '+fault+' refusal without running an acquisition helper',{skip:process.platform!=='win32',concurrency:false},async()=>{
   const f=explorerFixture(),executable=join(f.run.root,'pwsh.exe'),store=join(f.run.root,'recovery');
   const saved=['WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION','WORKSPACE_SURVEYOR_RUN_EXPLORER_PREPARATION'].map(k=>process.env[k]);
@@ -168,19 +172,23 @@ test('initial refresh distinguishes '+fault+' refusal without running an acquisi
     Reflect.set(fs,'mkdtempSync',()=>{creationCalls++;throw new Error(secret);});syncBuiltinESMExports();
     if(fault==='occupied')fs.mkdirSync(store);
     const selection=fault==='source'?{...f.selection,fixture:{...f.selection.fixture,source:join(f.run.sources,'missing.sqlite')}}:f.selection;
-    const result=await runTitledExplorerPreparation({...options(f),executable,selection});
+    const early=fault==='desktop-present'||fault==='desktop-unknown';
+    const before=fs.readFileSync(f.source);
+    const result=await runTitledExplorerPreparation({...options(f),executable,selection,
+      closure:()=>{assert.notEqual(fault,'occupied','Recovery must be checked before the Desktop probe');return early?fault==='desktop-present'?'present':'unknown':'absent';}});
     assert.equal(result.snapshot,undefined);assert.equal(starts,0);sanitized(result);
     const a=result.safety.evidence.acquisition!;
     assert.equal(a.helperLaunched,false);assert.equal(a.helperExit,'not-launched');assert.equal(a.helperOutcome,'not-reported');
     assert.equal(a.cleanupRecovery,'not-attempted');
     assert.equal(result.safety.cleanup,fault==='occupied'||fault==='creation'?'residual':'removed');
     assert.equal(a.recoveryPreflight,fault==='occupied'?'occupied':'clear');
-    assert.equal(a.stage,fault==='source'?'source-selection':fault==='occupied'?'recovery-preflight':'scratch-initialization');
+    assert.equal(a.stage,early?'closure-preflight':fault==='source'?'source-selection':fault==='occupied'?'recovery-preflight':'scratch-initialization');
     assert.equal(a.scratchInitialization,fault==='validation'||fault==='containment'?'validating':fault==='creation'?'creation-attempted':'not-started');
-    assert.equal(a.reason,fault==='occupied'?'selection':fault==='containment'?'containment':'io');
+    assert.equal(a.reason,fault==='desktop-unknown'?'helper':early?'closure':fault==='occupied'?'selection':fault==='containment'?'containment':'io');
     assert.equal(creationCalls,fault==='creation'?1:0);
     const refresh=await completeExplorerRefresh(result,{executable},new AbortController().signal);
-    assert.equal(refresh.failure,fault==='occupied'||fault==='creation'?'cleanup':'acquisition');assert.equal(refresh.snapshot,undefined);
+    assert.equal(refresh.failure,fault==='desktop-present'?'closure':fault==='occupied'||fault==='creation'?'cleanup':'acquisition');assert.equal(refresh.snapshot,undefined);
+    assert.deepEqual(fs.readFileSync(f.source),before);
     const summary=JSON.parse(acquisitionFailureSummary(result.safety).slice('Acquisition failure: '.length));
     assert.equal(summary.acquisitionReason,a.reason);assert.equal(summary.cleanup,result.safety.cleanup);sanitized(summary);
     assert.equal(fs.existsSync(store),fault==='occupied');
@@ -386,10 +394,24 @@ test('protected titled browser '+shape+' capability outcome',empirical,async()=>
       if(shape==='title-fallback')assert.equal(r.snapshot!.take()!.threads.every(t=>t.title===null),true);else r.snapshot!.discard();}
   }finally{assert.equal(await f.teardown(),true);}
 });
-test('titled browser preflight closure refusal is unconsumed; first source failure is consumed',empirical,async()=>{
+test('early Desktop absence never replaces later closure checks or authenticated cleanup',empirical,async()=>{
+  const f=explorerFixture();let running=false,reached=false;
+  try{
+    const result=await runTitledExplorerPreparation(options(f,{closure:()=>running?'present':'absent',hook:phase=>{
+      if(phase==='prepared'){reached=true;running=true;}
+    }}));
+    assert.equal(reached,true);assert.equal(result.safety.reason,'closure');assert.equal(result.snapshot,undefined);
+    assert.equal(result.safety.evidence.acquisition?.helperExit,'confirmed');
+    assert.equal(result.safety.cleanup,'removed');assert.equal(result.safety.recovery,'removed');
+    assert.equal(f.scratches.length,1);assert.ok(f.scratches.every(s=>!fs.existsSync(s.root!)));
+  }finally{assert.equal(await f.teardown(),true);}
+});
+
+test('Explorer recovery preflight consumes the attempt before early closure refusal; first source failure stays consumed',empirical,async()=>{
   const f=explorerFixture(),stat=fs.lstatSync;let reached=false;
   try{
-    const preflight=await runTitledExplorerPreparation(options(f,{closure:()=> 'present'}));assert.equal(preflight.safety.attemptConsumed,false);
+    const preflight=await runTitledExplorerPreparation(options(f,{closure:()=> 'present'}));assert.equal(preflight.safety.attemptConsumed,true);
+    assert.equal(preflight.safety.evidence.acquisition?.stage,'closure-preflight');assert.equal(f.scratches.length,0);
     Reflect.set(fs,'lstatSync',(p:fs.PathLike,...rest:unknown[])=>{if(p===f.run.root){reached=true;throw new Error(secret);}return Reflect.apply(stat,fs,[p,...rest]);});syncBuiltinESMExports();
     const r=await runTitledExplorerPreparation(options(f));assert.equal(reached,true);assert.equal(r.safety.attemptConsumed,true);sanitized(r);
   }finally{Reflect.set(fs,'lstatSync',stat);syncBuiltinESMExports();assert.equal(await f.teardown(),true);}

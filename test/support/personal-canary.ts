@@ -12,6 +12,7 @@ import type { AdapterResult } from './thread-cwd-adapter.js';
 import { LocalMapDelivery, LocalMapCapability } from './local-thread-cwd-capability.js';
 import { ExplorerSnapshot, reconcile } from '../../src/explorer/model.js';
 import type { ReaderResult, LimitDetail } from '../../src/explorer/readers.js';
+import { explorerDesktopClosure } from './explorer-closure.js';
 
 export const canaryLimits = Object.freeze({ file: 16 * 1024 * 1024, selected: 32 * 1024 * 1024,
   scratch: 64 * 1024 * 1024 + 8192, files: 7, directories: 3 });
@@ -22,7 +23,7 @@ export const explorerScratchLimits = Object.freeze({...canaryLimits, files:11});
 const steps = ['prepared', 'recovery-ready', 'held', 'copied', 'verified'] as const;
 const reasons = ['selection', 'closure', 'limit', 'containment', 'unstable', 'analysis', 'unsupported', 'helper', 'cleanup', 'io'] as const;
 type Reason = typeof reasons[number];
-type AcquisitionStage='input'|'recovery-preflight'|'source-selection'|'scratch-initialization'|'recovery-initialization'|
+type AcquisitionStage='input'|'recovery-preflight'|'closure-preflight'|'source-selection'|'scratch-initialization'|'recovery-initialization'|
   'helper-preparation'|'recovery-persistence'|'source-acquisition'|'copy-validation'|'analysis'|'source-verification'|'helper-release';
 type ScratchInitialization='not-started'|'validating'|'creation-attempted'|'created';
 type CanaryLimit=LimitDetail|'source-file-bytes'|'source-total-bytes'|'scratch-file-bytes'|'scratch-total-bytes'|'scratch-entries'|'recovery-controls'|'recovery-entries';
@@ -1011,14 +1012,14 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     if(synthetic){
       if(process.env.WORKSPACE_SURVEYOR_RUN_CANARY_PREPARATION!=='1'||options.selection.kind!=='synthetic')stop('selection');
       if(attempt){
-        if(!options.closure||options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
+        if(!explorer&&(!options.closure||options.closure()!=='absent'||options.closure()!=='absent'))stop('closure');
         attempt.consumed=true; // First harness-source access models the personal boundary.
       }
       const fixture=options.selection.fixture;checked(fixture.ownerRoot,true);
       const owner=join(fixture.ownerRoot,'owner');checked(owner,false);
       if(!/^[a-f0-9-]{36}$/.test(fixture.ownerNonce)||lstatSync(owner).size!==36||readFileSync(owner,'utf8')!==fixture.ownerNonce||
           !contains(join(fixture.ownerRoot,'sources'),source))stop('selection');
-      if(!attempt){
+      if(!attempt&&!explorer){
         if(!options.closure)stop('closure');
         if(options.closure()!=='absent'||options.closure()!=='absent')stop('closure');
       }
@@ -1034,7 +1035,24 @@ async function runCanaryOperation(options:CanaryOptions,attempt?:{consumed:boole
     acquisitionStage='recovery-preflight';
     store=options.selection.kind==='synthetic'?join(options.selection.fixture.ownerRoot,'recovery')+(options.legacySynthetic?'-Active':''):await locatePersonalRecoveryStore(options.executable,attempt,explorer);
     recoveryLocation(store,undefined,source);if(!missing(store)){recoveryPreflight='occupied';cleanup='residual';recovery='unavailable';stop('selection');}
-    recoveryPreflight='clear';acquisitionStage='source-selection';
+    recoveryPreflight='clear';
+    if(explorer){
+      // Recovery and legacy validation take precedence over this advisory early refusal.
+      // No source selection, scratch allocation or recovery-store creation has happened yet.
+      acquisitionStage='closure-preflight';
+      if(synthetic){
+        for(let check=0;check<2;check++){
+          const closure=options.closure?.()??'unknown';
+          if(closure==='unknown')stop('helper');
+          if(closure!=='absent')stop('closure');
+        }
+      }else{
+        const closure=await explorerDesktopClosure(options.executable);
+        if(closure==='unknown')stop('helper');
+        if(closure!=='absent')stop('closure');
+      }
+    }
+    acquisitionStage='source-selection';
     // ENOENT alone disables optional Projects. Other source/safety failures still refuse.
     if(explorerJson){
       if(options.selection.kind==='synthetic'&&!contains(join(options.selection.fixture.ownerRoot,'sources'),options.explorer!.globalState))stop('selection');

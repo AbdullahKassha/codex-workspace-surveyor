@@ -55,7 +55,7 @@ export function acquisitionFailureSummary(s:CanaryResult):string {
   const reasons=['none','selection','closure','limit','containment','unstable','analysis','unsupported','helper','cleanup','io'];
   const a=s.evidence.acquisition;
   return 'Acquisition failure: '+JSON.stringify({
-    stage:category(a?.stage,['input','recovery-preflight','source-selection','scratch-initialization','recovery-initialization',
+    stage:category(a?.stage,['input','recovery-preflight','closure-preflight','source-selection','scratch-initialization','recovery-initialization',
       'helper-preparation','recovery-persistence','source-acquisition','copy-validation','analysis','source-verification','helper-release']),
     reason:category(s.reason,reasons),acquisitionReason:category(a?.reason,reasons),
     scratchInitialization:category(a?.scratchInitialization,['not-started','validating','creation-attempted','created']),
