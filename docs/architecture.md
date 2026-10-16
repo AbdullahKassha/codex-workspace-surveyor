@@ -1,6 +1,14 @@
 # Conceptual architecture
 
-**Current applicability, 2026-10-15:** the [accepted baseline and priorities](roadmap.md#current-position-and-priorities-2026-10-15) supersede earlier preparation-status wording below. Reusable Phase 2A sessions/explicit Refresh and conditional instruction-metadata enrichment are delivered; source acquisition still requires Desktop closure. Live-friendly feasibility is not an architecture commitment or a safety-gate change. Phase 2B will be reassessed against remaining friction, not automatically activated by 2A completion. Persisted audit/diff systems and optional integrations remain deferred technical tracks; distribution choices belong to M4 planning.
+## Current architecture, 2026-10-16
+
+The founder-supplied accepted baseline `2a12ecf9fa757b6f1a32adec60892620f06acee3` uses the reusable memory-only browser with explicit protected closed-app acquisition. Relaunch attaches to an existing successful snapshot without Refresh; an empty eligible session requests one attempt. Recovery validation and a bounded Desktop closure preflight precede acquisition setup. The helper's retained-source, verification, disposal and authenticated-cleanup gates remain authoritative; discovery completes before replacement publication. Failed/cancelled refreshes preserve the previous view.
+
+Browser reload reconnects with an ephemeral tab credential; it neither acquires data nor extends the snapshot's freshness. No durable authorization, persisted dataset or export is implemented. The standalone one-use entry remains separate. The [live-copy prototype is test-only and production NO-GO](research/live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15).
+
+The dated architecture/preparation sections below preserve earlier boundaries. In particular, the original standalone “no refresh” statement applies to that entry, and the original Phase 2A launch-refresh behavior is superseded only by the [Phase 2B change](research/explorer-local-read-only-validation.md#phase-2b-friction-reduction-2026-10-15). Use [Getting started](getting-started.md) for current operations.
+
+**Historical applicability checkpoint, 2026-10-15:** the [accepted baseline and priorities](roadmap.md#current-position-and-priorities-2026-10-15) supersede earlier preparation-status wording below. Reusable Phase 2A sessions/explicit Refresh and conditional instruction-metadata enrichment are delivered; source acquisition still requires Desktop closure. Live-friendly feasibility is not an architecture commitment or a safety-gate change. Phase 2B will be reassessed against remaining friction, not automatically activated by 2A completion. Persisted audit/diff systems and optional integrations remain deferred technical tracks; distribution choices belong to M4 planning.
 
 ## Accepted standalone slice, 2026-10-10
 

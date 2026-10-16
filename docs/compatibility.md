@@ -1,12 +1,27 @@
 # Compatibility and evidence matrix
 
+## Current applicability, 2026-10-16
+
+The founder identifies `2a12ecf9fa757b6f1a32adec60892620f06acee3` as the accepted baseline. This supplied acceptance supersedes earlier pending-status wording, not the original tests or evidence limits. The detailed table below retains its dated support checkpoint; later supplements remain part of the record.
+
+| Current area | Evidence and remaining limit |
+| --- | --- |
+| Reusable sessions and explicit Refresh | Delivered in the supplied accepted baseline. Relaunch with a successful snapshot preserves its update time; empty sessions still request acquisition unless busy or recovery-blocked. [Phase 2B validation](research/explorer-local-read-only-validation.md#phase-2b-friction-reduction-2026-10-15) separately records 168 focused passes and 501 ordinary passes/256 skips. These are recorded fixture results, not new measurements or personal process-check validation. |
+| Closed-app acquisition and recovery | Still required for each acquisition. Early absent/present/unknown Desktop checks do not replace the helper's source-integrity, disposal and authenticated-cleanup gates. No atomic cross-source snapshot, complete writer proof or secure erasure is certified. |
+| Conditional instruction metadata | Delivered; standard file/marker metadata can support conditional explanations. Effective Desktop configuration, actual instruction selection/loading and historical behavior remain unknown. |
+| Live copying | [Corrected production NO-GO](research/live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15). An injected stale-but-valid header admits one logically mixed candidate; passing the limitation regression does not repair the test-only protocol. |
+| Distribution and platforms | Native Windows source-checkout preview, Node 24/npm 11/PowerShell 7. No selected license, published package, macOS/WSL/remote certification, export or automatic refresh. |
+
+For launch instructions use [Getting started](getting-started.md); for scope and priorities use the [roadmap](roadmap.md#current-position-and-priorities-2026-10-16). Do not transfer versions or measurements between dated experiments.
+
 ## Instruction metadata supplement, 2026-10-12
 
 The founder-approved first Instruction Discovery Scope slice observes bounded exact marker and standard instruction-file metadata for qualifying stored CWDs. It supports conditional explanations under the documented `.git` policy; effective Desktop configuration, root selection and instruction loading remain unknown. Custom marker/fallback names, disabled-policy qualification, global guidance and content-based selection remain deferred. An empty ordinary `.git` directory or unsupported ordinary pointer file can support an independently observed occurrence without verified Git identity; inaccessible/uninspected results cannot. A missing Git metadata member is not marker absence.
 
 Coverage stops at the selected root, nearer ordinary marker, obstruction or independent finite budget. Failure to find a marker in that interval never proves CWD-only fallback. Existing B1 historical versions/policy/trust uncertainty and WIN-018–020, DOC-005/DOC-006, DOC-025 limits remain unchanged. Fixture tests certify observation/presentation mechanics, not Desktop behavior or historical instruction loading. See [validation](research/explorer-local-read-only-validation.md#instruction-scope-2026-10-12).
 
-## Current support: design decision
+<a id="current-support-design-decision"></a>
+## Historical support checkpoint, 2026-10-10
 
 **Accepted baseline, reported 2026-10-10:** `d15c78b121074c78a3b3492e369c3e89c85ca93e`. Founder acceptance and independent review are supplied outcomes; the local commit was independently confirmed during the audit. The [validation record](research/explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) retains the preceding 545/545 fixture result and this integration’s separate checks. This is bounded Windows experience, not certification of every Codex build, source schema, filesystem or Git format.
 

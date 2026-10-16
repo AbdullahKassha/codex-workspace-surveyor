@@ -1,5 +1,7 @@
 # Personal titled-location browser: preparation and qualification
 
+**Historical preparation record; navigation update, 2026-10-16:** use [Getting started](../getting-started.md) for current setup and launch. The founder-supplied [accepted baseline](../roadmap.md#current-position-and-priorities-2026-10-16) supersedes this record's pending/unavailable status where later qualified. The original profile, measurements, authorization gates and residual disclosures below remain intact; they do not establish new personal-run permission.
+
 **Superseding usage correction, 2026-10-09:** [ADR 0016](../decisions/0016-local-read-only-explorer-and-title-previews.md) and [current usage/validation](explorer-local-read-only-validation.md) replace per-run explorer opt-ins/typed consent and title budgets with explicit launch, a derived default source with a nonpersistent override, and visibly bounded previews. The original measurements, authorization wording and procedure below describe the reviewed historical commit. The failed personal run has an unknown exceeded limit; no successful title correspondence is inferred.
 
 ## Authorization and implementation

@@ -51,6 +51,8 @@ tmp/
 *.bak
 *.zip
 *.png
+# Reviewed synthetic Explorer capture only; other screenshots remain ignored.
+!/docs/assets/explorer-synthetic.png
 *.jpg
 *.jpeg
 *.webp

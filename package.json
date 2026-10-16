@@ -2,7 +2,7 @@
   "name": "codex-workspace-surveyor",
   "version": "0.1.0",
   "private": true,
-  "description": "Workspace Surveyor for Codex is an independent community project for understanding and organizing Codex workspace relationships. It is not an official OpenAI product and is not affiliated with, endorsed by, or sponsored by OpenAI. M1 is a synthetic CLI demonstration only.",
+  "description": "Workspace Surveyor for Codex is a Windows-first, local, read-only Explorer for Codex Projects, Threads, working folders and Git relationships. It is an independent community project, not affiliated with, endorsed by, or sponsored by OpenAI.",
   "repository": {
     "type": "git",
     "url": "https://github.com/AbdullahKassha/codex-workspace-surveyor.git"

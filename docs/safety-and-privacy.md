@@ -1,5 +1,11 @@
 # Safety and privacy
 
+## Current applicability, 2026-10-16
+
+The founder-supplied accepted baseline `2a12ecf9fa757b6f1a32adec60892620f06acee3` retains protected closed-app acquisition, source nonmutation, bounded metadata inspection and authenticated temporary-copy cleanup. Reopening a successful session reuses its memory-only snapshot; it does not request a new acquisition. Explicit Refresh still requires normal Desktop closure. Early process checks do not weaken helper verification. Existing recovery obligations and historical residual disclosures remain applicable; session success does not resolve a separately preserved incident.
+
+Conditional instruction metadata establishes neither effective configuration nor instruction loading. The [live-copy protocol remains test-only and production NO-GO](research/live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15). Dated preparation and future-design sections below retain their scope; they are not current launch instructions or new personal-run authorization. See [Getting started](getting-started.md) and [security reporting](../SECURITY.md).
+
 ## Instruction metadata preparation, 2026-10-12
 
 The separately approved Instruction Discovery Scope pass reads metadata only for exact `.git`, `AGENTS.override.md` and `AGENTS.md` entries and their directory ancestry. It runs after existing Git relationship discovery, inside the selected discovery root and applicable invocation access policy, including the standalone entry. Git-reference eligibility never grants instruction access. Structural ancestor checks reuse existing path/reparse protections. No instruction/configuration content, custom-name inventory, global guidance or personal preparation scan is authorized.

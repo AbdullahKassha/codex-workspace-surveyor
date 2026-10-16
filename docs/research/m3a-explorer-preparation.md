@@ -1,5 +1,7 @@
 # M3a: Named-thread / Local Project explorer preparation
 
+**Historical preparation record; navigation update, 2026-10-16:** use [Getting started](../getting-started.md) for current setup and launch. The founder-supplied [accepted baseline](../roadmap.md#current-position-and-priorities-2026-10-16) supersedes this record's pending/unavailable status where later qualified. The original profile, measurements, authorization gates and residual disclosures below remain intact; they do not establish new personal-run permission.
+
 ## Authorization and current evidence
 
 The founder approves M3a implementation with invented fixtures, an explicitly synthetic Project format, and no personal source/recovery-slot access. [ADR 0014](../decisions/0014-named-threads-and-local-projects.md) records this boundary. [PLD-001](personal-local-display-observation.md) completes M2 private validation; all earlier records and residual disclosures remain historical and unchanged. No historical residual is searched for or claimed removed.

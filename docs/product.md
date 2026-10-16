@@ -1,5 +1,11 @@
 # Product definition
 
+## Current product summary, 2026-10-16
+
+The founder-supplied accepted baseline `2a12ecf9fa757b6f1a32adec60892620f06acee3` delivers a Windows relationship Explorer with reusable sessions, explicit closed-app Refresh, conditional instruction metadata and snapshot reuse on relaunch. It remains a source-checkout preview; live acquisition, exports and automated organization/migration are unavailable. See [Getting started](getting-started.md) and the [current roadmap](roadmap.md#current-position-and-priorities-2026-10-16).
+
+The capability names and dated product/refinement descriptions below retain their original scope. Earlier pending browser-acceptance wording describes those checkpoints and is superseded by the supplied accepted baseline; it is not a new measurement or separate acceptance claim. The retained initial MVP vision does not override the current deferral of dedicated Health/Organization or Before/After systems.
+
 ## Identity and capability names: design decision
 
 **Workspace Surveyor for Codex** is the product name; **Workspace Surveyor** is the contextual short name. "For Codex" describes compatibility. The independent-community disclaimer and technical surface names are recorded in [ADR 0006](decisions/0006-project-naming-and-cli-surface.md).
@@ -17,7 +23,7 @@
 
 These are descriptive capability names, not public APIs or authorization. The accepted relationship explorer implements bounded folder/Git/worktree observation. The delivered Instruction Discovery Scope slice adds conditional marker/standard instruction-file metadata explanations; effective configuration, loading and action capabilities remain deferred.
 
-**Priority reconciliation, 2026-10-15:** the [roadmap](roadmap.md#current-position-and-priorities-2026-10-15) records the delivered baseline and current ordering separately from these capability names and the retained early product vision below. Migration Guidance is [organic documentation only](index.md#qualified-manual-workflows); dedicated Health/Organization and Before/After systems are deferred, not implicit MVP or public-release prerequisites.
+**Historical priority reconciliation, 2026-10-15:** the [roadmap](roadmap.md#current-position-and-priorities-2026-10-15) records the delivered baseline and current ordering separately from these capability names and the retained early product vision below. Migration Guidance is [organic documentation only](index.md#qualified-manual-workflows); dedicated Health/Organization and Before/After systems are deferred, not implicit MVP or public-release prerequisites.
 
 ## Problem: founder-observed evidence
 

@@ -1,6 +1,17 @@
 # Milestone roadmap
 
-## Current position and priorities, 2026-10-15
+## Current position and priorities, 2026-10-16
+
+**Founder-supplied accepted baseline:** `2a12ecf9fa757b6f1a32adec60892620f06acee3`. This supersedes the current-status summaries below; the earlier acceptance/review statements and validation measurements remain attributed to their own stages. The delivered Explorer includes reusable sessions/explicit Refresh, conditional instruction metadata, recovery hardening, UX refinements and the narrow [Phase 2B friction reduction](research/explorer-local-read-only-validation.md#phase-2b-friction-reduction-2026-10-15). Reopening a successful session reuses its snapshot; a fresh acquisition still requires normal Desktop closure.
+
+The [live-acquisition investigation](research/live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15) has concluded with a corrected production NO-GO. A passing injected-limitation regression is evidence of the unresolved consistency prerequisite, not a repaired protocol. It is no longer the next unstarted feasibility task. The Phase 2B change adds snapshot reuse and an early closure check, not durable authorization or live Refresh.
+
+The current editorial task improves repository presentation and onboarding. It does not select a new development priority, authorize further live research or complete M4 release readiness. Evidence & Compatibility remains maintenance of the existing catalog, matrix and records. An owner-selected license, verified private reporting route, distribution decisions and broader release review remain outstanding. Historical residual disclosures are unchanged.
+
+The M0–M4 definitions and dated priorities below retain their planning history. The optional-capability decisions remain applicable: Migration Guidance is organic documentation, dedicated Health/Organization and Before/After systems are deferred, and exports, additional hosts and integrations remain separately scoped.
+
+<a id="current-position-and-priorities-2026-10-15"></a>
+## Earlier position and priorities, 2026-10-15
 
 **Founder-reported accepted and independently delivered baseline:** `af5a9a6d7775dda37e0d3cf43a8611d3f5920780`. The recent Explorer, conditional Instruction Discovery Scope, recovery hardening and UX work is complete for its recorded scope. The M0–M4 definitions below remain the main product/release milestones; Explorer phases and named capabilities are incremental tracks, not replacement milestone numbers. The decisions here supersede broader optional-capability expectations in the historical definitions.
 

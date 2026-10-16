@@ -1,8 +1,17 @@
 # Documentation index
 
-**Current position, 2026-10-15:** the [canonical roadmap](roadmap.md#current-position-and-priorities-2026-10-15) records the accepted baseline, completed Explorer/instruction/recovery/UX scope and updated priorities. [Usage and validation](research/explorer-local-read-only-validation.md) distinguishes supplied personal observations from disposable-fixture results. The CLI remains a synthetic demonstration; the local browser uses protected closed-app acquisition.
+**Current position, 2026-10-16:** the founder identifies `2a12ecf9fa757b6f1a32adec60892620f06acee3` as the accepted baseline. The local browser uses protected closed-app acquisition; the CLI remains a bundled synthetic demonstration. The [roadmap](roadmap.md#current-position-and-priorities-2026-10-16) reconciles completed live-feasibility research and delivered session-reopening improvements. It does not define another development priority.
 
-The next planning task is Live-friendly Explorer feasibility; Phase 2B reassessment follows. The [catalog](research/evidence-catalog.md) and [compatibility matrix](compatibility.md) remain the sources for provenance, tested scenarios and limits. Preparation run sheets retain their dated scope; they do not describe current explorer launch requirements. Historical evidence and residual disclosures remain in their original records.
+## Use Workspace Surveyor
+
+- [Getting started](getting-started.md): Windows setup, launch, Refresh, source/discovery selection, session lifetime, refusal/recovery guidance and synthetic demos.
+- [Compatibility](compatibility.md): tested scenarios, evidence categories and limits; no universal Desktop/schema certification.
+- [Safety and privacy](safety-and-privacy.md): read-only contracts, temporary-copy/recovery obligations and remaining limitations.
+
+## Contribute or report a problem
+
+- [Contributing](../CONTRIBUTING.md): focused changes, invented reproductions, development checks and evidence review.
+- [Security reporting](../SECURITY.md): safe reports and the currently unverified private reporting route.
 
 ## Product and design
 
@@ -13,7 +22,21 @@ The next planning task is Live-friendly Explorer feasibility; Phase 2B reassessm
 - [Compatibility](compatibility.md): baseline matrix, future comparison, and rule retirement.
 - [Roadmap](roadmap.md): milestone gates and completion criteria.
 
+## Qualified manual workflows
+
+- [Projectless CWD migration](workflows/projectless-cwd-migration.md).
+- [Managed worktree review](workflows/managed-worktree-review.md).
+
+**Founder decision, 2026-10-15:** Migration Guidance is organic documentation only, with no dedicated development or active-research milestone. Maintain these guides only for a genuine user need, actual operation, naturally encountered issue or validated experience. Preserve empirical findings and their version/evidence limits. Do not invent scenarios, experiment with unneeded techniques, research alternatives to expand the library or create files to fill perceived gaps. Users may read the Markdown or provide it as context to ChatGPT/Codex; no embedded migration engine or new UI is planned. Documentation does not authorize executing a workflow.
+
 ## Evidence and research
+
+Start with the catalog and current Explorer validation when tracing a claim. Preparation documents retain their dated gates; they are not current launch instructions.
+
+- [Live-acquisition feasibility](research/live-acquisition-feasibility.md): completed research, withdrawn Conditional GO, deterministic limitation reproduction and production NO-GO.
+- [Named-thread / Local Project preparation](research/m3a-explorer-preparation.md): original synthetic profile, browser preparation and residual disclosures.
+- [Personal titled-browser preparation](research/personal-explorer-preparation-validation.md): dated activation preparation and superseding launch corrections.
+- [PLD-001: Local display observation](research/personal-local-display-observation.md): founder-supplied terminal display result, coverage and reported cleanup.
 
 - [PMAP-001: Personal private map observation](research/personal-thread-cwd-observation.md): supplied summary, limited selected-table coverage, reported cleanup and consumed authorization.
 - [Local terminal map display preparation](research/local-thread-cwd-display-preparation-validation.md): one-use gated delivery, escaped exact grouping, synthetic validation, residual disclosure and future read-and-display procedure.
@@ -59,13 +82,6 @@ ADR 0001–0005 are the founding decisions. ADR 0006 records the later pre-M1 na
 - [ADR 0014: named Threads and Local Projects](decisions/0014-named-threads-and-local-projects.md).
 - [ADR 0015: personal titled browser preparation](decisions/0015-personal-titled-browser-preparation.md).
 - [ADR 0016: explicit local launch](decisions/0016-local-read-only-explorer-and-title-previews.md).
-
-## Qualified manual workflows
-
-- [Projectless CWD migration](workflows/projectless-cwd-migration.md).
-- [Managed worktree review](workflows/managed-worktree-review.md).
-
-**Founder decision, 2026-10-15:** Migration Guidance is organic documentation only, with no dedicated development or active-research milestone. Maintain these guides only for a genuine user need, actual operation, naturally encountered issue or validated experience. Preserve empirical findings and their version/evidence limits. Do not invent scenarios, experiment with unneeded techniques, research alternatives to expand the library or create files to fill perceived gaps. Users may read the Markdown or provide it as context to ChatGPT/Codex; no embedded migration engine or new UI is planned. Documentation does not authorize executing a workflow.
 
 ## Reading claims
 

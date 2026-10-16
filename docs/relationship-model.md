@@ -1,5 +1,7 @@
 # Conceptual relationship model
 
+**Current applicability, 2026-10-16:** the founder-supplied accepted baseline `2a12ecf9fa757b6f1a32adec60892620f06acee3` retains the identity, membership, path and evidence distinctions below. Session reuse and presentation changes add no membership inference or instruction-loading proof. Dated implementation subsets describe their own checkpoints; see [compatibility](compatibility.md) for current support and [Getting started](getting-started.md) for use.
+
 ## Instruction Discovery Scope supplement, 2026-10-12
 
 The approved conditional metadata slice adds optional memory-only `instructionScope` evidence to the Explorer snapshot. It retains exact entry checks (purpose, state/type, instruction-file size where ordinary, and target/ancestor obstruction), ordered stored-CWD ancestry with entry references, stopping reason, conditional boundary coverage, observation interval and separate work limits. Effective policy is explicitly unknown; the only interpretation assumes the documented `.git` policy under DOC-005/DOC-006.
