@@ -81,6 +81,10 @@ Article discussions of official documentation, source code, and issue reports ar
 
 **Reconciliation of duplicates:** the founder explicitly confirmed the handoff migration is WIN-017, not a third migration success. Its original [record](windows-2026-10-04.md#win-017), [reconstruction](cwd-migration.md) and limits remain unchanged; only WIN-016 supplies successful bridge removal. Project-removal and internal-record context remains linked to WIN-008/009/014. Later title, existence and Windows failure findings are dated in the current validation record instead of duplicating WIN-012 or the original investigation.
 
+## Separate founder CLI-resumption observation: WIN-022
+
+[WIN-022](cli-resumed-thread-classification.md#win-022), reported 2026-10-16 against accepted baseline `3fdc111777e19c5919a8b5c5f0cc8e3635410511`, records one Desktop-visible Thread with no assignment observed, unknown Surveyor visibility and a Needs review row. The corrected invocation used `--no-daemon resume --all`; creation/resumption history and any CWD transition remain unverified. The implementation trace explains conservative eligibility and separates instruction scope from directory failure. No personal metadata was inspected or private values retained. This adds a coverage limitation, not a new classification or universal CLI behavior, and retires no earlier observation.
+
 ## Separate personal canary evidence: PCAN-001
 
 [PCAN-001](personal-canary-observation.md) records the founder's report on 2026-10-06 of one separately authorized standalone personal canary: three selected files, successful readability/stability checks, confirmed exit, scratch and recovery controls reported removed, exit code 0 and no recovery required. Exact execution time is unknown; intended commit `44453cd` and preceding runtime/Desktop version observations are not attested by the result JSON. The record separately attributes the PowerShell 7.6.6/.NET 10.0.12 synthetic requalification (179 passed/0 skipped explicit; 79 passed/100 skipped ordinary; no failures). No personal identifiers, paths, hashes or contents are retained. This does not reproduce or retire any WIN observation or establish schema compatibility. New qualification requires separate personal consent after synthetic preparation and review.
@@ -311,6 +315,13 @@ The [qualification preparation record](personal-qualification-preparation-valida
 - Documented claim: linked working trees have private administrative directories, a common Git directory, `commondir` metadata and a `worktrees/<id>/gitdir` backlink to the working tree’s `.git` file.
 - Limit: the documentation does not certify the explorer’s subset against all Git layouts, formats or installations, nor establish Codex ownership. The observer does not read repository configuration or invoke Git.
 - Implementation evidence: [discovery regressions](../../test/discovery.test.ts) create authentic main/linked and separate-git-dir fixtures. Reciprocal supported metadata establishes common identity; a nearer unresolved/unsupported marker blocks ancestor fallback. That conservative boundary policy is a design decision, not an official Git validity judgment.
+
+### DOC-026: CLI resumption and directory selection
+
+- Source: official [CLI reference](https://learn.chatgpt.com/docs/cli/reference#codex-resume), reviewed 2026-10-16.
+- Documented claim: resume continues saved sessions; `--all` extends selection beyond the current directory. Current/saved directory choice can depend on configuration or explicit override. `--no-daemon` avoids the shared background server.
+- Limit: current documentation does not identify the founder's installed revision, actual selected session/directory, creation history or Desktop Project serialization.
+- Investigation: [WIN-022](cli-resumed-thread-classification.md#win-022) keeps the corrected invocation separate from creation/CWD evidence. No Codex CLI or App Server command was executed.
 
 ## Recording future evidence: design decision
 

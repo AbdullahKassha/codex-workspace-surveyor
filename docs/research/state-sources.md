@@ -2,6 +2,8 @@
 
 **Current applicability, 2026-10-16:** the founder-supplied accepted baseline `2a12ecf9fa757b6f1a32adec60892620f06acee3` also consumes bounded standard marker/instruction-file metadata for conditional Instruction Discovery Scope explanations. Effective configuration, instruction contents and loading remain unqualified. The 2026-10-10 input assessment and earlier qualification paragraphs below retain their dated limits; their deferred boundary/instruction wording does not describe the delivered metadata-only slice. See [current compatibility](../compatibility.md) and [current usage](../getting-started.md).
 
+**CLI-resumption coverage, 2026-10-16:** [WIN-022](cli-resumed-thread-classification.md#win-022) records a founder-reported Desktop-visible record whose Surveyor membership is `no-assignment-observed` and eligibility remains `unknown`. The reader already accepts `cli` origin as ordinary; index naming, stored CWD and discovery-root containment do not replace assignment or explicit-projectless evidence. The corrected resume invocation establishes neither creation nor a CWD transition. No personal metadata was inspected and no reader/model correction is justified by this report.
+
 ## Implemented inputs and remaining limits, 2026-10-10
 
 The [accepted explorer](explorer-local-read-only-validation.md#accepted-milestone-2026-10-10) reads protected analysis copies of explicitly selected sources. Default filenames are conventions with invocation-only overrides; they do not prove effective Desktop configuration. A compatible shape is not universal authority or freshness.

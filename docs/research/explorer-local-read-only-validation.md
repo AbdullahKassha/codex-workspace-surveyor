@@ -6,6 +6,8 @@
 
 Use [Getting started](../getting-started.md) for present launch and recovery guidance, [compatibility](../compatibility.md) for supported conclusions, and the [roadmap](../roadmap.md#current-position-and-priorities-2026-10-16) for current scope. Live research concluded separately with a [corrected production NO-GO](live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15); none of the historical optional live-research cases is required by this documentation update.
 
+**Later classification investigation, 2026-10-16:** [WIN-022](cli-resumed-thread-classification.md#win-022) starts from the founder-accepted `3fdc111777e19c5919a8b5c5f0cc8e3635410511` baseline, confirmed at local HEAD. One supplied Desktop-visible record with no assignment observed is consistent with conservative unknown eligibility and Needs review. The corrected resume invocation does not establish creation or a CWD transition. The linked record contains the implementation trace, synthetic validation and remaining uncertainties; no personal inspection or runtime correction was required. Earlier checkpoints and residual disclosures remain unchanged.
+
 <a id="instruction-scope-2026-10-12"></a>
 ## Instruction Discovery Scope: conditional metadata first, 2026-10-12
 

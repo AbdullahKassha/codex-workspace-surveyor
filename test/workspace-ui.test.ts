@@ -260,6 +260,23 @@ test('unresolved ordinary records get review rows without component connections;
   action(ui.get('relationships'),'Thread name 3').onclick!();ui.get('workspace').onclick!();assert.equal(ui.get('details').hidden,true);assert.equal(texts(ui.get('details')).includes('Thread name 3'),false);
 });
 
+test('an index-named unassigned ordinary Thread stays reviewable without a missing-folder or instruction-absence claim',async()=>{
+  const t=thread(31,{cwd:'C:\\Synthetic\\profile'}),base=model([t]);
+  const d={...base,instructionScope:{...instructionFixture(t.cwd!),root:t.cwd!+'\\selected',entries:[],cwds:[],qualifyingCwds:0,operations:0}};
+  const ui=await browser(d);assert.equal(ui.groups().length,0);
+  assert.ok(texts(ui.get('relationships')).includes('Needs review'));assert.ok(texts(ui.get('relationships')).includes(t.title!));
+  assert.ok(texts(ui.get('relationships')).includes('Unknown membership'));
+  action(ui.get('relationships'),t.title!).onclick!();
+  assert.ok(texts(ui.get('details')).includes('Project membership is unknown.'));
+  assert.ok(texts(ui.get('details')).includes('Instruction locations were not checked for this record.'));
+  assert.equal(texts(ui.get('details')).some(s=>/Missing folder|No instruction files found|outside the inspection scope/.test(s)),false);
+  action(ui.get('details'),'Inspect evidence').onclick!();
+  expand(instructionChecks(ui.get('relationships')));
+  for(const value of ['unknown','no-assignment-observed','session-index','Record does not qualify for instruction inspection'])
+    assert.ok(texts(ui.get('relationships')).includes(value),value);
+  assert.deepEqual(d.visibility,['unknown']);assert.deepEqual(d.components,[]);
+});
+
 test('selection highlights actual related entities; Escape dismisses Details and restores focus',async()=>{
   const t=thread(1),ui=await browser(model([t],[{id:'p',label:'Atlas',roots:['C:\\Synthetic\\atlas']}],[{threadId:t.id,projectId:'p',projectKind:'local'}]));
   const row=action(ui.get('relationships'),'Thread name 1');assert.equal(ui.get('details').hidden,true);row.onclick!();

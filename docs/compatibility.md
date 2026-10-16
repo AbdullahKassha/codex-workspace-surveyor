@@ -4,11 +4,14 @@
 
 The founder identifies `2a12ecf9fa757b6f1a32adec60892620f06acee3` as the accepted baseline. This supplied acceptance supersedes earlier pending-status wording, not the original tests or evidence limits. The detailed table below retains its dated support checkpoint; later supplements remain part of the record.
 
+The later CLI-resumption investigation starts from founder-accepted baseline `3fdc111777e19c5919a8b5c5f0cc8e3635410511`, independently matched to local HEAD. Earlier acceptance and validation checkpoints below retain their dates and limits.
+
 | Current area | Evidence and remaining limit |
 | --- | --- |
 | Reusable sessions and explicit Refresh | Delivered in the supplied accepted baseline. Relaunch with a successful snapshot preserves its update time; empty sessions still request acquisition unless busy or recovery-blocked. [Phase 2B validation](research/explorer-local-read-only-validation.md#phase-2b-friction-reduction-2026-10-15) separately records 168 focused passes and 501 ordinary passes/256 skips. These are recorded fixture results, not new measurements or personal process-check validation. |
 | Closed-app acquisition and recovery | Still required for each acquisition. Early absent/present/unknown Desktop checks do not replace the helper's source-integrity, disposal and authenticated-cleanup gates. No atomic cross-source snapshot, complete writer proof or secure erasure is certified. |
 | Conditional instruction metadata | Delivered; standard file/marker metadata can support conditional explanations. Effective Desktop configuration, actual instruction selection/loading and historical behavior remain unknown. |
+| Desktop-visible, unassigned ordinary Thread | [WIN-022](research/cli-resumed-thread-classification.md#win-022), reported 2026-10-16: exact-ID index naming and Desktop visibility do not supply explicit Project membership/projectlessness. `unknown` visibility and Needs review remain conservative eligibility outcomes. External discovery scope is separate from missing/inaccessible directories. Actual metadata and creation/resumption history were not re-inspected; no earlier rule is retired. |
 | Live copying | [Corrected production NO-GO](research/live-acquisition-feasibility.md#final-best-effort-feasibility-gate--2026-10-15). An injected stale-but-valid header admits one logically mixed candidate; passing the limitation regression does not repair the test-only protocol. |
 | Distribution and platforms | Native Windows source-checkout preview, Node 24/npm 11/PowerShell 7. No selected license, published package, macOS/WSL/remote certification, export or automatic refresh. |
 

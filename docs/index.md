@@ -33,6 +33,7 @@
 
 Start with the catalog and current Explorer validation when tracing a claim. Preparation documents retain their dated gates; they are not current launch instructions.
 
+- [WIN-022: CLI-resumed Thread classification](research/cli-resumed-thread-classification.md#win-022): one founder-reported Desktop-visible record, conservative membership/eligibility, corrected invocation and separate discovery/instruction scope limits.
 - [Live-acquisition feasibility](research/live-acquisition-feasibility.md): completed research, withdrawn Conditional GO, deterministic limitation reproduction and production NO-GO.
 - [Named-thread / Local Project preparation](research/m3a-explorer-preparation.md): original synthetic profile, browser preparation and residual disclosures.
 - [Personal titled-browser preparation](research/personal-explorer-preparation-validation.md): dated activation preparation and superseding launch corrections.

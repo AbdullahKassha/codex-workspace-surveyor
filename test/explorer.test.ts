@@ -141,6 +141,29 @@ test('Desktop metadata classifies internal/history, corroborated user Threads, c
   },json);
 });
 
+test('CLI-origin metadata and an exact index title do not substitute for assignment or explicit projectlessness',async()=>{
+  const cwd='C:\\Synthetic\\profile',id='00000000-0000-0000-0000-000000000031';
+  const build:Build=db=>{db.exec('CREATE TABLE threads(id TEXT,cwd TEXT,title TEXT,source TEXT,archived INTEGER,project_id TEXT)');
+    db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?)').run(id,cwd,'Stored synthetic title','cli',0,null);};
+  const index=JSON.stringify({id,thread_name:'Synthetic resumed chat',updated_at:'2026-10-16T00:00:00Z'})+'\n';
+  for(const mode of ['unrecorded','matching-root','assigned','projectless','unavailable'] as const){
+    const json={'local-projects':{p:{id:'p',name:'Synthetic Project',rootPaths:[mode==='matching-root'?cwd:cwd+'\\registered']}},
+      'thread-project-assignments':mode==='assigned'?{[id]:{projectKind:'local',projectId:'p'}}:{},
+      'projectless-thread-ids':mode==='projectless'?[id]:[]};
+    await unit(build,r=>{
+      const d=r.snapshot!.take()!,eligible=mode==='assigned'||mode==='projectless';
+      assert.equal(d.threads[0]!.sourceState,'ordinary');assert.equal(d.threads[0]!.archived,false);
+      assert.equal(d.threads[0]!.titleSource,'session-index');assert.equal(d.threads[0]!.title,'Synthetic resumed chat');
+      assert.equal(d.memberships[0],mode==='assigned'?'stored-assignment':mode==='projectless'?'projectless':
+        mode==='unavailable'?'unknown':'no-assignment-observed');
+      assert.equal(d.visibility[0],eligible?'inferred':'unknown');
+      assert.equal(d.components.some(c=>c.threads.includes(0)),eligible);
+      assert.equal(d.relations.some(r=>r.kind==='assigned-project'),mode==='assigned');
+      assert.equal(d.relations.some(r=>r.kind==='matches-exact-root'),mode==='matching-root');
+    },json,mode==='unavailable'?'unavailable':'desktop-v1',index);
+  }
+});
+
 test('unconsumed writable roots and descriptions cannot change entities, relationships or rendered titles',async()=>{
   const id='00000000-0000-0000-0000-000000000001',absent='00000000-0000-0000-0000-000000000002';
   const json={'local-projects':{p:{id:'p',name:'Synthetic Project',rootPaths:['C:\\Synthetic\\source']}},

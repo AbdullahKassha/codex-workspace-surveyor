@@ -146,6 +146,24 @@ test('archived, internal and unknown records add no inspected CWDs',async()=>{
   }finally{f.cleanup();}
 });
 
+test('unassigned ordinary records are ineligible before scope checks; explicit projectlessness outside scope dispatches no reads',async()=>{
+  const root=join(process.cwd(),'synthetic-discovery-scope'),outside=dirname(root);
+  for(const cwd of [root,outside]){
+    const t=thread(cwd,'synthetic-unassigned'),base=reconcile(provenance,coverage,[t],[],[]);
+    let opened=false;
+    const refuseProbe=()=>{opened=true;throw new Error('Unexpected metadata probe');};
+    const unresolved=await observe(base,root,{metadataProbe:refuseProbe});
+    assert.deepEqual(unresolved.cwds,[]);assert.deepEqual(unresolved.entries,[]);assert.equal(unresolved.operations,0);
+    assert.equal(unresolved.qualifyingCwds,0);assert.equal(opened,false);
+    assert.deepEqual(base.memberships,['no-assignment-observed']);assert.deepEqual(base.visibility,['unknown']);
+    if(cwd===outside){
+      const qualified=await observe(data([t]),root,{metadataProbe:refuseProbe});
+      assert.equal(qualified.cwds[0]!.stop,'outside-scope');assert.equal(qualified.qualifyingCwds,1);
+      assert.deepEqual(qualified.entries,[]);assert.equal(qualified.operations,0);assert.equal(opened,false);
+    }
+  }
+});
+
 test('collector opens no content or directory inventories and preserves synthetic source bytes and metadata',async()=>{
   const f=directoryFixture();try{
     f.mkdir(join(f.root,'.git'));const path=join(f.root,'AGENTS.md');fs.writeFileSync(path,'PRIVATE_INSTRUCTION_CONTENT_CANARY');
